@@ -30,10 +30,27 @@ export type Env = z.infer<typeof schema>;
 
 let cached: Env | null = null;
 
+/**
+ * Una variable puesta pero vacia cuenta como no puesta.
+ *
+ * Los paneles de despliegue crean la variable con el nombre y el valor en
+ * blanco cuando no se llena. Sin esto, un `STORAGE_PROVIDER=""` no cae en el
+ * valor por defecto: falla la validacion y tumba todas las paginas.
+ */
+function withoutBlanks(
+  source: NodeJS.ProcessEnv,
+): Record<string, string> {
+  const clean: Record<string, string> = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (value !== undefined && value.trim().length > 0) clean[key] = value;
+  }
+  return clean;
+}
+
 export function env(): Env {
   if (cached) return cached;
 
-  const parsed = schema.safeParse(process.env);
+  const parsed = schema.safeParse(withoutBlanks(process.env));
   if (!parsed.success) {
     const details = parsed.error.issues
       .map((issue) => `  ${issue.path.join(".")}: ${issue.message}`)
