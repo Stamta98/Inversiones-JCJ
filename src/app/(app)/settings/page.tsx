@@ -6,6 +6,7 @@ import {
   CardBody,
   CardHeader,
   Input,
+  LinkButton,
   PageHeader,
   TableWrap,
   Td,
@@ -152,7 +153,16 @@ export default async function SettingsPage() {
 
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
-            <CardHeader title={t("settings.users")} />
+            <CardHeader
+              title={t("settings.users")}
+              action={
+                can(context, "users.read") ? (
+                  <LinkButton href="/settings/users" size="sm" variant="secondary">
+                    {t("common.edit")}
+                  </LinkButton>
+                ) : null
+              }
+            />
             <TableWrap>
               <thead>
                 <tr>

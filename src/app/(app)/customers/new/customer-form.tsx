@@ -16,12 +16,74 @@ import {
 import { LocationField } from "@/components/ui/location-field";
 import { PhotoUpload } from "@/components/ui/photo-upload";
 
+import type { PaydayKind } from "@/core/customers/payday";
+
 import { PaydayFields } from "./payday-fields";
 import { ReferenceFields } from "./reference-fields";
 import { es } from "@/i18n/es";
 import { useFormAction } from "@/lib/use-form-action";
 
-import { createCustomer, type CustomerFormState } from "../actions";
+import {
+  createCustomer,
+  updateCustomer,
+  type CustomerFormState,
+} from "../actions";
+import type { ReferenceValue } from "./reference-fields";
+
+/** Valores actuales del cliente, cuando el formulario se usa para editar. */
+export interface CustomerDefaults {
+  id: string;
+  firstName: string;
+  lastName: string;
+  documentType: string | null;
+  documentNumber: string | null;
+  email: string | null;
+  phone: string | null;
+  mobilePhone: string | null;
+  address: string | null;
+  neighborhood: string | null;
+  landmark: string | null;
+  city: string | null;
+  employmentType: string | null;
+  occupation: string | null;
+  employerName: string | null;
+  workAddress: string | null;
+  workNeighborhood: string | null;
+  workLandmark: string | null;
+  monthlyIncome: number | null;
+  paydayKind: string | null;
+  paydayWeekday: number | null;
+  paydayDayOfMonth: number | null;
+  notes: string | null;
+  photoUrl: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  workLatitude: number | null;
+  workLongitude: number | null;
+  idFrontUrl: string | null;
+  idBackUrl: string | null;
+  references: ReferenceValue[];
+}
+
+/** Una foto ya guardada, en la forma que espera `PhotoUpload`. */
+function storedPhoto(url: string | null | undefined) {
+  return url
+    ? { url, name: "foto", mimeType: "image/jpeg", sizeBytes: 0 }
+    : null;
+}
+
+/** Coordenadas ya guardadas, o null si nunca se capturó la ubicación. */
+function storedPoint(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
+) {
+  return latitude !== null &&
+    latitude !== undefined &&
+    longitude !== null &&
+    longitude !== undefined
+    ? { latitude, longitude }
+    : null;
+}
 
 const EMPLOYMENT_TYPES = ["INDEPENDENT", "EMPLOYEE", "OTHER"] as const;
 
@@ -33,16 +95,31 @@ function SubmitButton({ pending }: { pending: boolean }) {
   );
 }
 
-export function CustomerForm() {
-  const { state, pending, onSubmit } = useFormAction<CustomerFormState>(createCustomer, {});
-  const [employmentType, setEmploymentType] = useState<string>("");
+export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
+  // Un mismo formulario sirve para crear y para editar: la única diferencia es
+  // a qué acción se envía y de dónde salen los valores iniciales.
+  const editando = customer !== undefined;
+  const { state, pending, onSubmit } = useFormAction<CustomerFormState>(
+    editando ? updateCustomer : createCustomer,
+    {},
+  );
+  const [employmentType, setEmploymentType] = useState<string>(
+    customer?.employmentType ?? "",
+  );
   const fieldError = (name: string) => state.fieldErrors?.[name];
+  /** Los campos de texto no aceptan null, y en creación no hay valor previo. */
+  const v = (value: string | number | null | undefined) =>
+    value === null || value === undefined ? "" : String(value);
 
   // The employer only makes sense for someone on a payroll.
   const isEmployee = employmentType === "EMPLOYEE";
 
   return (
     <form onSubmit={onSubmit} className="max-w-4xl space-y-4">
+      {editando ? (
+        <input type="hidden" name="customerId" value={customer.id} />
+      ) : null}
+
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
 
       <Card>
@@ -54,7 +131,8 @@ export function CustomerForm() {
               label={es.customers.photo}
               hint={es.customers.photoHint}
               shape="avatar"
-              required
+              required={!editando}
+              defaultValue={storedPhoto(customer?.photoUrl)}
             />
           </div>
           <Field
@@ -63,7 +141,8 @@ export function CustomerForm() {
             required
             error={fieldError("firstName")}
           >
-            <Input id="firstName" name="firstName" required autoFocus />
+            <Input id="firstName" name="firstName"
+              defaultValue={v(customer?.firstName)} required autoFocus />
           </Field>
           <Field
             label={es.customers.lastName}
@@ -71,15 +150,18 @@ export function CustomerForm() {
             required
             error={fieldError("lastName")}
           >
-            <Input id="lastName" name="lastName" required />
+            <Input id="lastName" name="lastName"
+              defaultValue={v(customer?.lastName)} required />
           </Field>
           <Field label={es.customers.documentType} htmlFor="documentType">
-            <Input id="documentType" name="documentType" placeholder="Cédula" />
+            <Input id="documentType" name="documentType"
+              defaultValue={v(customer?.documentType)} placeholder="Cédula" />
           </Field>
           <Field label={es.customers.documentNumber} htmlFor="documentNumber">
             <Input
               id="documentNumber"
               name="documentNumber"
+              defaultValue={v(customer?.documentNumber)}
               inputMode="numeric"
             />
           </Field>
@@ -97,12 +179,14 @@ export function CustomerForm() {
             <Input
               id="mobilePhone"
               name="mobilePhone"
+              defaultValue={v(customer?.mobilePhone)}
               type="tel"
               inputMode="tel"
             />
           </Field>
           <Field label={es.customers.phone} htmlFor="phone">
-            <Input id="phone" name="phone" type="tel" inputMode="tel" />
+            <Input id="phone" name="phone"
+              defaultValue={v(customer?.phone)} type="tel" inputMode="tel" />
           </Field>
           <div className="sm:col-span-2">
             <Field
@@ -113,6 +197,7 @@ export function CustomerForm() {
               <Input
                 id="email"
                 name="email"
+              defaultValue={v(customer?.email)}
                 type="email"
                 autoCapitalize="none"
               />
@@ -129,6 +214,7 @@ export function CustomerForm() {
               <Input
                 id="address"
                 name="address"
+              defaultValue={v(customer?.address)}
                 placeholder="Calle y número"
               />
             </Field>
@@ -138,10 +224,12 @@ export function CustomerForm() {
             htmlFor="neighborhood"
             hint="Ayuda al cobrador a ubicar al cliente."
           >
-            <Input id="neighborhood" name="neighborhood" />
+            <Input id="neighborhood" name="neighborhood"
+              defaultValue={v(customer?.neighborhood)} />
           </Field>
           <Field label={es.customers.city} htmlFor="city">
-            <Input id="city" name="city" />
+            <Input id="city" name="city"
+              defaultValue={v(customer?.city)} />
           </Field>
           <div className="sm:col-span-2">
             <Field
@@ -149,11 +237,16 @@ export function CustomerForm() {
               htmlFor="landmark"
               hint={es.customers.landmarkHint}
             >
-              <Input id="landmark" name="landmark" />
+              <Input id="landmark" name="landmark"
+              defaultValue={v(customer?.landmark)} />
             </Field>
           </div>
           <div className="sm:col-span-2">
-            <LocationField name="home" label={es.customers.locationHome} />
+            <LocationField
+              name="home"
+              label={es.customers.locationHome}
+              defaultValue={storedPoint(customer?.latitude, customer?.longitude)}
+            />
           </div>
         </CardBody>
       </Card>
@@ -181,6 +274,7 @@ export function CustomerForm() {
             <Input
               id="occupation"
               name="occupation"
+              defaultValue={v(customer?.occupation)}
               placeholder="Comerciante, chofer, estilista…"
             />
           </Field>
@@ -188,14 +282,16 @@ export function CustomerForm() {
           {isEmployee ? (
             <div className="sm:col-span-2">
               <Field label={es.customers.employerName} htmlFor="employerName">
-                <Input id="employerName" name="employerName" />
+                <Input id="employerName" name="employerName"
+              defaultValue={v(customer?.employerName)} />
               </Field>
             </div>
           ) : null}
 
           <div className="sm:col-span-2">
             <Field label={es.customers.workAddress} htmlFor="workAddress">
-              <Input id="workAddress" name="workAddress" />
+              <Input id="workAddress" name="workAddress"
+              defaultValue={v(customer?.workAddress)} />
             </Field>
           </div>
 
@@ -203,13 +299,15 @@ export function CustomerForm() {
             label={es.customers.workNeighborhood}
             htmlFor="workNeighborhood"
           >
-            <Input id="workNeighborhood" name="workNeighborhood" />
+            <Input id="workNeighborhood" name="workNeighborhood"
+              defaultValue={v(customer?.workNeighborhood)} />
           </Field>
 
           <Field label={es.customers.monthlyIncome} htmlFor="monthlyIncome">
             <Input
               id="monthlyIncome"
               name="monthlyIncome"
+              defaultValue={customer?.monthlyIncome ?? ""}
               inputMode="decimal"
               type="number"
               step="0.01"
@@ -223,11 +321,19 @@ export function CustomerForm() {
               htmlFor="workLandmark"
               hint={es.customers.landmarkHint}
             >
-              <Input id="workLandmark" name="workLandmark" />
+              <Input id="workLandmark" name="workLandmark"
+              defaultValue={v(customer?.workLandmark)} />
             </Field>
           </div>
           <div className="sm:col-span-2">
-            <LocationField name="work" label={es.customers.locationWork} />
+            <LocationField
+              name="work"
+              label={es.customers.locationWork}
+              defaultValue={storedPoint(
+                customer?.workLatitude,
+                customer?.workLongitude,
+              )}
+            />
           </div>
         </CardBody>
       </Card>
@@ -238,7 +344,11 @@ export function CustomerForm() {
           description={es.customers.paydayHint}
         />
         <CardBody>
-          <PaydayFields />
+          <PaydayFields
+            defaultKind={(customer?.paydayKind ?? "") as PaydayKind | ""}
+            defaultWeekday={customer?.paydayWeekday}
+            defaultDayOfMonth={customer?.paydayDayOfMonth}
+          />
         </CardBody>
       </Card>
 
@@ -248,7 +358,7 @@ export function CustomerForm() {
           description={es.customers.referencesHint}
         />
         <CardBody>
-          <ReferenceFields />
+          <ReferenceFields defaultValues={customer?.references ?? []} />
         </CardBody>
       </Card>
 
@@ -258,8 +368,16 @@ export function CustomerForm() {
           description={es.customers.documentsHint}
         />
         <CardBody className="grid gap-4 sm:grid-cols-2">
-          <PhotoUpload name="idFrontUrl" label={es.customers.idFront} />
-          <PhotoUpload name="idBackUrl" label={es.customers.idBack} />
+          <PhotoUpload
+            name="idFrontUrl"
+            label={es.customers.idFront}
+            defaultValue={storedPhoto(customer?.idFrontUrl)}
+          />
+          <PhotoUpload
+            name="idBackUrl"
+            label={es.customers.idBack}
+            defaultValue={storedPhoto(customer?.idBackUrl)}
+          />
         </CardBody>
       </Card>
 
@@ -267,7 +385,7 @@ export function CustomerForm() {
         <CardHeader title={es.common.notes} />
         <CardBody>
           <Field label={es.common.notes} htmlFor="notes">
-            <Textarea id="notes" name="notes" />
+            <Textarea id="notes" name="notes" defaultValue={v(customer?.notes)} />
           </Field>
         </CardBody>
       </Card>

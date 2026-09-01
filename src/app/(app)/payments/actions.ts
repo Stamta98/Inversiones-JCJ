@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { t } from "@/i18n";
 import { requirePermission } from "@/server/auth/context";
+import { db } from "@/server/db";
 import {
   PaymentError,
   postPayment,
@@ -80,8 +81,17 @@ export async function reversePaymentAction(formData: FormData): Promise<void> {
   const paymentId = String(formData.get("paymentId") ?? "");
   const reason = String(formData.get("reason") ?? "") || undefined;
 
-  await reversePayment(paymentId, { reason, userId: context.userId });
+  // El id llega del formulario: hay que confirmar que el cobro es de esta
+  // empresa antes de tocarlo.
+  const payment = await db.payment.findFirst({
+    where: { id: paymentId, loan: { companyId: context.companyId } },
+    select: { id: true, loanId: true },
+  });
+  if (!payment) return;
 
+  await reversePayment(payment.id, { reason, userId: context.userId });
+
+  revalidatePath(`/loans/${payment.loanId}`);
   revalidatePath("/payments");
   revalidatePath("/dashboard");
 }

@@ -69,7 +69,7 @@ export function Sidebar({
 
       <div className="border-t border-border p-3">
         <Link
-          href="/settings"
+          href="/profile"
           onClick={onNavigate}
           className="flex items-center gap-2.5 rounded-lg p-2 hover:bg-surface-muted"
         >

@@ -8,6 +8,11 @@
 import type { Prisma } from "@prisma/client";
 
 import { summarizeArrears, type LateFeePolicy } from "@/core/loans/arrears";
+import {
+  canCancel,
+  canEditAtAll,
+  canEditTerms,
+} from "@/core/loans/editable";
 import { buildSchedule, type Schedule } from "@/core/loans/schedule";
 import { fromCents, toCents } from "@/core/money";
 import type {
@@ -146,6 +151,155 @@ export async function createLoan(input: CreateLoanInput): Promise<string> {
       return loan.id;
     }),
   );
+}
+
+export class LoanServiceError extends Error {
+  constructor(
+    message: string,
+    readonly code: "notFound" | "termsLocked" | "closed" | "cannotCancel",
+  ) {
+    super(message);
+    this.name = "LoanServiceError";
+  }
+}
+
+export interface UpdateLoanInput {
+  companyId: string;
+  loanId: string;
+  notes?: string | null;
+  branchId?: string | null;
+  /** Only accepted while the loan is still a draft; see `core/loans/editable`. */
+  terms?: Pick<
+    CreateLoanInput,
+    | "principal"
+    | "interestRate"
+    | "interestMethod"
+    | "frequency"
+    | "customIntervalDays"
+    | "nonCollectionDays"
+    | "termCount"
+    | "firstDueDate"
+    | "lateFeeMode"
+    | "lateFeeValue"
+    | "gracePeriodDays"
+  >;
+  updatedById?: string | null;
+}
+
+/**
+ * Edits a loan.
+ *
+ * The notes travel freely, but the terms only while the loan is a draft: past
+ * that point the installments carry payments, and rewriting them would change
+ * what the customer already owed. `core/loans/editable` holds that rule and
+ * this function enforces it again server-side, since the UI can be bypassed.
+ */
+export async function updateLoan(input: UpdateLoanInput): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const loan = await tx.loan.findFirst({
+      where: { id: input.loanId, companyId: input.companyId },
+    });
+    if (!loan) throw new LoanServiceError("Loan not found", "notFound");
+    if (!canEditAtAll(loan.status)) {
+      throw new LoanServiceError("Loan is closed", "closed");
+    }
+
+    if (input.terms && !canEditTerms(loan.status)) {
+      throw new LoanServiceError("Terms are locked", "termsLocked");
+    }
+
+    const schedule = input.terms ? previewSchedule(input.terms) : null;
+
+    await tx.loan.update({
+      where: { id: loan.id },
+      data: {
+        ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        ...(input.branchId !== undefined ? { branchId: input.branchId } : {}),
+        ...(input.terms && schedule
+          ? {
+              principal: input.terms.principal,
+              interestRate: input.terms.interestRate,
+              interestMethod: input.terms.interestMethod,
+              frequency: input.terms.frequency,
+              customIntervalDays: input.terms.customIntervalDays ?? null,
+              nonCollectionDays: input.terms.nonCollectionDays ?? [],
+              termCount: schedule.installments.length,
+              firstDueDate: input.terms.firstDueDate,
+              lateFeeMode: input.terms.lateFeeMode ?? "NONE",
+              lateFeeValue: input.terms.lateFeeValue ?? 0,
+              gracePeriodDays: input.terms.gracePeriodDays ?? 0,
+              totalPrincipal: fromCents(schedule.totalPrincipalCents),
+              totalInterest: fromCents(schedule.totalInterestCents),
+              outstanding: fromCents(schedule.totalToPayCents),
+            }
+          : {}),
+      },
+    });
+
+    if (schedule) {
+      // A draft has no payments allocated, so the old schedule can simply go.
+      await tx.loanInstallment.deleteMany({ where: { loanId: loan.id } });
+      await tx.loanInstallment.createMany({
+        data: schedule.installments.map((installment) => ({
+          loanId: loan.id,
+          number: installment.number,
+          dueDate: installment.dueDate,
+          principalAmount: fromCents(installment.principalCents),
+          interestAmount: fromCents(installment.interestCents),
+          totalAmount: fromCents(installment.totalCents),
+          balanceAfter: fromCents(installment.balanceAfterCents),
+        })),
+      });
+    }
+
+    await tx.auditLog.create({
+      data: {
+        companyId: input.companyId,
+        userId: input.updatedById ?? null,
+        action: "loan.updated",
+        entityType: "Loan",
+        entityId: loan.id,
+        metadata: { code: loan.code, termsChanged: schedule !== null },
+      },
+    });
+  });
+}
+
+/**
+ * Cancels a loan. Nothing is deleted: the record and its schedule stay, so the
+ * history of what was agreed and what was collected remains readable.
+ */
+export async function cancelLoan(input: {
+  companyId: string;
+  loanId: string;
+  reason?: string | null;
+  cancelledById?: string | null;
+}): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const loan = await tx.loan.findFirst({
+      where: { id: input.loanId, companyId: input.companyId },
+    });
+    if (!loan) throw new LoanServiceError("Loan not found", "notFound");
+    if (!canCancel(loan.status)) {
+      throw new LoanServiceError("Loan cannot be cancelled", "cannotCancel");
+    }
+
+    await tx.loan.update({
+      where: { id: loan.id },
+      data: { status: "CANCELLED", closingDate: new Date() },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        companyId: input.companyId,
+        userId: input.cancelledById ?? null,
+        action: "loan.cancelled",
+        entityType: "Loan",
+        entityId: loan.id,
+        metadata: { code: loan.code, reason: input.reason ?? null },
+      },
+    });
+  });
 }
 
 async function recordDisbursement(

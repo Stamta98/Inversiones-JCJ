@@ -35,12 +35,39 @@ import { es } from "@/i18n/es";
 import { useFormAction } from "@/lib/use-form-action";
 import { formatCurrency, formatDate } from "@/lib/format";
 
-import { createLoanAction, type LoanFormState } from "../actions";
+import {
+  createLoanAction,
+  updateLoanAction,
+  type LoanFormState,
+} from "../actions";
 
 export interface CustomerOption {
   id: string;
   label: string;
   payday: Payday;
+}
+
+/**
+ * Terms of an existing loan, when the form is used to edit one. Only reached
+ * for a loan still in draft: `core/loans/editable` decides that, and the
+ * server enforces it again.
+ */
+export interface LoanDefaults {
+  id: string;
+  customerId: string;
+  principal: number;
+  interestRate: number;
+  interestMethod: InterestMethod;
+  frequency: PaymentFrequency;
+  customIntervalDays: number | null;
+  nonCollectionDays: number[];
+  termCount: number;
+  /** ISO date, `YYYY-MM-DD`. */
+  firstDueDate: string;
+  lateFeeMode: LateFeeMode;
+  lateFeeValue: number;
+  gracePeriodDays: number;
+  notes: string | null;
 }
 
 export interface CashBoxOption {
@@ -65,24 +92,51 @@ export function LoanForm({
   cashBoxes,
   currencyCode,
   defaultCustomerId,
+  loan,
 }: {
   customers: CustomerOption[];
   cashBoxes: CashBoxOption[];
   currencyCode: string;
   defaultCustomerId?: string;
+  /** Present when editing an existing draft instead of creating a loan. */
+  loan?: LoanDefaults;
 }) {
-  const { state, pending, onSubmit } = useFormAction<LoanFormState>(createLoanAction, {});
+  const editando = loan !== undefined;
+  const { state, pending, onSubmit } = useFormAction<LoanFormState>(
+    editando ? updateLoanAction : createLoanAction,
+    {},
+  );
 
-  const [principal, setPrincipal] = useState("10000");
-  const [interestRate, setInterestRate] = useState("10");
-  const [interestMethod, setInterestMethod] = useState<InterestMethod>("FLAT");
-  const [frequency, setFrequency] = useState<PaymentFrequency>("MONTHLY");
-  const [termCount, setTermCount] = useState("12");
-  const [firstDueDate, setFirstDueDate] = useState(todayIso());
-  const [customerId, setCustomerId] = useState(defaultCustomerId ?? "");
-  const [customIntervalDays, setCustomIntervalDays] = useState("10");
-  const [nonCollectionDays, setNonCollectionDays] = useState<number[]>([]);
-  const [lateFeeMode, setLateFeeMode] = useState<LateFeeMode>("NONE");
+  const [principal, setPrincipal] = useState(
+    loan ? String(loan.principal) : "10000",
+  );
+  const [interestRate, setInterestRate] = useState(
+    loan ? String(loan.interestRate) : "10",
+  );
+  const [interestMethod, setInterestMethod] = useState<InterestMethod>(
+    loan?.interestMethod ?? "FLAT",
+  );
+  const [frequency, setFrequency] = useState<PaymentFrequency>(
+    loan?.frequency ?? "MONTHLY",
+  );
+  const [termCount, setTermCount] = useState(
+    loan ? String(loan.termCount) : "12",
+  );
+  const [firstDueDate, setFirstDueDate] = useState(
+    loan?.firstDueDate ?? todayIso(),
+  );
+  const [customerId, setCustomerId] = useState(
+    loan?.customerId ?? defaultCustomerId ?? "",
+  );
+  const [customIntervalDays, setCustomIntervalDays] = useState(
+    loan?.customIntervalDays ? String(loan.customIntervalDays) : "10",
+  );
+  const [nonCollectionDays, setNonCollectionDays] = useState<number[]>(
+    loan?.nonCollectionDays ?? [],
+  );
+  const [lateFeeMode, setLateFeeMode] = useState<LateFeeMode>(
+    loan?.lateFeeMode ?? "NONE",
+  );
 
   const toggleNonCollectionDay = (day: number) =>
     setNonCollectionDays((current) =>
@@ -150,11 +204,12 @@ export function LoanForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      {editando ? <input type="hidden" name="loanId" value={loan.id} /> : null}
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title={es.loans.new} />
+          <CardHeader title={editando ? es.loans.edit : es.loans.new} />
           <CardBody className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Field label={es.loans.customer} htmlFor="customerId" required>
@@ -164,6 +219,9 @@ export function LoanForm({
                   value={customerId}
                   onChange={(event) => setCustomerId(event.target.value)}
                   required
+                  // Un préstamo no cambia de dueño; para eso se anula y se
+                  // crea otro a nombre del cliente correcto.
+                  disabled={editando}
                 >
                   <option value="" disabled>
                     {es.common.selectOne}
@@ -373,7 +431,7 @@ export function LoanForm({
                     inputMode="decimal"
                     step="0.01"
                     min="0"
-                    defaultValue="0"
+                    defaultValue={String(loan?.lateFeeValue ?? 0)}
                   />
                 </Field>
                 <Field
@@ -387,7 +445,7 @@ export function LoanForm({
                     inputMode="numeric"
                     step="1"
                     min="0"
-                    defaultValue="0"
+                    defaultValue={String(loan?.gracePeriodDays ?? 0)}
                   />
                 </Field>
               </>
@@ -398,7 +456,8 @@ export function LoanForm({
               </>
             )}
 
-            {cashBoxes.length > 0 ? (
+            {/* El desembolso se hace desde la ficha del préstamo, no al editarlo. */}
+            {!editando && cashBoxes.length > 0 ? (
               <div className="sm:col-span-2 space-y-3">
                 <Field label={es.payments.cashBox} htmlFor="cashBoxId">
                   <Select id="cashBoxId" name="cashBoxId" defaultValue="">
@@ -423,7 +482,7 @@ export function LoanForm({
 
             <div className="sm:col-span-2">
               <Field label={es.common.notes} htmlFor="notes">
-                <Textarea id="notes" name="notes" />
+                <Textarea id="notes" name="notes" defaultValue={loan?.notes ?? ""} />
               </Field>
             </div>
           </CardBody>

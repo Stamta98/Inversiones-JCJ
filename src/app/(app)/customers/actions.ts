@@ -246,3 +246,130 @@ export async function createCustomer(
   revalidatePath("/customers");
   redirect(`/customers/${customerId}`);
 }
+
+const updateSchema = customerSchema.omit({ photoUrl: true }).extend({
+  customerId: z.string().min(1),
+  /** Vacío significa conservar la foto actual. */
+  photoUrl: storedFileUrl.optional().default(""),
+});
+
+export async function updateCustomer(
+  _previous: CustomerFormState,
+  formData: FormData,
+): Promise<CustomerFormState> {
+  const context = await requirePermission("customers.update");
+  const parsed = updateSchema.safeParse(readForm(formData));
+
+  if (!parsed.success) {
+    const fieldErrors = Object.fromEntries(
+      parsed.error.issues.map((issue) => [issue.path.join("."), issue.message]),
+    );
+    return { error: t("common.error"), fieldErrors };
+  }
+
+  const data = parsed.data;
+  const references = readReferences(formData);
+
+  const existing = await db.customer.findFirst({
+    where: { id: data.customerId, companyId: context.companyId },
+    select: { id: true },
+  });
+  if (!existing) return { error: t("common.error") };
+
+  await db.$transaction(async (tx) => {
+    await tx.customer.update({
+      where: { id: data.customerId },
+      data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        documentType: data.documentType,
+        documentNumber: data.documentNumber,
+        email: data.email,
+        phone: data.phone,
+        mobilePhone: data.mobilePhone
+          ? (normalizePhoneNumber(data.mobilePhone, {
+              defaultCountryCode: "1",
+            }) ?? data.mobilePhone)
+          : null,
+        address: data.address,
+        neighborhood: data.neighborhood,
+        landmark: data.landmark,
+        city: data.city,
+        employmentType: data.employmentType,
+        occupation: data.occupation,
+        employerName: data.employerName,
+        workAddress: data.workAddress,
+        workNeighborhood: data.workNeighborhood,
+        workLandmark: data.workLandmark,
+        paydayKind: data.paydayKind,
+        paydayWeekday: data.paydayWeekday,
+        paydayDayOfMonth: data.paydayDayOfMonth,
+        monthlyIncome: data.monthlyIncome,
+        notes: data.notes,
+        // Solo se pisan si el usuario capturó valores nuevos.
+        ...(data.photoUrl ? { photoUrl: data.photoUrl } : {}),
+        ...(data.homeLatitude !== null
+          ? { latitude: data.homeLatitude, longitude: data.homeLongitude }
+          : {}),
+        ...(data.workLatitude !== null
+          ? { workLatitude: data.workLatitude, workLongitude: data.workLongitude }
+          : {}),
+      },
+    });
+
+    // Las fotos del documento se reemplazan solo si se subió una nueva: el
+    // formulario reenvía la URL actual cuando no se tocaron.
+    for (const document of [
+      { kind: "ID_FRONT" as const, url: data.idFrontUrl, name: "Documento (frente)" },
+      { kind: "ID_BACK" as const, url: data.idBackUrl, name: "Documento (reverso)" },
+    ]) {
+      if (document.url.length === 0) continue;
+
+      const current = await tx.attachment.findFirst({
+        where: { customerId: data.customerId, kind: document.kind },
+      });
+      if (current?.url === document.url) continue;
+
+      if (current) {
+        await tx.attachment.delete({ where: { id: current.id } });
+      }
+      await tx.attachment.create({
+        data: {
+          customerId: data.customerId,
+          kind: document.kind,
+          name: document.name,
+          url: document.url,
+          mimeType: "image/jpeg",
+        },
+      });
+    }
+
+    // Las referencias se reemplazan completas: es lo que el formulario envía.
+    await tx.customerReference.deleteMany({
+      where: { customerId: data.customerId },
+    });
+    if (references.length > 0) {
+      await tx.customerReference.createMany({
+        data: references.map((reference) => ({
+          ...reference,
+          customerId: data.customerId,
+        })),
+      });
+    }
+
+    await tx.auditLog.create({
+      data: {
+        companyId: context.companyId,
+        userId: context.userId,
+        action: "customer.updated",
+        entityType: "Customer",
+        entityId: data.customerId,
+        metadata: {},
+      },
+    });
+  });
+
+  revalidatePath(`/customers/${data.customerId}`);
+  revalidatePath("/customers");
+  redirect(`/customers/${data.customerId}`);
+}

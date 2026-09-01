@@ -15,8 +15,16 @@ import { es } from "@/i18n/es";
 /** Days of the month people are actually paid on. */
 const DAYS_OF_MONTH = Array.from({ length: 31 }, (_, index) => index + 1);
 
-export function PaydayFields() {
-  const [kind, setKind] = useState<PaydayKind | "">("");
+export function PaydayFields({
+  defaultKind = "",
+  defaultWeekday,
+  defaultDayOfMonth,
+}: {
+  defaultKind?: PaydayKind | "";
+  defaultWeekday?: number | null;
+  defaultDayOfMonth?: number | null;
+}) {
+  const [kind, setKind] = useState<PaydayKind | "">(defaultKind);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -38,7 +46,11 @@ export function PaydayFields() {
 
       {needsWeekday(kind || null) ? (
         <Field label={es.customers.paydayWeekday} htmlFor="paydayWeekday">
-          <Select id="paydayWeekday" name="paydayWeekday" defaultValue="5">
+          <Select
+            id="paydayWeekday"
+            name="paydayWeekday"
+            defaultValue={String(defaultWeekday ?? 5)}
+          >
             {WEEKDAYS.map((day) => (
               <option key={day} value={day}>
                 {es.loans.weekday[String(day) as "0"]}
@@ -53,7 +65,7 @@ export function PaydayFields() {
           <Select
             id="paydayDayOfMonth"
             name="paydayDayOfMonth"
-            defaultValue="30"
+            defaultValue={String(defaultDayOfMonth ?? 30)}
           >
             {DAYS_OF_MONTH.map((day) => (
               <option key={day} value={day}>

@@ -12,8 +12,10 @@ import {
 } from "@/components/ui";
 import { startOfDay } from "@/core/dates";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { requirePermission } from "@/server/auth/context";
+import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
+
+import { ReversePaymentButton } from "./reverse-payment-button";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +43,7 @@ export default async function PaymentsPage() {
 
   const { t, currencyCode } = context;
   const money = (value: number) => formatCurrency(value, currencyCode);
+  const canReverse = can(context, "payments.delete");
 
   return (
     <>
@@ -78,6 +81,7 @@ export default async function PaymentsPage() {
                 <Th>{t("payments.method")}</Th>
                 <Th align="right">{t("common.amount")}</Th>
                 <Th align="center">{t("common.status")}</Th>
+                {canReverse ? <Th align="right">{""}</Th> : null}
               </tr>
             </thead>
             <tbody>
@@ -108,6 +112,13 @@ export default async function PaymentsPage() {
                       {t(`payments.statusLabel.${payment.status}`)}
                     </Badge>
                   </Td>
+                  {canReverse ? (
+                    <Td align="right">
+                      {payment.status === "REVERSED" ? null : (
+                        <ReversePaymentButton paymentId={payment.id} />
+                      )}
+                    </Td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

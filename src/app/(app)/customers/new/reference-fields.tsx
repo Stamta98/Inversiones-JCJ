@@ -15,8 +15,21 @@ const MAX_ROWS = 5;
  * Each field is submitted as a repeated name, so the action reads them with
  * `formData.getAll(...)` and zips the columns back into rows.
  */
-export function ReferenceFields() {
-  const [rows, setRows] = useState(INITIAL_ROWS);
+export interface ReferenceValue {
+  fullName: string;
+  relationship: string | null;
+  phone: string | null;
+  address: string | null;
+}
+
+export function ReferenceFields({
+  defaultValues = [],
+}: {
+  defaultValues?: ReferenceValue[];
+}) {
+  const [rows, setRows] = useState(
+    Math.max(INITIAL_ROWS, defaultValues.length),
+  );
 
   return (
     <div className="space-y-4">
@@ -29,7 +42,11 @@ export function ReferenceFields() {
             label={`${es.customers.referenceName} ${index + 1}`}
             htmlFor={`referenceName-${index}`}
           >
-            <Input id={`referenceName-${index}`} name="referenceName" />
+            <Input
+              id={`referenceName-${index}`}
+              name="referenceName"
+              defaultValue={defaultValues[index]?.fullName ?? ""}
+            />
           </Field>
           <Field
             label={es.customers.referenceRelationship}
@@ -39,6 +56,7 @@ export function ReferenceFields() {
               id={`referenceRelationship-${index}`}
               name="referenceRelationship"
               placeholder="Hermana, vecino, compadre…"
+              defaultValue={defaultValues[index]?.relationship ?? ""}
             />
           </Field>
           <Field
@@ -50,13 +68,18 @@ export function ReferenceFields() {
               name="referencePhone"
               type="tel"
               inputMode="tel"
+              defaultValue={defaultValues[index]?.phone ?? ""}
             />
           </Field>
           <Field
             label={es.customers.referenceAddress}
             htmlFor={`referenceAddress-${index}`}
           >
-            <Input id={`referenceAddress-${index}`} name="referenceAddress" />
+            <Input
+              id={`referenceAddress-${index}`}
+              name="referenceAddress"
+              defaultValue={defaultValues[index]?.address ?? ""}
+            />
           </Field>
         </div>
       ))}

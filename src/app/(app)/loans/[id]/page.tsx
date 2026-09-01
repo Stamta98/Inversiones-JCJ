@@ -8,6 +8,7 @@ import {
   Card,
   CardBody,
   CardHeader,
+  LinkButton,
   PageHeader,
   Select,
   StatCard,
@@ -16,10 +17,13 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
+import { canEditAtAll } from "@/core/loans/editable";
+import type { LoanStatus } from "@/core/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
+import { ReversePaymentButton } from "../../payments/reverse-payment-button";
 import { disburseLoanAction } from "../actions";
 import { PaymentForm } from "./payment-form";
 
@@ -87,6 +91,7 @@ export default async function LoanDetailPage({
   const canCollect =
     can(context, "payments.create") &&
     ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status);
+  const canReverse = can(context, "payments.delete");
 
   return (
     <>
@@ -94,9 +99,22 @@ export default async function LoanDetailPage({
         title={`${t("loans.singular")} ${loan.code}`}
         description={`${loan.customer.firstName} ${loan.customer.lastName}`}
         action={
-          <Badge tone={LOAN_TONES[loan.status] ?? "neutral"}>
-            {t(`loans.status.${loan.status}`)}
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={LOAN_TONES[loan.status] ?? "neutral"}>
+              {t(`loans.status.${loan.status}`)}
+            </Badge>
+            {can(context, "loans.update") &&
+            canEditAtAll(loan.status as LoanStatus) ? (
+              <LinkButton
+                href={`/loans/${loan.id}/edit`}
+                variant="secondary"
+                size="sm"
+                icon="pencil"
+              >
+                {t("common.edit")}
+              </LinkButton>
+            ) : null}
+          </div>
         }
       />
 
@@ -290,6 +308,7 @@ export default async function LoanDetailPage({
                     <Th>{t("payments.method")}</Th>
                     <Th align="right">{t("common.amount")}</Th>
                     <Th align="center">{t("common.status")}</Th>
+                    {canReverse ? <Th align="right">{""}</Th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -310,6 +329,13 @@ export default async function LoanDetailPage({
                           {t(`payments.statusLabel.${payment.status}`)}
                         </Badge>
                       </Td>
+                      {canReverse ? (
+                        <Td align="right">
+                          {payment.status === "REVERSED" ? null : (
+                            <ReversePaymentButton paymentId={payment.id} />
+                          )}
+                        </Td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>

@@ -78,6 +78,19 @@ export const es = {
     deleteWarning: "Esta acción no se puede deshacer.",
   },
 
+  profile: {
+    title: "Mi perfil",
+    changePassword: "Cambiar mi contraseña",
+    changePasswordHint:
+      "Al cambiarla se cierran tus sesiones en los demás dispositivos.",
+    currentPassword: "Contraseña actual",
+    newPassword: "Contraseña nueva",
+    repeatPassword: "Repetir la contraseña nueva",
+    passwordChanged: "Listo, tu contraseña quedó cambiada.",
+    defaultPasswordWarning:
+      "Estás usando la contraseña que trae el sistema de fábrica. Cámbiala ahora: está publicada en la documentación y cualquiera podría entrar.",
+  },
+
   auth: {
     signIn: "Iniciar sesión",
     signInSubtitle: "Entra con tu cuenta para continuar",
@@ -98,6 +111,7 @@ export const es = {
     more: "Más",
     quickActions: "Acciones rápidas",
     profile: "Mi perfil",
+    signOut: "Cerrar sesión",
     company: "Empresa",
     branch: "Sucursal",
   },
@@ -276,6 +290,7 @@ export const es = {
     idFront: "Documento (frente)",
     idBack: "Documento (reverso)",
     noPhoto: "Sin foto",
+    saved: "Los cambios quedaron guardados.",
     emptyTitle: "Todavía no hay clientes",
     emptyHint: "Registra tu primer cliente para poder crear préstamos.",
     blacklistWarning:
@@ -395,6 +410,11 @@ export const es = {
       OVERDUE: "Vencida",
       WAIVED: "Condonada",
     },
+    editLockedDisbursed:
+      "Este préstamo ya fue desembolsado: el monto, la tasa y las cuotas no se pueden cambiar porque los cobros ya se aplicaron contra ellas. Si hay un error, anula el préstamo y crea uno nuevo.",
+    editLockedClosed: "Este préstamo está cerrado y no se puede modificar.",
+    cancelConfirm:
+      "Al anular el préstamo se cierra y deja de cobrarse. Los cobros ya registrados quedan como están.",
     emptyTitle: "Todavía no hay préstamos",
     emptyHint: "Crea el primer préstamo para empezar a cobrar.",
     errors: {
@@ -408,7 +428,17 @@ export const es = {
         "Tiene que quedar al menos un día de la semana para cobrar.",
       firstDueDate: "La fecha de la primera cuota no es válida.",
       customerRequired: "Debes seleccionar un cliente.",
+      notFound: "No se encontró el préstamo.",
+      termsLocked:
+        "Este préstamo ya no está en borrador: solo se pueden cambiar las notas.",
+      closed: "Este préstamo está cerrado y no se puede modificar.",
+      cannotCancel:
+        "Este préstamo no se puede anular: ya está saldado, anulado o dado por incobrable.",
     },
+    cancelReason: "Motivo de la anulación",
+    cancelled: "Préstamo anulado.",
+    editNotesOnly: "Notas del préstamo",
+    saved: "Préstamo actualizado.",
   },
 
   payments: {
@@ -428,6 +458,9 @@ export const es = {
       "El pago se aplica a la cuota más antigua: primero mora, luego interés y por último capital.",
     unapplied: "Sobrante a favor",
     reverse: "Anular cobro",
+    reverseConfirm:
+      "Se devuelve el monto a las cuotas y se descuenta de la caja. El recibo queda marcado como anulado.",
+    reversed2: "Cobro anulado.",
     reverseReason: "Motivo de la anulación",
     reversed: "Anulado",
     methodLabel: {
@@ -770,6 +803,28 @@ export const es = {
       "Necesitas activar «{module}» antes de usar este módulo.",
     moduleDependents:
       "Si desactivas este módulo también se desactivará: {modules}.",
+    newUserTitle: "Nuevo usuario",
+    editUserTitle: "Editar usuario",
+    userFullName: "Nombre completo",
+    userEmail: "Correo electrónico",
+    userPhone: "Teléfono",
+    userPassword: "Contraseña",
+    userPasswordHint: "Mínimo 8 caracteres.",
+    userPasswordRepeat: "Repetir contraseña",
+    userActive: "Puede entrar al sistema",
+    resetPassword: "Cambiar la contraseña",
+    resetPasswordDone: "Contraseña actualizada. Se cerraron sus sesiones.",
+    deactivate: "Desactivar",
+    activate: "Activar",
+    userErrors: {
+      emailTaken: "Ya existe un usuario con ese correo.",
+      weakPassword: "La contraseña debe tener al menos 8 caracteres.",
+      passwordMismatch: "Las dos contraseñas no coinciden.",
+      wrongPassword: "La contraseña actual no es correcta.",
+      notFound: "No se encontró el usuario.",
+      lastOwner:
+        "No puedes quitar al último dueño: nadie podría volver a administrar el sistema.",
+    },
     labelsTitle: "Personalizar textos",
     labelsHint:
       "Cambia cualquier texto del sistema por el que use tu empresa. Deja el campo vacío para volver al original.",

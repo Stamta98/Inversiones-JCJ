@@ -87,11 +87,25 @@ export default async function CustomerDetailPage({
         title={`${customer.firstName} ${customer.lastName}`}
         description={customer.code}
         action={
-          can(context, "loans.create") ? (
-            <LinkButton href={`/loans/new?customerId=${customer.id}`} icon="plus">
-              {t("loans.new")}
-            </LinkButton>
-          ) : null
+          <div className="flex flex-wrap gap-2">
+            {can(context, "customers.update") ? (
+              <LinkButton
+                href={`/customers/${customer.id}/edit`}
+                variant="secondary"
+                icon="pencil"
+              >
+                {t("common.edit")}
+              </LinkButton>
+            ) : null}
+            {can(context, "loans.create") ? (
+              <LinkButton
+                href={`/loans/new?customerId=${customer.id}`}
+                icon="plus"
+              >
+                {t("loans.new")}
+              </LinkButton>
+            ) : null}
+          </div>
         }
       />
 
