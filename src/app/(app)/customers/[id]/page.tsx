@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import {
   Alert,
   Badge,
+  Icon,
   Card,
   CardBody,
   CardHeader,
@@ -31,6 +32,10 @@ const LOAN_TONES: Record<string, Tone> = {
   CANCELLED: "neutral",
   WRITTEN_OFF: "warning",
 };
+
+function mapsUrl(latitude: number, longitude: number): string {
+  return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+}
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -146,6 +151,10 @@ export default async function CustomerDetailPage({
                 value={customer.neighborhood ?? "—"}
               />
               <DetailRow
+                label={t("customers.landmark")}
+                value={customer.landmark ?? "—"}
+              />
+              <DetailRow
                 label={t("customers.city")}
                 value={customer.city ?? "—"}
               />
@@ -154,6 +163,18 @@ export default async function CustomerDetailPage({
                 value={t(`customers.status.${customer.status}`)}
               />
             </dl>
+
+            {customer.latitude !== null && customer.longitude !== null ? (
+              <a
+                href={mapsUrl(customer.latitude, customer.longitude)}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand-strong hover:underline"
+              >
+                <Icon name="map-pin" size={14} />
+                {t("customers.openInMaps")}
+              </a>
+            ) : null}
           </CardBody>
 
           <CardHeader title={t("customers.workSection")} />
@@ -188,6 +209,10 @@ export default async function CustomerDetailPage({
                 value={customer.workNeighborhood ?? "—"}
               />
               <DetailRow
+                label={t("customers.workLandmark")}
+                value={customer.workLandmark ?? "—"}
+              />
+              <DetailRow
                 label={t("customers.monthlyIncome")}
                 value={
                   customer.monthlyIncome
@@ -195,6 +220,45 @@ export default async function CustomerDetailPage({
                     : "—"
                 }
               />
+            </dl>
+
+            {customer.workLatitude !== null &&
+            customer.workLongitude !== null ? (
+              <a
+                href={mapsUrl(customer.workLatitude, customer.workLongitude)}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand-strong hover:underline"
+              >
+                <Icon name="map-pin" size={14} />
+                {t("customers.openInMaps")}
+              </a>
+            ) : null}
+          </CardBody>
+
+          <CardHeader title={t("customers.paydaySection")} />
+          <CardBody>
+            <dl>
+              <DetailRow
+                label={t("customers.paydayKind")}
+                value={
+                  customer.paydayKind
+                    ? t(`customers.paydayKindLabel.${customer.paydayKind}`)
+                    : "—"
+                }
+              />
+              {customer.paydayWeekday !== null ? (
+                <DetailRow
+                  label={t("customers.paydayWeekday")}
+                  value={t(`loans.weekday.${customer.paydayWeekday}`)}
+                />
+              ) : null}
+              {customer.paydayDayOfMonth !== null ? (
+                <DetailRow
+                  label={t("customers.paydayDayOfMonth")}
+                  value={String(customer.paydayDayOfMonth)}
+                />
+              ) : null}
             </dl>
           </CardBody>
         </Card>
@@ -240,6 +304,48 @@ export default async function CustomerDetailPage({
                           {t(`loans.status.${loan.status}`)}
                         </Badge>
                       </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </TableWrap>
+            )}
+          </Card>
+
+          <Card>
+            <CardHeader
+              title={t("customers.referencesSection")}
+              description={t("customers.referencesHint")}
+            />
+            {customer.references.length === 0 ? (
+              <EmptyState icon="users" title={t("customers.noReferences")} />
+            ) : (
+              <TableWrap>
+                <thead>
+                  <tr>
+                    <Th>{t("customers.referenceName")}</Th>
+                    <Th>{t("customers.referenceRelationship")}</Th>
+                    <Th>{t("customers.referencePhone")}</Th>
+                    <Th>{t("customers.referenceAddress")}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customer.references.map((reference) => (
+                    <tr key={reference.id}>
+                      <Td>{reference.fullName}</Td>
+                      <Td>{reference.relationship ?? "—"}</Td>
+                      <Td numeric>
+                        {reference.phone ? (
+                          <a
+                            href={`tel:${reference.phone}`}
+                            className="text-brand-strong hover:underline"
+                          >
+                            {reference.phone}
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </Td>
+                      <Td>{reference.address ?? "—"}</Td>
                     </tr>
                   ))}
                 </tbody>

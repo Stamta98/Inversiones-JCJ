@@ -212,6 +212,23 @@ enum CustomerStatus {
   BLACKLISTED
 }
 
+/// When the customer receives their income. Used to suggest a first due date
+/// that lands while they still have money in hand.
+enum PaydayKind {
+  /// Earns something every day: street vendor, moto driver, market stall.
+  DAILY
+  /// Paid once a week, on paydayWeekday.
+  WEEKLY
+  /// Paid every two weeks, on paydayWeekday.
+  BIWEEKLY
+  /// Twice a month, typically the 15th and the last day.
+  SEMIMONTHLY
+  /// Once a month, on paydayDayOfMonth.
+  MONTHLY
+  /// No fixed pattern.
+  IRREGULAR
+}
+
 /// How the customer earns their income, which changes how a collector
 /// verifies them: an independent is visited at their business, an employee
 /// at their workplace.
@@ -241,6 +258,9 @@ model Customer {
   /// Barrio / sector. In informal lending this locates a customer far more
   /// reliably than the street address does.
   neighborhood   String?
+  /// Landmark, e.g. "frente al colmado Mi Ranchito". In neighbourhoods with
+  /// no street numbering this is what actually gets a collector to the door.
+  landmark       String?
   city           String?
   state          String?
   country        String?
@@ -255,7 +275,17 @@ model Customer {
   employerName   String?
   workAddress    String?
   workNeighborhood String?
+  workLandmark   String?
+  workLatitude   Float?
+  workLongitude  Float?
   monthlyIncome  Decimal?       @db.Decimal(18, 2)
+
+  // --- Payday -----------------------------------------------------------
+  paydayKind       PaydayKind?
+  /// 0 = Sunday through 6 = Saturday, for WEEKLY and BIWEEKLY.
+  paydayWeekday    Int?
+  /// 1-31, for MONTHLY. 31 means the last day of the month.
+  paydayDayOfMonth Int?
   status         CustomerStatus @default(ACTIVE)
   /// Profile photo. Required when creating a customer through the UI; the
   /// column stays nullable so records created before this existed still load.

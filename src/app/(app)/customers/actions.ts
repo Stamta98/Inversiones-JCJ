@@ -33,6 +33,65 @@ const storedFileUrl = z
     message: "Archivo inválido",
   });
 
+/** A coordinate that the browser may not have been able to capture. */
+const optionalCoordinate = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => {
+    if (value === undefined || value.length === 0) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  });
+
+const optionalWholeNumber = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => {
+    if (value === undefined || value.length === 0) return null;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) ? parsed : null;
+  });
+
+/**
+ * Reference rows arrive as parallel repeated fields, one per column. Rows
+ * with no name at all are the empty slots the form always renders, and are
+ * dropped rather than saved blank.
+ */
+function readReferences(formData: FormData): Array<{
+  fullName: string;
+  relationship: string | null;
+  phone: string | null;
+  address: string | null;
+}> {
+  const names = formData.getAll("referenceName").map(String);
+  const relationships = formData.getAll("referenceRelationship").map(String);
+  const phones = formData.getAll("referencePhone").map(String);
+  const addresses = formData.getAll("referenceAddress").map(String);
+
+  const clean = (value: string | undefined) => {
+    const trimmed = (value ?? "").trim();
+    return trimmed.length === 0 ? null : trimmed;
+  };
+
+  return names
+    .map((name, index) => {
+      const phone = clean(phones[index]);
+      return {
+        fullName: name.trim(),
+        relationship: clean(relationships[index]),
+        // Same E.164 normalization as the customer's own number, so a
+        // reference can be called or messaged without re-parsing it.
+        phone: phone
+          ? (normalizePhoneNumber(phone, { defaultCountryCode: "1" }) ?? phone)
+          : null,
+        address: clean(addresses[index]),
+      };
+    })
+    .filter((reference) => reference.fullName.length > 0);
+}
+
 const customerSchema = z.object({
   photoUrl: storedFileUrl.refine((value) => value.length > 0, {
     message: t("customers.photoRequired"),
@@ -51,7 +110,10 @@ const customerSchema = z.object({
   mobilePhone: optionalText,
   address: optionalText,
   neighborhood: optionalText,
+  landmark: optionalText,
   city: optionalText,
+  homeLatitude: optionalCoordinate,
+  homeLongitude: optionalCoordinate,
   employmentType: z
     .enum(["INDEPENDENT", "EMPLOYEE", "OTHER"])
     .nullable()
@@ -60,6 +122,15 @@ const customerSchema = z.object({
   employerName: optionalText,
   workAddress: optionalText,
   workNeighborhood: optionalText,
+  workLandmark: optionalText,
+  workLatitude: optionalCoordinate,
+  workLongitude: optionalCoordinate,
+  paydayKind: z
+    .enum(["DAILY", "WEEKLY", "BIWEEKLY", "SEMIMONTHLY", "MONTHLY", "IRREGULAR"])
+    .nullable()
+    .catch(null),
+  paydayWeekday: optionalWholeNumber,
+  paydayDayOfMonth: optionalWholeNumber,
   monthlyIncome: z
     .string()
     .trim()
@@ -99,6 +170,7 @@ export async function createCustomer(
   }
 
   const data = parsed.data;
+  const references = readReferences(formData);
   const customerId = await withCodeRetry(() =>
     db.$transaction(async (tx) => {
       const code = await nextCustomerCode(tx, context.companyId);
@@ -121,15 +193,25 @@ export async function createCustomer(
             : null,
           address: data.address,
           neighborhood: data.neighborhood,
+          landmark: data.landmark,
           city: data.city,
+          latitude: data.homeLatitude,
+          longitude: data.homeLongitude,
           employmentType: data.employmentType,
           occupation: data.occupation,
           employerName: data.employerName,
           workAddress: data.workAddress,
           workNeighborhood: data.workNeighborhood,
+          workLandmark: data.workLandmark,
+          workLatitude: data.workLatitude,
+          workLongitude: data.workLongitude,
+          paydayKind: data.paydayKind,
+          paydayWeekday: data.paydayWeekday,
+          paydayDayOfMonth: data.paydayDayOfMonth,
           monthlyIncome: data.monthlyIncome,
           notes: data.notes,
           photoUrl: data.photoUrl,
+          references: { create: references },
           attachments: {
             create: [
               { url: data.idFrontUrl, kind: "ID_FRONT" as const, name: "Documento (frente)" },

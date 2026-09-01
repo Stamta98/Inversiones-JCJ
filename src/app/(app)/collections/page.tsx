@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   Badge,
   Card,
+  Icon,
   CardHeader,
   EmptyState,
   PageHeader,
@@ -147,11 +148,26 @@ export default async function CollectionsPage() {
                                 stop.customer.address ??
                                 "—"}
                             </span>
-                            {stop.customer.neighborhood &&
+                            {/* The landmark is what gets a collector to the
+                                door; the street address is the fallback. */}
+                            {stop.customer.landmark ??
                             stop.customer.address ? (
                               <span className="line-clamp-1 text-xs text-ink-subtle">
-                                {stop.customer.address}
+                                {stop.customer.landmark ??
+                                  stop.customer.address}
                               </span>
+                            ) : null}
+                            {stop.customer.latitude !== null &&
+                            stop.customer.longitude !== null ? (
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${stop.customer.latitude},${stop.customer.longitude}`}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="mt-0.5 inline-flex items-center gap-1 text-xs text-brand-strong hover:underline"
+                              >
+                                <Icon name="map-pin" size={12} />
+                                {t("customers.openInMaps")}
+                              </a>
                             ) : null}
                           </Td>
                           <Td align="right" numeric>

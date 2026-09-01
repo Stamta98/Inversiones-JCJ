@@ -16,6 +16,10 @@ import {
   Textarea,
   Th,
 } from "@/components/ui";
+import {
+  suggestFirstDueDate,
+  type Payday,
+} from "@/core/customers/payday";
 import { ScheduleError, buildSchedule } from "@/core/loans/schedule";
 import { fromCents, toCents } from "@/core/money";
 import {
@@ -36,6 +40,7 @@ import { createLoanAction, type LoanFormState } from "../actions";
 export interface CustomerOption {
   id: string;
   label: string;
+  payday: Payday;
 }
 
 export interface CashBoxOption {
@@ -74,6 +79,7 @@ export function LoanForm({
   const [frequency, setFrequency] = useState<PaymentFrequency>("MONTHLY");
   const [termCount, setTermCount] = useState("12");
   const [firstDueDate, setFirstDueDate] = useState(todayIso());
+  const [customerId, setCustomerId] = useState(defaultCustomerId ?? "");
   const [customIntervalDays, setCustomIntervalDays] = useState("10");
   const [nonCollectionDays, setNonCollectionDays] = useState<number[]>([]);
   const [lateFeeMode, setLateFeeMode] = useState<LateFeeMode>("NONE");
@@ -86,6 +92,23 @@ export function LoanForm({
     );
 
   const money = (value: number) => formatCurrency(value, currencyCode);
+
+  /**
+   * First due date suggested from the customer's payday, so the installment
+   * lands while they still have the money in hand.
+   */
+  const suggestedDate = useMemo(() => {
+    const customer = customers.find((option) => option.id === customerId);
+    if (!customer) return null;
+
+    const suggestion = suggestFirstDueDate(customer.payday, new Date(), {
+      nonCollectionDays,
+    });
+    if (!suggestion) return null;
+
+    const iso = suggestion.toISOString().slice(0, 10);
+    return iso === firstDueDate ? null : iso;
+  }, [customers, customerId, nonCollectionDays, firstDueDate]);
 
   // The schedule engine is pure, so the preview runs in the browser with the
   // exact same code the server uses when the loan is saved.
@@ -138,7 +161,8 @@ export function LoanForm({
                 <Select
                   id="customerId"
                   name="customerId"
-                  defaultValue={defaultCustomerId ?? ""}
+                  value={customerId}
+                  onChange={(event) => setCustomerId(event.target.value)}
                   required
                 >
                   <option value="" disabled>
@@ -268,6 +292,21 @@ export function LoanForm({
                 value={firstDueDate}
                 onChange={(event) => setFirstDueDate(event.target.value)}
               />
+              {suggestedDate ? (
+                <p className="mt-1 text-xs text-ink-subtle">
+                  {es.loans.suggestedFirstDueDate.replace(
+                    "{date}",
+                    formatDate(new Date(`${suggestedDate}T00:00:00.000Z`)),
+                  )}{" "}
+                  <button
+                    type="button"
+                    onClick={() => setFirstDueDate(suggestedDate)}
+                    className="font-medium text-brand-strong hover:underline"
+                  >
+                    {es.loans.useSuggestedDate}
+                  </button>
+                </p>
+              ) : null}
             </Field>
 
             <div className="sm:col-span-2">

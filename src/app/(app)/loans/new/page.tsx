@@ -18,7 +18,15 @@ export default async function NewLoanPage({
     db.customer.findMany({
       where: { companyId: context.companyId, status: { not: "BLACKLISTED" } },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-      select: { id: true, code: true, firstName: true, lastName: true },
+      select: {
+        id: true,
+        code: true,
+        firstName: true,
+        lastName: true,
+        paydayKind: true,
+        paydayWeekday: true,
+        paydayDayOfMonth: true,
+      },
       take: 500,
     }),
     db.cashBox.findMany({
@@ -37,6 +45,11 @@ export default async function NewLoanPage({
         customers={customers.map((customer) => ({
           id: customer.id,
           label: `${customer.code} — ${customer.firstName} ${customer.lastName}`,
+          payday: {
+            kind: customer.paydayKind,
+            weekday: customer.paydayWeekday,
+            dayOfMonth: customer.paydayDayOfMonth,
+          },
         }))}
         cashBoxes={cashBoxes.map((cashBox) => ({
           id: cashBox.id,

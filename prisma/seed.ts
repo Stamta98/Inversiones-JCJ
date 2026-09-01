@@ -78,7 +78,15 @@ const DEMO_CUSTOMERS = [
     mobilePhone: "18095550101",
     address: "Calle Duarte 45",
     neighborhood: "Villa Consuelo",
+    landmark: "Frente al colmado Mi Ranchito",
     city: "Santo Domingo",
+    latitude: 18.4861,
+    longitude: -69.8967,
+    paydayKind: "DAILY" as const,
+    references: [
+      { fullName: "Rosa Pérez", relationship: "Hermana", phone: "18095550201" },
+      { fullName: "Julio Castro", relationship: "Vecino", phone: "18095550202" },
+    ],
     employmentType: "INDEPENDENT" as const,
     occupation: "Comerciante",
     workAddress: "Puesto 14, Mercado Nuevo",
@@ -91,7 +99,14 @@ const DEMO_CUSTOMERS = [
     mobilePhone: "18095550102",
     address: "Av. Independencia 210",
     neighborhood: "Los Jardines",
+    landmark: "Casa verde al lado del play",
     city: "Santiago",
+    latitude: 19.4517,
+    longitude: -70.6970,
+    paydayKind: "SEMIMONTHLY" as const,
+    references: [
+      { fullName: "Ana Rodríguez", relationship: "Esposa", phone: "18095550203" },
+    ],
     employmentType: "EMPLOYEE" as const,
     occupation: "Chofer",
     employerName: "Transporte del Cibao",
@@ -105,7 +120,12 @@ const DEMO_CUSTOMERS = [
     mobilePhone: "18095550103",
     address: "Calle El Sol 12",
     neighborhood: "Don Bosco",
+    landmark: "Al lado de la farmacia Carolina",
     city: "La Vega",
+    paydayKind: "DAILY" as const,
+    references: [
+      { fullName: "Miguel Santana", relationship: "Hermano", phone: "18095550204" },
+    ],
     employmentType: "INDEPENDENT" as const,
     occupation: "Estilista",
     workAddress: "Salón Carmen, Calle Restauración 30",
@@ -118,7 +138,16 @@ const DEMO_CUSTOMERS = [
     mobilePhone: "18095550104",
     address: "Calle Primera 7",
     neighborhood: "Los Mina",
+    landmark: "Detrás del taller de motores",
     city: "Santo Domingo Este",
+    latitude: 18.4939,
+    longitude: -69.8570,
+    paydayKind: "WEEKLY" as const,
+    paydayWeekday: 6,
+    references: [
+      { fullName: "Elena Fernández", relationship: "Madre", phone: "18095550205" },
+      { fullName: "Rafael Guzmán", relationship: "Compadre", phone: "18095550206" },
+    ],
     employmentType: "INDEPENDENT" as const,
     occupation: "Mecánico",
     workAddress: "Taller Luis, Av. San Vicente 88",
@@ -131,7 +160,13 @@ const DEMO_CUSTOMERS = [
     mobilePhone: "18095550105",
     address: "Calle Mella 8",
     neighborhood: "Madre Vieja Sur",
+    landmark: "Frente a la escuela",
     city: "San Cristóbal",
+    paydayKind: "MONTHLY" as const,
+    paydayDayOfMonth: 30,
+    references: [
+      { fullName: "Sonia Jiménez", relationship: "Hermana", phone: "18095550207" },
+    ],
     employmentType: "EMPLOYEE" as const,
     occupation: "Enfermera",
     employerName: "Hospital Juan Pablo Pina",
@@ -400,15 +435,17 @@ async function main(): Promise<void> {
 
   if (customerCount === 0) {
     await Promise.all(
-      DEMO_CUSTOMERS.map((customer, index) =>
-        db.customer.create({
+      DEMO_CUSTOMERS.map((customer, index) => {
+        const { references, ...fields } = customer;
+        return db.customer.create({
           data: {
             companyId: company.id,
             code: `CLI-${String(index + 1).padStart(6, "0")}`,
-            ...customer,
+            ...fields,
+            references: { create: references },
           },
-        }),
-      ),
+        });
+      }),
     );
   }
 

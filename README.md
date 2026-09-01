@@ -15,7 +15,7 @@ Una sola base de código sirve la web y se empaqueta como APK de Android.
 | Módulo | Qué hace |
 | --- | --- |
 | **Inicio** | Cartera activa, cobrado del día, mora y dinero en caja. |
-| **Clientes** | Ficha, referencias, documentos, historial y aviso de mora. |
+| **Clientes** | Ficha con foto, referencias, punto de referencia, GPS, día de pago, documentos e historial. |
 | **Préstamos** | Cinco modalidades de interés, seis frecuencias, tabla de amortización, mora automática y desembolso a caja. |
 | **Cobros** | Recibo, aplicación automática a las cuotas y movimiento de caja. |
 | **Rutas de cobro** | Rutas por cobrador, armadas solas con lo que vence hoy o con los morosos. |
@@ -144,6 +144,22 @@ curl -X POST https://tu-dominio.com/api/jobs/run \
 Ese endpoint actualiza la mora de todos los préstamos, arma los mensajes del
 día y los despacha. Prográmalo una vez por hora con cron, Vercel Cron o
 cualquier programador.
+
+---
+
+## Datos que bajan la mora
+
+Cuatro cosas del cliente que el sistema usa activamente, no sólo almacena:
+
+- **Referencias** — hasta cinco personas con parentesco y teléfono, y el
+  teléfono queda listo para llamar de un toque desde la ficha.
+- **Punto de referencia** — "frente al colmado Mi Ranchito". Aparece en la
+  ruta de cobro debajo del barrio, que es el orden en que un cobrador lee.
+- **Día de pago** — cada cuánto le pagan y qué día. Al crear un préstamo, el
+  sistema **propone la fecha de la primera cuota** para el día siguiente a que
+  cobra, saltando los días en que no se sale a cobrar.
+- **Ubicación GPS** de la casa y del trabajo — se captura con un botón parado
+  frente a la puerta, y desde la ficha y la ruta se abre en el mapa.
 
 ---
 

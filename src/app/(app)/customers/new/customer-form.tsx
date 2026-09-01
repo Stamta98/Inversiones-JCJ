@@ -13,7 +13,11 @@ import {
   Select,
   Textarea,
 } from "@/components/ui";
+import { LocationField } from "@/components/ui/location-field";
 import { PhotoUpload } from "@/components/ui/photo-upload";
+
+import { PaydayFields } from "./payday-fields";
+import { ReferenceFields } from "./reference-fields";
 import { es } from "@/i18n/es";
 import { useFormAction } from "@/lib/use-form-action";
 
@@ -139,6 +143,18 @@ export function CustomerForm() {
           <Field label={es.customers.city} htmlFor="city">
             <Input id="city" name="city" />
           </Field>
+          <div className="sm:col-span-2">
+            <Field
+              label={es.customers.landmark}
+              htmlFor="landmark"
+              hint={es.customers.landmarkHint}
+            >
+              <Input id="landmark" name="landmark" />
+            </Field>
+          </div>
+          <div className="sm:col-span-2">
+            <LocationField name="home" label={es.customers.locationHome} />
+          </div>
         </CardBody>
       </Card>
 
@@ -200,6 +216,39 @@ export function CustomerForm() {
               min="0"
             />
           </Field>
+
+          <div className="sm:col-span-2">
+            <Field
+              label={es.customers.workLandmark}
+              htmlFor="workLandmark"
+              hint={es.customers.landmarkHint}
+            >
+              <Input id="workLandmark" name="workLandmark" />
+            </Field>
+          </div>
+          <div className="sm:col-span-2">
+            <LocationField name="work" label={es.customers.locationWork} />
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title={es.customers.paydaySection}
+          description={es.customers.paydayHint}
+        />
+        <CardBody>
+          <PaydayFields />
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title={es.customers.referencesSection}
+          description={es.customers.referencesHint}
+        />
+        <CardBody>
+          <ReferenceFields />
         </CardBody>
       </Card>
 
