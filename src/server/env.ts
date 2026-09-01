@@ -6,6 +6,8 @@ import { z } from "zod";
 
 const schema = z.object({
   DATABASE_URL: z.string().min(1),
+  /** Only used by Prisma migrations, never at runtime. */
+  DIRECT_URL: z.string().optional(),
   AUTH_SECRET: z.string().min(16, "AUTH_SECRET must be at least 16 characters"),
   SESSION_MAX_AGE_DAYS: z.coerce.number().int().positive().default(30),
   APP_URL: z.string().url().default("http://localhost:3000"),

@@ -8,7 +8,11 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // The app connects through the pooler, which is what a serverless deploy
+  // needs. Migrations need a real session, so they use the direct connection.
+  // On a plain Postgres both point at the same server.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------

@@ -18,7 +18,9 @@
     "db:studio": "prisma studio",
     "mobile:sync": "next build && npx cap sync android",
     "mobile:open": "npx cap open android",
-    "mobile:apk": "cd android && ./gradlew assembleRelease"
+    "mobile:apk": "cd android && ./gradlew assembleRelease",
+    "db:deploy": "prisma migrate deploy",
+    "db:status": "prisma migrate status"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

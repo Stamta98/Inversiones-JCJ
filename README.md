@@ -79,7 +79,7 @@ Necesitas Node 20+ y PostgreSQL.
 ```bash
 cp .env.example .env.local     # y edita DATABASE_URL y AUTH_SECRET
 npm install
-npm run db:push                # crea las tablas
+npm run db:deploy              # aplica las migraciones
 npm run db:seed                # empresa, roles, plantillas y datos de ejemplo
 npm run dev                    # http://localhost:3000
 ```
@@ -93,6 +93,60 @@ El seed deja lista una empresa con usuarios de prueba:
 
 > Cambia esas claves antes de poner el sistema en producción.
 > `AUTH_SECRET` se genera con `openssl rand -base64 32`.
+
+---
+
+## Supabase
+
+La base de datos de producción vive en Supabase. El esquema ya está aplicado en
+el proyecto `ivhmbqqiccegjoyayvhv` (`https://ivhmbqqiccegjoyayvhv.supabase.co`):
+33 tablas, 22 tipos, 96 índices y 65 llaves foráneas, más el bucket privado
+`customer-files` para las fotos.
+
+### Conectar la aplicación
+
+Las contraseñas y claves **no están en el repositorio** y hay que copiarlas del
+panel de Supabase:
+
+1. **Project Settings → Database → Connection string.** Copia dos:
+   - *Transaction pooler* (puerto 6543) → `DATABASE_URL`, agregándole
+     `?pgbouncer=true&connection_limit=1`. Es la que usa la aplicación.
+   - *Direct connection* (puerto 5432) → `DIRECT_URL`. Es la que usan las
+     migraciones, que necesitan una sesión real.
+2. **Project Settings → API → `service_role`** → `SUPABASE_SERVICE_ROLE_KEY`,
+   y pon `STORAGE_PROVIDER="supabase"` para guardar las fotos ahí.
+
+Después:
+
+```bash
+npm run db:status    # confirma que no falta ninguna migración
+npm run db:seed      # solo la primera vez
+```
+
+### Seguridad
+
+Supabase publica automáticamente una API REST sobre el esquema `public`. Sin
+cerrarla, cualquiera con la clave `anon` —que es pública por diseño— podría
+leer clientes, cédulas, préstamos y cobros.
+
+La migración `20260901000001_lock_down_public_api` activa RLS en las 33 tablas
+**sin ninguna política**, y le quita los permisos a los roles `anon` y
+`authenticated`. Resultado: por la API pública no se ve nada. La aplicación
+conecta por Postgres directo con un rol que omite RLS, así que funciona igual.
+
+El bucket de archivos también es privado: las fotos se sirven por `/api/files`,
+que exige sesión y solo entrega archivos de la empresa del usuario.
+
+### Cambios de esquema
+
+```bash
+# 1. edita prisma/schema.prisma
+npm run db:migrate -- --name lo_que_cambiaste   # crea la migración
+npm run db:deploy                               # la aplica en producción
+```
+
+No uses `db:push` contra Supabase: no deja historial y puede borrar datos.
+Queda solo para probar rápido en local.
 
 ---
 
