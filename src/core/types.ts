@@ -15,13 +15,19 @@ export type InterestMethod =
 
 export type PaymentFrequency =
   | "DAILY"
+  /// One day yes, one day no.
+  | "EVERY_OTHER_DAY"
+  /// Two fixed weekdays per week, e.g. Monday and Thursday.
+  | "TWICE_WEEKLY"
   | "WEEKLY"
   | "BIWEEKLY"
   | "SEMIMONTHLY"
   | "MONTHLY"
   | "QUARTERLY"
   | "YEARLY"
-  | "SINGLE";
+  | "SINGLE"
+  /// Every N days, where N is set per loan.
+  | "CUSTOM";
 
 export type LoanStatus =
   | "DRAFT"
@@ -57,6 +63,8 @@ export const INTEREST_METHODS: InterestMethod[] = [
 
 export const PAYMENT_FREQUENCIES: PaymentFrequency[] = [
   "DAILY",
+  "EVERY_OTHER_DAY",
+  "TWICE_WEEKLY",
   "WEEKLY",
   "BIWEEKLY",
   "SEMIMONTHLY",
@@ -64,7 +72,31 @@ export const PAYMENT_FREQUENCIES: PaymentFrequency[] = [
   "QUARTERLY",
   "YEARLY",
   "SINGLE",
+  "CUSTOM",
 ];
+
+/**
+ * Frequencies whose period is shorter than a week.
+ *
+ * These skip a non-collection day instead of landing on it: with a daily loan
+ * that is not collected on Sunday, Sunday is not a missed installment, the
+ * installment simply moves to Monday and the plan runs one day longer.
+ * Weekly and longer frequencies keep their anchor and only nudge the
+ * individual date forward, so a monthly loan due on the 5th stays on the 5th.
+ */
+export function usesSequentialSkipping(
+  frequency: PaymentFrequency,
+  customIntervalDays?: number,
+): boolean {
+  if (frequency === "DAILY" || frequency === "EVERY_OTHER_DAY") return true;
+  if (frequency === "CUSTOM") return (customIntervalDays ?? 1) < 7;
+  return false;
+}
+
+/** Weekday numbers as JavaScript reports them. */
+export const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const;
+
+export type Weekday = (typeof WEEKDAYS)[number];
 
 export const LATE_FEE_MODES: LateFeeMode[] = [
   "NONE",

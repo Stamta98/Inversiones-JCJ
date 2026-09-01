@@ -40,8 +40,32 @@ Cada módulo se activa o desactiva por empresa desde *Configuración → Módulo
 | Americano (`AMERICAN`) | Solo interés durante el plazo, todo el capital en la última cuota. |
 | Línea de crédito (`CREDIT_LINE`) | Préstamo indefinido: solo se programa el interés y el capital queda pendiente. |
 
-Frecuencias: diaria, semanal, cada 14 días, quincenal (día 1 y 16), mensual,
-trimestral, anual y pago único.
+### Modalidades de cobro
+
+| Modalidad | Cómo se programa |
+| --- | --- |
+| Diario | Todos los días. |
+| Un día sí y uno no | Cada dos días. |
+| Dos veces a la semana | Dos días fijos de la semana, p. ej. lunes y jueves. |
+| Semanal | El mismo día cada semana. |
+| Cada 14 días | Cada dos semanas. |
+| Quincenal | Dos veces al mes: el mismo día y ese día más quince. |
+| Mensual, trimestral, anual | El mismo día del mes, ajustando fin de mes. |
+| Pago único | Una sola cuota. |
+| Personalizado | Cada N días, con N a tu elección. |
+
+### Días que no se cobra
+
+En cada préstamo puedes marcar los días de la semana en que no sales a cobrar
+(el domingo, o el fin de semana completo). El sistema lo aplica según la
+modalidad:
+
+- **Diario, un día sí y uno no, o personalizado con menos de una semana:**
+  el día bloqueado **se salta**, no se pierde la cuota. Un préstamo diario de
+  30 cuotas sin domingos se cobra en 35 días corridos.
+- **Semanal o más largo:** sólo se corre la cuota que cae en día bloqueado, y
+  la siguiente vuelve a su fecha. Un préstamo mensual que vence los días 5
+  sigue venciendo los días 5, aunque un mes el 5 caiga domingo.
 
 Modos de mora: sin mora, % de la cuota una vez, % por día de atraso, monto fijo
 por día y monto fijo una vez — todos con días de gracia.

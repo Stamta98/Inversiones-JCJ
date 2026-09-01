@@ -342,6 +342,10 @@ enum InterestMethod {
 
 enum PaymentFrequency {
   DAILY
+  /// One day yes, one day no.
+  EVERY_OTHER_DAY
+  /// Two fixed weekdays per week, e.g. Monday and Thursday.
+  TWICE_WEEKLY
   WEEKLY
   BIWEEKLY
   SEMIMONTHLY
@@ -349,6 +353,8 @@ enum PaymentFrequency {
   QUARTERLY
   YEARLY
   SINGLE
+  /// Every N days, set per loan in customIntervalDays.
+  CUSTOM
 }
 
 enum LoanStatus {
@@ -385,6 +391,10 @@ model LoanProduct {
   /// Interest rate per period, expressed as a percentage (e.g. 10 = 10%).
   interestRate       Decimal          @db.Decimal(9, 4)
   frequency          PaymentFrequency @default(MONTHLY)
+  /// Days between installments when frequency is CUSTOM.
+  customIntervalDays Int?
+  /// Weekdays with no collection, 0 = Sunday through 6 = Saturday.
+  nonCollectionDays  Int[]            @default([])
   defaultTermCount   Int              @default(12)
   minAmount          Decimal?         @db.Decimal(18, 2)
   maxAmount          Decimal?         @db.Decimal(18, 2)
@@ -416,6 +426,10 @@ model Loan {
   interestMethod    InterestMethod
   interestRate      Decimal          @db.Decimal(9, 4)
   frequency         PaymentFrequency
+  /// Days between installments when frequency is CUSTOM.
+  customIntervalDays Int?
+  /// Weekdays with no collection, 0 = Sunday through 6 = Saturday.
+  nonCollectionDays Int[]            @default([])
   termCount         Int
   disbursedAt       DateTime?
   firstDueDate      DateTime

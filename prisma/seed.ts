@@ -174,11 +174,13 @@ const DEMO_LOANS = [
     paymentsToPost: 1,
   },
   {
+    // Diario pero sin domingos, que es como se cobra en la calle.
     customerIndex: 3,
     principal: 8000,
     interestRate: 2,
     interestMethod: "FLAT" as const,
     frequency: "DAILY" as const,
+    nonCollectionDays: [0],
     termCount: 30,
     firstDueDateOffsetDays: -20,
     paymentsToPost: 10,
@@ -426,6 +428,9 @@ async function main(): Promise<void> {
       if (!customer) continue;
 
       const firstDueDate = addDays(today, spec.firstDueDateOffsetDays);
+      const nonCollectionDays =
+        "nonCollectionDays" in spec ? spec.nonCollectionDays : [];
+
       const schedule = buildSchedule({
         principalCents: toCents(spec.principal),
         interestRate: spec.interestRate,
@@ -433,6 +438,7 @@ async function main(): Promise<void> {
         frequency: spec.frequency,
         termCount: spec.termCount,
         firstDueDate,
+        nonCollectionDays,
       });
 
       await db.loan.create({
@@ -444,6 +450,7 @@ async function main(): Promise<void> {
           interestMethod: spec.interestMethod,
           interestRate: spec.interestRate,
           frequency: spec.frequency,
+          nonCollectionDays,
           termCount: spec.termCount,
           firstDueDate,
           disbursedAt: firstDueDate,

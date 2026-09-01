@@ -310,10 +310,24 @@ export function EmptyState({
  * Table that survives a phone screen: it scrolls horizontally inside its own
  * container instead of stretching the page.
  */
-export function TableWrap({ children }: { children: ReactNode }) {
+export function TableWrap({
+  children,
+  dense = false,
+}: {
+  children: ReactNode;
+  /** Tighter type, for a table that has to share the row with a form. */
+  dense?: boolean;
+}) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[36rem] border-collapse text-sm">
+      <table
+        className={cn(
+          "w-full border-collapse",
+          dense
+            ? "min-w-[28rem] text-xs [&_td]:px-2 [&_th]:px-2"
+            : "min-w-[36rem] text-sm",
+        )}
+      >
         {children}
       </table>
     </div>
@@ -331,7 +345,7 @@ export function Th({
     <th
       scope="col"
       className={cn(
-        "border-b border-border px-3 py-2.5 text-xs font-medium text-ink-muted whitespace-nowrap",
+        "border-b border-border px-3 py-2.5 text-[0.6875rem] font-medium text-ink-muted whitespace-nowrap uppercase tracking-wide",
         align === "right" && "text-right",
         align === "center" && "text-center",
         align === "left" && "text-left",

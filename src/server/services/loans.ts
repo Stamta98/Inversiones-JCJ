@@ -28,6 +28,10 @@ export interface CreateLoanInput {
   interestRate: number;
   interestMethod: InterestMethod;
   frequency: PaymentFrequency;
+  /** Days between installments when the frequency is CUSTOM. */
+  customIntervalDays?: number | null;
+  /** Weekdays with no collection, 0 = Sunday through 6 = Saturday. */
+  nonCollectionDays?: number[];
   termCount: number;
   firstDueDate: Date;
   lateFeeMode?: LateFeeMode;
@@ -50,6 +54,8 @@ export function previewSchedule(
     | "frequency"
     | "termCount"
     | "firstDueDate"
+    | "customIntervalDays"
+    | "nonCollectionDays"
   >,
 ): Schedule {
   return buildSchedule({
@@ -59,6 +65,8 @@ export function previewSchedule(
     frequency: input.frequency,
     termCount: input.termCount,
     firstDueDate: input.firstDueDate,
+    customIntervalDays: input.customIntervalDays ?? undefined,
+    nonCollectionDays: input.nonCollectionDays,
   });
 }
 
@@ -84,6 +92,8 @@ export async function createLoan(input: CreateLoanInput): Promise<string> {
           interestMethod: input.interestMethod,
           interestRate: input.interestRate,
           frequency: input.frequency,
+          customIntervalDays: input.customIntervalDays ?? null,
+          nonCollectionDays: input.nonCollectionDays ?? [],
           termCount: schedule.installments.length,
           firstDueDate: input.firstDueDate,
           disbursedAt: input.disburseNow ? now : null,

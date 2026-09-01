@@ -5,7 +5,12 @@
  * the installments always equals the total of the loan, with no drift.
  */
 
-import { advanceByFrequency, startOfDay } from "../dates";
+import {
+  addDays,
+  advanceByFrequency,
+  nextCollectionDay,
+  startOfDay,
+} from "../dates";
 import {
   addCents,
   percentOf,
@@ -13,7 +18,11 @@ import {
   splitEvenly,
   type Cents,
 } from "../money";
-import type { InterestMethod, PaymentFrequency } from "../types";
+import {
+  usesSequentialSkipping,
+  type InterestMethod,
+  type PaymentFrequency,
+} from "../types";
 
 export interface ScheduleInput {
   principalCents: Cents;
@@ -24,6 +33,10 @@ export interface ScheduleInput {
   /** Number of installments. Ignored for SINGLE, which always produces one. */
   termCount: number;
   firstDueDate: Date;
+  /** Days between installments when the frequency is CUSTOM. */
+  customIntervalDays?: number;
+  /** Weekdays with no collection, 0 = Sunday through 6 = Saturday. */
+  nonCollectionDays?: readonly number[];
 }
 
 export interface ScheduledInstallment {
@@ -71,13 +84,61 @@ function assertValidInput(input: ScheduleInput): void {
   if (Number.isNaN(input.firstDueDate.getTime())) {
     throw new ScheduleError("First due date is invalid", "firstDueDate");
   }
+  if ((input.nonCollectionDays?.length ?? 0) >= 7) {
+    throw new ScheduleError(
+      "At least one weekday must remain available for collection",
+      "nonCollectionDays",
+    );
+  }
+  if (
+    input.frequency === "CUSTOM" &&
+    (!Number.isInteger(input.customIntervalDays) ||
+      (input.customIntervalDays ?? 0) < 1)
+  ) {
+    throw new ScheduleError(
+      "A custom frequency needs a whole number of days",
+      "customIntervalDays",
+    );
+  }
 }
 
+/**
+ * Due dates for the whole plan, with the non-collection weekdays applied.
+ *
+ * Sub-weekly frequencies walk forward and skip a blocked day, so a daily loan
+ * that is not collected on Sunday runs one extra calendar day rather than
+ * doubling up on Monday. Weekly and longer frequencies keep their anchor and
+ * only nudge the individual date, so a monthly loan due on the 5th stays on
+ * the 5th every month.
+ */
 function dueDates(input: ScheduleInput, count: number): Date[] {
-  const anchor = startOfDay(input.firstDueDate);
-  return Array.from({ length: count }, (_, index) =>
-    advanceByFrequency(anchor, input.frequency, index),
-  );
+  const blocked = input.nonCollectionDays ?? [];
+  const interval = Math.max(1, input.customIntervalDays ?? 1);
+  const anchor = nextCollectionDay(startOfDay(input.firstDueDate), blocked);
+
+  if (!usesSequentialSkipping(input.frequency, interval)) {
+    return Array.from({ length: count }, (_, index) =>
+      nextCollectionDay(
+        advanceByFrequency(anchor, input.frequency, index, interval),
+        blocked,
+      ),
+    );
+  }
+
+  const step =
+    input.frequency === "EVERY_OTHER_DAY"
+      ? 2
+      : input.frequency === "CUSTOM"
+        ? interval
+        : 1;
+
+  const dates: Date[] = [];
+  let current = anchor;
+  for (let index = 0; index < count; index += 1) {
+    dates.push(current);
+    current = nextCollectionDay(addDays(current, step), blocked);
+  }
+  return dates;
 }
 
 /**

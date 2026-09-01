@@ -20,6 +20,17 @@ const loanSchema = z.object({
   interestRate: z.coerce.number().min(0),
   interestMethod: z.enum(INTEREST_METHODS as [string, ...string[]]),
   frequency: z.enum(PAYMENT_FREQUENCIES as [string, ...string[]]),
+  customIntervalDays: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) =>
+      value === undefined || value.length === 0 ? null : Number(value),
+    ),
+  /** Checkbox group: absent when nothing is ticked. */
+  nonCollectionDays: z
+    .array(z.coerce.number().int().min(0).max(6))
+    .default([]),
   termCount: z.coerce.number().int().positive(),
   firstDueDate: z.string().min(1),
   lateFeeMode: z.enum(LATE_FEE_MODES as [string, ...string[]]).default("NONE"),
@@ -40,11 +51,13 @@ export async function createLoanAction(
 ): Promise<LoanFormState> {
   const context = await requirePermission("loans.create");
 
-  const parsed = loanSchema.safeParse(
-    Object.fromEntries(
+  const parsed = loanSchema.safeParse({
+    ...Object.fromEntries(
       [...formData.entries()].map(([key, value]) => [key, String(value)]),
     ),
-  );
+    // A checkbox group needs every value, not just the last one.
+    nonCollectionDays: formData.getAll("nonCollectionDays").map(String),
+  });
 
   if (!parsed.success) {
     const first = parsed.error.issues[0];
@@ -71,6 +84,8 @@ export async function createLoanAction(
       interestRate: data.interestRate,
       interestMethod: data.interestMethod as never,
       frequency: data.frequency as never,
+      customIntervalDays: data.customIntervalDays,
+      nonCollectionDays: data.nonCollectionDays,
       termCount: data.termCount,
       firstDueDate: new Date(`${data.firstDueDate}T00:00:00.000Z`),
       lateFeeMode: data.lateFeeMode as never,

@@ -59,10 +59,22 @@ export function advanceByFrequency(
   anchor: Date,
   frequency: PaymentFrequency,
   periods: number,
+  customIntervalDays = 1,
 ): Date {
   switch (frequency) {
     case "DAILY":
       return addDays(anchor, periods);
+    case "EVERY_OTHER_DAY":
+      return addDays(anchor, 2 * periods);
+    case "TWICE_WEEKLY": {
+      // Two fixed weekdays a week: alternating 3 and 4 days always lands on
+      // the same pair, e.g. Monday and Thursday.
+      const wholeWeeks = Math.floor(periods / 2);
+      const hasSecondDay = periods % 2 === 1;
+      return addDays(anchor, 7 * wholeWeeks + (hasSecondDay ? 3 : 0));
+    }
+    case "CUSTOM":
+      return addDays(anchor, Math.max(1, customIntervalDays) * periods);
     case "WEEKLY":
       return addDays(anchor, 7 * periods);
     case "BIWEEKLY":
@@ -88,11 +100,49 @@ export function advanceByFrequency(
   }
 }
 
+/** Day of week, 0 = Sunday through 6 = Saturday. */
+export function weekdayOf(date: Date): number {
+  return startOfDay(date).getUTCDay();
+}
+
+export class NoCollectionDayError extends Error {
+  constructor() {
+    super("At least one weekday must be available for collection");
+    this.name = "NoCollectionDayError";
+  }
+}
+
+/**
+ * Moves a date forward until it lands on a day the business collects on.
+ * A date that is already fine is returned untouched.
+ */
+export function nextCollectionDay(
+  date: Date,
+  nonCollectionDays: readonly number[] = [],
+): Date {
+  if (nonCollectionDays.length === 0) return startOfDay(date);
+  if (nonCollectionDays.length >= 7) throw new NoCollectionDayError();
+
+  const blocked = new Set(nonCollectionDays);
+  let candidate = startOfDay(date);
+
+  // At most six hops: with seven blocked days we already threw above.
+  for (let hop = 0; hop < 7; hop += 1) {
+    if (!blocked.has(candidate.getUTCDay())) return candidate;
+    candidate = addDays(candidate, 1);
+  }
+  throw new NoCollectionDayError();
+}
+
 /** How many payment periods fit in a year. Used to annualize a rate. */
 export function periodsPerYear(frequency: PaymentFrequency): number {
   switch (frequency) {
     case "DAILY":
       return 365;
+    case "EVERY_OTHER_DAY":
+      return 182;
+    case "TWICE_WEEKLY":
+      return 104;
     case "WEEKLY":
       return 52;
     case "BIWEEKLY":
@@ -106,6 +156,8 @@ export function periodsPerYear(frequency: PaymentFrequency): number {
     case "YEARLY":
     case "SINGLE":
       return 1;
+    case "CUSTOM":
+      return 365;
     default: {
       const exhaustive: never = frequency;
       throw new Error(`Unsupported frequency: ${String(exhaustive)}`);

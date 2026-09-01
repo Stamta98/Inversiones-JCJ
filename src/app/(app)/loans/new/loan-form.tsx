@@ -22,6 +22,7 @@ import {
   INTEREST_METHODS,
   LATE_FEE_MODES,
   PAYMENT_FREQUENCIES,
+  WEEKDAYS,
   type InterestMethod,
   type LateFeeMode,
   type PaymentFrequency,
@@ -73,7 +74,16 @@ export function LoanForm({
   const [frequency, setFrequency] = useState<PaymentFrequency>("MONTHLY");
   const [termCount, setTermCount] = useState("12");
   const [firstDueDate, setFirstDueDate] = useState(todayIso());
+  const [customIntervalDays, setCustomIntervalDays] = useState("10");
+  const [nonCollectionDays, setNonCollectionDays] = useState<number[]>([]);
   const [lateFeeMode, setLateFeeMode] = useState<LateFeeMode>("NONE");
+
+  const toggleNonCollectionDay = (day: number) =>
+    setNonCollectionDays((current) =>
+      current.includes(day)
+        ? current.filter((value) => value !== day)
+        : [...current, day].sort(),
+    );
 
   const money = (value: number) => formatCurrency(value, currencyCode);
 
@@ -89,6 +99,8 @@ export function LoanForm({
           frequency,
           termCount: Number(termCount) || 0,
           firstDueDate: new Date(`${firstDueDate}T00:00:00.000Z`),
+          customIntervalDays: Number(customIntervalDays) || 0,
+          nonCollectionDays,
         }),
         error: null as string | null,
       };
@@ -100,7 +112,16 @@ export function LoanForm({
           : es.common.error;
       return { schedule: null, error: message };
     }
-  }, [principal, interestRate, interestMethod, frequency, termCount, firstDueDate]);
+  }, [
+    principal,
+    interestRate,
+    interestMethod,
+    frequency,
+    termCount,
+    firstDueDate,
+    customIntervalDays,
+    nonCollectionDays,
+  ]);
 
   const schedule = preview.schedule;
 
@@ -201,6 +222,29 @@ export function LoanForm({
               </Select>
             </Field>
 
+            {frequency === "CUSTOM" ? (
+              <Field
+                label={es.loans.customIntervalDays}
+                htmlFor="customIntervalDays"
+                hint={es.loans.customIntervalHint}
+                required
+              >
+                <Input
+                  id="customIntervalDays"
+                  name="customIntervalDays"
+                  type="number"
+                  inputMode="numeric"
+                  step="1"
+                  min="1"
+                  required
+                  value={customIntervalDays}
+                  onChange={(event) =>
+                    setCustomIntervalDays(event.target.value)
+                  }
+                />
+              </Field>
+            ) : null}
+
             <Field label={es.loans.termCount} htmlFor="termCount" required>
               <Input
                 id="termCount"
@@ -225,6 +269,43 @@ export function LoanForm({
                 onChange={(event) => setFirstDueDate(event.target.value)}
               />
             </Field>
+
+            <div className="sm:col-span-2">
+              <span className="mb-1.5 block text-xs font-medium text-ink-muted">
+                {es.loans.nonCollectionDays}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {WEEKDAYS.map((day) => {
+                  const isBlocked = nonCollectionDays.includes(day);
+                  return (
+                    <label
+                      key={day}
+                      className={
+                        "cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors " +
+                        (isBlocked
+                          ? "border-danger bg-danger-soft text-danger"
+                          : "border-border text-ink-muted hover:border-brand")
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        name="nonCollectionDays"
+                        value={day}
+                        checked={isBlocked}
+                        onChange={() => toggleNonCollectionDay(day)}
+                        className="sr-only"
+                      />
+                      {es.loans.weekdayShort[String(day) as "0"]}
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-xs text-ink-subtle">
+                {nonCollectionDays.length === 0
+                  ? es.loans.nonCollectionNone
+                  : es.loans.nonCollectionHint}
+              </p>
+            </div>
 
             <Field label={es.loans.lateFeeMode} htmlFor="lateFeeMode">
               <Select
@@ -332,7 +413,7 @@ export function LoanForm({
                 </CardBody>
               ) : null}
               <div className="max-h-[28rem] overflow-y-auto">
-                <TableWrap>
+                <TableWrap dense>
                   <thead className="sticky top-0 bg-surface">
                     <tr>
                       <Th>{es.loans.installment}</Th>

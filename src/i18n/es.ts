@@ -298,6 +298,8 @@ export const es = {
     },
     frequencyLabel: {
       DAILY: "Diario",
+      EVERY_OTHER_DAY: "Un día sí y uno no",
+      TWICE_WEEKLY: "Dos veces a la semana",
       WEEKLY: "Semanal",
       BIWEEKLY: "Cada 14 días",
       SEMIMONTHLY: "Quincenal",
@@ -305,6 +307,31 @@ export const es = {
       QUARTERLY: "Trimestral",
       YEARLY: "Anual",
       SINGLE: "Pago único",
+      CUSTOM: "Personalizado",
+    },
+    customIntervalDays: "Cobrar cada cuántos días",
+    customIntervalHint: "Por ejemplo, 10 para cobrar cada 10 días.",
+    nonCollectionDays: "Días que no se cobra",
+    nonCollectionHint:
+      "Marca los días en que no sales a cobrar. Las cuotas se corren al siguiente día hábil.",
+    nonCollectionNone: "Se cobra todos los días",
+    weekday: {
+      "0": "Domingo",
+      "1": "Lunes",
+      "2": "Martes",
+      "3": "Miércoles",
+      "4": "Jueves",
+      "5": "Viernes",
+      "6": "Sábado",
+    },
+    weekdayShort: {
+      "0": "Dom",
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mié",
+      "4": "Jue",
+      "5": "Vie",
+      "6": "Sáb",
     },
     lateFeeModeLabel: {
       NONE: "Sin mora",
@@ -337,6 +364,10 @@ export const es = {
       interestRate:
         "La tasa no es válida: la cuota no alcanza a cubrir el interés.",
       termCount: "La cantidad de cuotas debe ser un número entero positivo.",
+      customIntervalDays:
+        "Indica cada cuántos días se cobra (un número entero mayor que cero).",
+      nonCollectionDays:
+        "Tiene que quedar al menos un día de la semana para cobrar.",
       firstDueDate: "La fecha de la primera cuota no es válida.",
       customerRequired: "Debes seleccionar un cliente.",
     },

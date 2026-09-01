@@ -204,7 +204,19 @@ export default async function LoanDetailPage({
           <Card>
             <CardHeader
               title={t("loans.schedule")}
-              description={`${t(`loans.method.${loan.interestMethod}`)} · ${t(`loans.frequencyLabel.${loan.frequency}`)}`}
+              description={[
+                t(`loans.method.${loan.interestMethod}`),
+                loan.frequency === "CUSTOM" && loan.customIntervalDays
+                  ? `${t("loans.frequencyLabel.CUSTOM")} (${loan.customIntervalDays} días)`
+                  : t(`loans.frequencyLabel.${loan.frequency}`),
+                loan.nonCollectionDays.length > 0
+                  ? `${t("loans.nonCollectionDays")}: ${loan.nonCollectionDays
+                      .map((day) => t(`loans.weekday.${day}`))
+                      .join(", ")}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             />
             {loan.interestMethod === "CREDIT_LINE" ? (
               <CardBody className="pb-0">
