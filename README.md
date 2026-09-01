@@ -148,6 +148,25 @@ conecta por Postgres directo con un rol que omite RLS, así que funciona igual.
 El bucket de archivos también es privado: las fotos se sirven por `/api/files`,
 que exige sesión y solo entrega archivos de la empresa del usuario.
 
+### Datos base ya cargados
+
+El proyecto de Supabase ya tiene la empresa, los 5 roles, los 13 módulos, los
+dos usuarios, la caja, las categorías de gasto, las 5 plantillas de WhatsApp y
+las 4 automatizaciones de cobranza. **No hay clientes ni préstamos de ejemplo**:
+la base está limpia para empezar a trabajar de verdad.
+
+Si necesitas volver a generar esos datos base en otra base de datos y no puedes
+conectarte con Prisma (por ejemplo desde un servidor que solo permite HTTP), el
+script los emite como SQL para pegar en el editor de Supabase:
+
+```bash
+npx tsx scripts/gen-seed-sql.ts > seed.sql
+```
+
+Lee las mismas constantes que la aplicación, así que no se puede desincronizar
+de los roles, módulos y plantillas reales. Se puede correr varias veces sin
+duplicar nada.
+
 ### Cambios de esquema
 
 ```bash

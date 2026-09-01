@@ -16,60 +16,14 @@ import { fromCents, toCents } from "../src/core/money";
 import { ROLE_PRESETS } from "../src/core/permissions";
 import { addDays } from "../src/core/dates";
 import { es } from "../src/i18n/es";
+import {
+  DEFAULT_AUTOMATION_RULES,
+  DEFAULT_TEMPLATES,
+} from "../src/modules/templates/defaults";
 
 const db = new PrismaClient();
 
 const DEMO_PASSWORD = process.env.SEED_PASSWORD ?? "Cambiar123";
-
-/** Message templates every new company starts with. */
-const DEFAULT_TEMPLATES = [
-  {
-    key: "recordatorio_previo",
-    name: "Recordatorio antes del vencimiento",
-    kind: "WHATSAPP" as const,
-    body:
-      "Hola {{cliente.nombre}}, te recordamos que tu cuota #{{cuota.numero}} " +
-      "del préstamo {{prestamo.numero}} vence el {{cuota.vencimiento}} por " +
-      "{{cuota.monto}}. Gracias por tu puntualidad. {{empresa.nombre}}",
-  },
-  {
-    key: "aviso_vencimiento",
-    name: "Aviso el día del vencimiento",
-    kind: "WHATSAPP" as const,
-    body:
-      "Hola {{cliente.nombre}}, hoy vence tu cuota de {{cuota.monto}} del " +
-      "préstamo {{prestamo.numero}}. Puedes pagar hoy mismo para evitar mora. " +
-      "{{empresa.nombre}}",
-  },
-  {
-    key: "cobranza_atraso",
-    name: "Cobranza por atraso",
-    kind: "WHATSAPP" as const,
-    body:
-      "Hola {{cliente.nombre}}, tu cuota del préstamo {{prestamo.numero}} " +
-      "venció el {{cuota.vencimiento}} y lleva {{prestamo.diasMora}} días de " +
-      "atraso. El total a pagar con mora es {{cuota.totalAPagar}}. " +
-      "Comunícate con nosotros. {{empresa.nombre}}",
-  },
-  {
-    key: "gracias_pago",
-    name: "Agradecimiento por el pago",
-    kind: "WHATSAPP" as const,
-    body:
-      "Gracias {{cliente.nombre}}, recibimos tu pago de {{cobro.monto}}. " +
-      "Recibo {{cobro.recibo}}. Tu saldo actual es {{prestamo.saldo}}. " +
-      "{{empresa.nombre}}",
-  },
-  {
-    key: "recibo_cobro",
-    name: "Recibo de cobro",
-    kind: "RECEIPT" as const,
-    body:
-      "{{empresa.nombre}}\nRECIBO {{cobro.recibo}}\nFecha: {{cobro.fecha}}\n" +
-      "Cliente: {{cliente.nombreCompleto}}\nPréstamo: {{prestamo.numero}}\n" +
-      "Monto recibido: {{cobro.monto}}\nSaldo pendiente: {{prestamo.saldo}}",
-  },
-];
 
 const DEMO_CUSTOMERS = [
   {
@@ -378,32 +332,7 @@ async function main(): Promise<void> {
   }
 
   // Automation rules -------------------------------------------------------
-  const rulesToCreate = [
-    {
-      name: "Recordatorio 2 días antes",
-      trigger: "BEFORE_DUE_DATE" as const,
-      offsetDays: 2,
-      templateKey: "recordatorio_previo",
-    },
-    {
-      name: "Aviso el día del vencimiento",
-      trigger: "ON_DUE_DATE" as const,
-      offsetDays: 0,
-      templateKey: "aviso_vencimiento",
-    },
-    {
-      name: "Cobranza a los 3 días de atraso",
-      trigger: "AFTER_DUE_DATE" as const,
-      offsetDays: 3,
-      templateKey: "cobranza_atraso",
-    },
-    {
-      name: "Cobranza a los 15 días de mora",
-      trigger: "ARREARS_THRESHOLD" as const,
-      offsetDays: 15,
-      templateKey: "cobranza_atraso",
-    },
-  ];
+  const rulesToCreate = DEFAULT_AUTOMATION_RULES;
 
   for (const rule of rulesToCreate) {
     const existing = await db.automationRule.findFirst({
