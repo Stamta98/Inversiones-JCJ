@@ -16,11 +16,13 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "mobile:sync": "next build && npx cap sync android",
-    "mobile:open": "npx cap open android",
+    "mobile:sync": "cap sync",
     "mobile:apk": "cd android && ./gradlew assembleRelease",
     "db:deploy": "prisma migrate deploy",
-    "db:status": "prisma migrate status"
+    "db:status": "prisma migrate status",
+    "mobile:android": "cap open android",
+    "mobile:ios": "cap open ios",
+    "mobile:apk:debug": "cd android && ./gradlew assembleDebug"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -40,6 +42,7 @@
     "@capacitor/android": "^6.2.0",
     "@capacitor/cli": "^6.2.0",
     "@capacitor/core": "^6.2.0",
+    "@capacitor/ios": "^6.2.2",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.5",
@@ -47,6 +50,7 @@
     "@types/react-dom": "^19.0.2",
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.5.25",
+    "playwright": "^1.62.1",
     "prisma": "^6.1.0",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.19.2",

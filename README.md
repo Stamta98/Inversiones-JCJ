@@ -273,21 +273,67 @@ STORAGE_LOCAL_DIR="./storage"
 
 ---
 
-## Aplicación móvil (APK)
+## Aplicación móvil (Android e iOS)
 
-Capacitor envuelve la misma aplicación web en un contenedor nativo.
+Capacitor envuelve **la misma aplicación web** en un contenedor nativo: una
+sola base de código, un solo despliegue, y nada de mantener un segundo front.
+
+El contenedor apunta al sitio desplegado en vez de llevar una copia adentro.
+Es una app que necesita el servidor en cada pantalla, y una copia empaquetada
+quedaría vieja apenas actualices el sitio: el cobrador estaría viendo la app de
+ayer. La carpeta `mobile/` **no es la app**: es la pantalla local que se ve
+mientras carga y, sobre todo, **cuando el teléfono se queda sin señal en plena
+ruta**.
+
+Los proyectos nativos (`android/` e `ios/`) ya están generados y versionados,
+con los permisos de cámara y ubicación declarados.
+
+### Android
+
+Necesitas **Android Studio** (trae el SDK y Java).
 
 ```bash
-npx cap add android                                  # solo la primera vez
 MOBILE_SERVER_URL=https://tu-dominio.com npm run mobile:sync
-npm run mobile:apk       # android/app/build/outputs/apk/release
+npm run mobile:apk:debug   # APK de prueba, se instala directo en el teléfono
+npm run mobile:apk         # APK de release, hay que firmarlo para Play Store
 ```
 
-También funciona como PWA: desde el navegador del celular, *Agregar a la
-pantalla de inicio*.
+El resultado queda en `android/app/build/outputs/apk/`.
 
-La interfaz es la misma en ambos casos — menú lateral en escritorio, barra
-inferior y cajón en el teléfono.
+Para firmar el de release: Android Studio → *Build → Generate Signed Bundle /
+APK*. Guarda el keystore, si lo pierdes no puedes volver a actualizar la app en
+Play Store.
+
+### iOS
+
+**Requiere una Mac con Xcode.** No hay forma de compilar para iPhone desde
+Windows ni Linux; es un requisito de Apple, no del proyecto.
+
+```bash
+MOBILE_SERVER_URL=https://tu-dominio.com npm run mobile:sync
+cd ios/App && pod install
+npm run mobile:ios         # abre Xcode
+```
+
+Publicar en la App Store necesita además una cuenta de Apple Developer
+(99 USD al año).
+
+### Permisos declarados
+
+| Permiso | Para qué |
+| --- | --- |
+| Cámara | Foto del cliente y del documento de identidad. |
+| Ubicación (en uso) | GPS de la casa y del negocio, y orden de la ruta. |
+| Fotos | Elegir una imagen ya tomada en vez de sacarla en el momento. |
+
+En iOS los tres llevan su explicación en español en `Info.plist`. **Sin eso la
+app se cierra sola** al pedir el permiso.
+
+### PWA
+
+Sin compilar nada: desde el navegador del celular, *Agregar a la pantalla de
+inicio*. Queda con su ícono y sin barra de direcciones. Es la vía más rápida
+para poner a un cobrador a trabajar hoy mismo.
 
 ---
 

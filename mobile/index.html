@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Inversiones JCJ</title>
+    <style>
+      /*
+       * Pantalla local de la aplicación móvil.
+       *
+       * La app es un contenedor nativo alrededor del sitio web, así que esto
+       * es lo que se ve mientras carga y, sobre todo, cuando el teléfono se
+       * queda sin señal en plena ruta de cobro. Un cobrador tiene que
+       * entender qué pasa sin llamar a nadie.
+       */
+      :root {
+        color-scheme: light dark;
+        --fondo: #f8fafa;
+        --superficie: #ffffff;
+        --texto: #1c2529;
+        --texto-suave: #5b6b72;
+        --marca: #0f766e;
+        --borde: #dfe5e6;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fondo: #14181b;
+          --superficie: #1d2226;
+          --texto: #f2f5f6;
+          --texto-suave: #a3b0b5;
+          --marca: #2dd4bf;
+          --borde: #2c3438;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px calc(24px + env(safe-area-inset-right)) 24px
+          calc(24px + env(safe-area-inset-left));
+        background: var(--fondo);
+        color: var(--texto);
+        font-family:
+          system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .tarjeta {
+        width: 100%;
+        max-width: 22rem;
+        text-align: center;
+      }
+      .logo {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 20px;
+        border-radius: 20px;
+        background: var(--marca);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        color: var(--texto-suave);
+        font-size: 0.9375rem;
+        line-height: 1.5;
+      }
+      .estado {
+        margin-top: 22px;
+        padding: 14px 16px;
+        border: 1px solid var(--borde);
+        border-radius: 14px;
+        background: var(--superficie);
+        font-size: 0.875rem;
+        color: var(--texto-suave);
+      }
+      button {
+        margin-top: 16px;
+        width: 100%;
+        padding: 13px 16px;
+        border: 0;
+        border-radius: 12px;
+        background: var(--marca);
+        color: #fff;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+      }
+      .oculto {
+        display: none;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .punto {
+          animation: latido 1.4s ease-in-out infinite;
+        }
+        @keyframes latido {
+          0%,
+          100% {
+            opacity: 0.35;
+          }
+          50% {
+            opacity: 1;
+          }
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="tarjeta">
+      <div class="logo">JCJ</div>
+      <h1>Inversiones JCJ</h1>
+      <p>Gestión de préstamos, cobros y créditos</p>
+
+      <div class="estado" id="estado">
+        <span class="punto">Abriendo la aplicación…</span>
+      </div>
+
+      <button id="reintentar" class="oculto" type="button">
+        Reintentar
+      </button>
+    </main>
+
+    <script>
+      (function () {
+        var estado = document.getElementById("estado");
+        var reintentar = document.getElementById("reintentar");
+
+        function sinConexion() {
+          estado.innerHTML =
+            "No hay conexión a internet.<br />La aplicación necesita datos o wifi para mostrar tus clientes y cobros.";
+          reintentar.classList.remove("oculto");
+        }
+
+        function revisar() {
+          if (navigator.onLine === false) {
+            sinConexion();
+            return;
+          }
+          // Con señal, el contenedor nativo carga el sitio por su cuenta. Si
+          // pasados unos segundos seguimos aquí, el servidor no respondió.
+          setTimeout(function () {
+            if (navigator.onLine === false) {
+              sinConexion();
+              return;
+            }
+            estado.innerHTML =
+              "No se pudo conectar con el servidor.<br />Revisa tu conexión e inténtalo de nuevo.";
+            reintentar.classList.remove("oculto");
+          }, 12000);
+        }
+
+        reintentar.addEventListener("click", function () {
+          reintentar.disabled = true;
+          estado.innerHTML = '<span class="punto">Reintentando…</span>';
+          window.location.reload();
+        });
+
+        window.addEventListener("online", function () {
+          window.location.reload();
+        });
+
+        revisar();
+      })();
+    </script>
+  </body>
+</html>
