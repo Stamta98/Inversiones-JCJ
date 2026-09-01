@@ -6,6 +6,9 @@
  * messages and dispatches whatever is waiting.
  *
  *   curl -X POST https://.../api/jobs/run -H "x-jobs-secret: ..."
+ *
+ * Acepta GET además de POST, y el secreto por `Authorization: Bearer`, porque
+ * Vercel Cron solo hace GET y no deja mandar encabezados propios.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -24,13 +27,19 @@ export const dynamic = "force-dynamic";
 const REFRESH_BATCH_SIZE = 500;
 
 function isAuthorized(request: NextRequest): boolean {
+  // Vercel Cron no deja poner encabezados propios: manda
+  // `Authorization: Bearer <secreto>` y nada más.
+  const bearer = request.headers.get("authorization")?.match(/^Bearer (.+)$/i);
+
   const provided =
     request.headers.get("x-jobs-secret") ??
+    bearer?.[1] ??
     request.nextUrl.searchParams.get("secret");
+
   return Boolean(provided) && provided === env().JOBS_SECRET;
 }
 
-export async function POST(request: NextRequest) {
+async function run(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -71,3 +80,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ ranAt: runDate.toISOString(), report });
 }
+
+export const POST = run;
+/** Vercel Cron solo hace GET. Mismo trabajo, mismo secreto. */
+export const GET = run;
