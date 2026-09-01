@@ -1,0 +1,26 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+coverage/
+
+.env
+.env.local
+.env*.local
+
+# Capacitor / Android
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+ios/App/Pods/
+ios/App/build/
+
+*.log
+npm-debug.log*
+.DS_Store
+.vscode/
+.idea/
+*.tsbuildinfo
+next-env.d.ts
