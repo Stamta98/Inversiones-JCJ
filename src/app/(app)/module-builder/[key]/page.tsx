@@ -64,7 +64,7 @@ export default async function CustomEntityPage({
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader title={t("moduleBuilder.fields")} />
           {entity.fields.length === 0 ? (
@@ -117,7 +117,7 @@ export default async function CustomEntityPage({
         </Card>
 
         {!entity.extendsKey && entity.fields.length > 0 && canEdit ? (
-          <Card className="h-fit">
+          <Card>
             <CardHeader title={t("moduleBuilder.newRecord")} />
             <RecordForm
               entityId={entity.id}

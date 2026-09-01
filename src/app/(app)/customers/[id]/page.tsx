@@ -96,7 +96,7 @@ export default async function CustomerDetailPage({
         ) : null}
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      <div className="mt-4 grid items-start gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader title={t("customers.singular")} />
           <CardBody>

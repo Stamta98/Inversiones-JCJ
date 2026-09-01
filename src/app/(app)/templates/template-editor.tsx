@@ -95,7 +95,7 @@ export function TemplateEditor({ template }: { template?: TemplateInput }) {
   };
 
   return (
-    <form action={formAction} className="grid gap-4 lg:grid-cols-3">
+    <form action={formAction} className="grid items-start gap-4 lg:grid-cols-3">
       {template?.id ? (
         <input type="hidden" name="id" value={template.id} />
       ) : null}
@@ -183,7 +183,7 @@ export function TemplateEditor({ template }: { template?: TemplateInput }) {
         </div>
       </div>
 
-      <Card className="h-fit">
+      <Card>
         <CardHeader
           title={es.templates.variables}
           description={es.templates.variablesHint}

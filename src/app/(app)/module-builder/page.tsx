@@ -36,7 +36,7 @@ export default async function ModuleBuilderPage() {
         description={t("moduleBuilder.subtitle")}
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader title={t("moduleBuilder.entities")} />
           {entities.length === 0 ? (
@@ -96,7 +96,7 @@ export default async function ModuleBuilderPage() {
         </Card>
 
         {can(context, "moduleBuilder.create") ? (
-          <Card className="h-fit">
+          <Card>
             <CardHeader title={t("moduleBuilder.newEntity")} />
             <EntityForm />
           </Card>

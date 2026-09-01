@@ -86,7 +86,7 @@ export default async function MessagingPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader title={t("messaging.accounts")} />
           {accounts.length > 0 ? (

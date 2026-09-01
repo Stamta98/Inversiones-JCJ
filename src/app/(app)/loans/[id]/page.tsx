@@ -161,7 +161,7 @@ export default async function LoanDetailPage({
         />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      <div className="mt-4 grid items-start gap-4 lg:grid-cols-3">
         {canCollect ? (
           <Card className="lg:col-span-2">
             <CardHeader title={t("payments.new")} />

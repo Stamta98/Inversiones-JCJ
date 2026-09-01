@@ -112,7 +112,7 @@ export function LoanForm({
     <form action={formAction} className="space-y-4">
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader title={es.loans.new} />
           <CardBody className="grid gap-4 sm:grid-cols-2">

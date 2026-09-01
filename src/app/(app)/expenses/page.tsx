@@ -76,7 +76,7 @@ export default async function ExpensesPage() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid items-start gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader title={t("expenses.title")} />
           {expenses.length === 0 ? (
@@ -125,7 +125,7 @@ export default async function ExpensesPage() {
           ) : null}
         </Card>
 
-        <Card className="h-fit">
+        <Card>
           <CardHeader title={t("expenses.categories")} />
           <CardBody className="space-y-3">
             <ul className="space-y-1 text-sm text-ink-muted">

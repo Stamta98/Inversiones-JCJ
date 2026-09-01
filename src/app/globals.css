@@ -38,8 +38,16 @@
   --font-numeric: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
 }
 
+:root {
+  color-scheme: light;
+}
+
+/* Dark palette.
+   Tailwind v4 hoists `@theme` to the root, so a nested `@theme` would apply
+   unconditionally. The dark values are plain custom property overrides
+   instead, which the generated utilities already read through var(). */
 @media (prefers-color-scheme: dark) {
-  @theme {
+  :root {
     --color-canvas: oklch(0.19 0.012 255);
     --color-surface: oklch(0.235 0.014 255);
     --color-surface-muted: oklch(0.275 0.014 255);
@@ -52,17 +60,19 @@
     --color-ink-inverse: oklch(0.19 0.012 255);
 
     --color-brand: oklch(0.68 0.12 175);
-    --color-brand-strong: oklch(0.76 0.12 175);
+    --color-brand-strong: oklch(0.82 0.1 175);
     --color-brand-soft: oklch(0.3 0.05 175);
 
-    --color-positive: oklch(0.7 0.13 155);
+    --color-positive: oklch(0.72 0.13 155);
     --color-positive-soft: oklch(0.3 0.05 155);
-    --color-warning: oklch(0.78 0.14 78);
+    --color-warning: oklch(0.8 0.13 78);
     --color-warning-soft: oklch(0.32 0.05 78);
-    --color-danger: oklch(0.68 0.16 25);
+    --color-danger: oklch(0.7 0.15 25);
     --color-danger-soft: oklch(0.31 0.06 25);
-    --color-info: oklch(0.7 0.12 250);
+    --color-info: oklch(0.72 0.11 250);
     --color-info-soft: oklch(0.3 0.05 250);
+
+    color-scheme: dark;
   }
 }
 

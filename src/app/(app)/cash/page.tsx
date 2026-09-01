@@ -58,7 +58,7 @@ export default async function CashPage() {
         <StatCard label={t("cash.title")} value={String(cashBoxes.length)} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader title={t("cash.title")} />
           {cashBoxes.length === 0 ? (
@@ -104,7 +104,7 @@ export default async function CashPage() {
         </Card>
 
         {canEdit && cashBoxes.length > 0 ? (
-          <Card className="h-fit">
+          <Card>
             <CardHeader title={t("cash.movements")} />
             <MovementForm
               cashBoxes={cashBoxes.map((cashBox) => ({

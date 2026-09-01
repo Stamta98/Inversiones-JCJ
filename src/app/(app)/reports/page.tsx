@@ -154,7 +154,7 @@ export default async function ReportsPage() {
         />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader
             title={t("reports.arrears")}

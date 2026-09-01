@@ -75,7 +75,7 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+      <div className="mt-5 grid items-start gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader title={t("dashboard.dueTodayTitle")} />
           {dueToday.length === 0 ? (
