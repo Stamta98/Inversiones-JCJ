@@ -108,13 +108,24 @@ el proyecto `ivhmbqqiccegjoyayvhv` (`https://ivhmbqqiccegjoyayvhv.supabase.co`):
 Las contraseñas y claves **no están en el repositorio** y hay que copiarlas del
 panel de Supabase:
 
-1. **Project Settings → Database → Connection string.** Copia dos:
-   - *Transaction pooler* (puerto 6543) → `DATABASE_URL`, agregándole
-     `?pgbouncer=true&connection_limit=1`. Es la que usa la aplicación.
-   - *Direct connection* (puerto 5432) → `DIRECT_URL`. Es la que usan las
+1. **Botón "Connect" → pestaña ORM → Prisma.** Ahí salen las dos líneas ya
+   armadas, con los mismos nombres que usa el proyecto:
+   - `DATABASE_URL` → pooler en modo **transacción** (puerto 6543). La usa la
+     aplicación.
+   - `DIRECT_URL` → pooler en modo **sesión** (puerto 5432). La usan las
      migraciones, que necesitan una sesión real.
-2. **Project Settings → API → `service_role`** → `SUPABASE_SERVICE_ROLE_KEY`,
-   y pon `STORAGE_PROVIDER="supabase"` para guardar las fotos ahí.
+
+   Las dos van por el pooler compartido a propósito: la conexión directa a
+   `db.<ref>.supabase.co` es sólo IPv6 y no funciona desde la mayoría de los
+   hosts.
+2. **Project Settings → API Keys → `service_role`** →
+   `SUPABASE_SERVICE_ROLE_KEY`, y pon `STORAGE_PROVIDER="supabase"` para
+   guardar las fotos ahí.
+
+> La contraseña de la base **no se puede consultar**: sólo se muestra una vez,
+> al crear el proyecto. Si no la tienes, genera otra en
+> *Project Settings → Database → Reset database password* y cópiala en ese
+> momento.
 
 Después:
 
