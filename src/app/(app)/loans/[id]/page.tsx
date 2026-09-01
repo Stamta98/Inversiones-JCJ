@@ -162,7 +162,45 @@ export default async function LoanDetailPage({
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
+        {canCollect ? (
+          <Card className="lg:col-span-2">
+            <CardHeader title={t("payments.new")} />
+            <CardBody>
+              <PaymentForm
+                loanId={loan.id}
+                suggestedAmount={suggestedAmount}
+                cashBoxes={cashBoxes.map((cashBox) => ({
+                  id: cashBox.id,
+                  label: cashBox.name,
+                }))}
+              />
+            </CardBody>
+          </Card>
+        ) : null}
+
+        <Card className={canCollect ? "" : "lg:col-span-3"}>
+          <CardHeader title={t("customers.singular")} />
+          <CardBody className="space-y-2 text-sm">
+            <Link
+              href={`/customers/${loan.customer.id}`}
+              className="block font-medium text-brand-strong hover:underline"
+            >
+              {loan.customer.firstName} {loan.customer.lastName}
+            </Link>
+            <p className="text-ink-muted">{loan.customer.code}</p>
+            {loan.customer.mobilePhone ? (
+              <p className="numeric text-ink-muted">
+                {loan.customer.mobilePhone}
+              </p>
+            ) : null}
+            {loan.customer.address ? (
+              <p className="text-ink-muted">{loan.customer.address}</p>
+            ) : null}
+          </CardBody>
+        </Card>
+      </div>
+
+      <div className="mt-4 space-y-4">
           <Card>
             <CardHeader
               title={t("loans.schedule")}
@@ -266,46 +304,6 @@ export default async function LoanDetailPage({
               </TableWrap>
             )}
           </Card>
-        </div>
-
-        <div className="space-y-4">
-          {canCollect ? (
-            <Card>
-              <CardHeader title={t("payments.new")} />
-              <CardBody>
-                <PaymentForm
-                  loanId={loan.id}
-                  suggestedAmount={suggestedAmount}
-                  cashBoxes={cashBoxes.map((cashBox) => ({
-                    id: cashBox.id,
-                    label: cashBox.name,
-                  }))}
-                />
-              </CardBody>
-            </Card>
-          ) : null}
-
-          <Card>
-            <CardHeader title={t("customers.singular")} />
-            <CardBody className="space-y-2 text-sm">
-              <Link
-                href={`/customers/${loan.customer.id}`}
-                className="block font-medium text-brand-strong hover:underline"
-              >
-                {loan.customer.firstName} {loan.customer.lastName}
-              </Link>
-              <p className="text-ink-muted">{loan.customer.code}</p>
-              {loan.customer.mobilePhone ? (
-                <p className="numeric text-ink-muted">
-                  {loan.customer.mobilePhone}
-                </p>
-              ) : null}
-              {loan.customer.address ? (
-                <p className="text-ink-muted">{loan.customer.address}</p>
-              ) : null}
-            </CardBody>
-          </Card>
-        </div>
       </div>
     </>
   );

@@ -273,7 +273,7 @@ export function StatCard({
           </span>
         ) : null}
       </div>
-      <p className="numeric mt-2 text-xl font-semibold tracking-tight text-ink sm:text-2xl">
+      <p className="numeric mt-2 text-lg font-semibold tracking-tight text-ink sm:text-2xl">
         {value}
       </p>
       {hint ? <p className="mt-1 text-xs text-ink-subtle">{hint}</p> : null}
@@ -331,7 +331,7 @@ export function Th({
     <th
       scope="col"
       className={cn(
-        "border-b border-border px-4 py-2.5 text-xs font-medium text-ink-muted whitespace-nowrap",
+        "border-b border-border px-3 py-2.5 text-xs font-medium text-ink-muted whitespace-nowrap",
         align === "right" && "text-right",
         align === "center" && "text-center",
         align === "left" && "text-left",
@@ -356,7 +356,7 @@ export function Td({
   return (
     <td
       className={cn(
-        "border-b border-border px-4 py-2.5 text-ink",
+        "border-b border-border px-3 py-2.5 text-ink",
         numeric && "numeric",
         align === "right" && "text-right",
         align === "center" && "text-center",

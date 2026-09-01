@@ -23,7 +23,7 @@ const METHODS = [
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" icon="receipt" disabled={pending} className="w-full">
+    <Button type="submit" icon="receipt" disabled={pending} className="w-full sm:w-auto">
       {pending ? es.common.saving : es.payments.new}
     </Button>
   );
@@ -54,6 +54,7 @@ export function PaymentForm({
         </Alert>
       ) : null}
 
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <Field label={es.payments.amount} htmlFor="amount" required>
         <Input
           id="amount"
@@ -102,6 +103,7 @@ export function PaymentForm({
       <Field label={es.payments.reference} htmlFor="reference">
         <Input id="reference" name="reference" />
       </Field>
+      </div>
 
       <p className="text-xs text-ink-subtle">{es.payments.allocationHint}</p>
 
