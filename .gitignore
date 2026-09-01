@@ -23,8 +23,11 @@ ios/App/App/public/
 ios/App/App/capacitor.config.json
 ios/App/App/capacitor.plugins.json
 
-# Uploaded customer photos and documents (local storage provider)
-storage/
+# Uploaded customer photos and documents (local storage provider).
+# Con la barra inicial: sin ella el patron coincide con CUALQUIER carpeta
+# llamada storage a cualquier profundidad, y se llevaba src/modules/storage/
+# entera fuera del repositorio.
+/storage/
 
 *.log
 npm-debug.log*
