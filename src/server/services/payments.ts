@@ -1,0 +1,268 @@
+/**
+ * Payment service.
+ *
+ * Posting a payment allocates it across the open installments, moves the money
+ * into a cash box, and refreshes the loan. Reversing one undoes all three.
+ */
+
+import { allocatePayment } from "@/core/loans/allocation";
+import { fromCents, toCents } from "@/core/money";
+
+import { db } from "../db";
+import { refreshLoan } from "./loans";
+import { nextReceiptNumber, withCodeRetry } from "./sequences";
+
+export type PaymentMethod =
+  | "CASH"
+  | "BANK_TRANSFER"
+  | "CARD"
+  | "CHECK"
+  | "MOBILE_WALLET"
+  | "OTHER";
+
+export interface PostPaymentInput {
+  companyId: string;
+  loanId: string;
+  amount: number;
+  method?: PaymentMethod;
+  paidAt?: Date;
+  cashBoxId?: string | null;
+  reference?: string | null;
+  notes?: string | null;
+  collectedById?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export class PaymentError extends Error {
+  constructor(
+    message: string,
+    readonly code: "amount" | "loanNotActive" | "nothingToApply",
+  ) {
+    super(message);
+    this.name = "PaymentError";
+  }
+}
+
+export interface PostPaymentResult {
+  paymentId: string;
+  receiptNumber: string;
+  appliedAmount: number;
+  unappliedAmount: number;
+}
+
+export async function postPayment(
+  input: PostPaymentInput,
+): Promise<PostPaymentResult> {
+  if (!(input.amount > 0)) {
+    throw new PaymentError("Amount must be greater than zero", "amount");
+  }
+
+  const paidAt = input.paidAt ?? new Date();
+
+  return withCodeRetry(() =>
+    db.$transaction(async (tx) => {
+      const loan = await tx.loan.findUniqueOrThrow({
+        where: { id: input.loanId },
+        include: { installments: { orderBy: { number: "asc" } } },
+      });
+
+      if (
+        loan.status === "DRAFT" ||
+        loan.status === "CANCELLED" ||
+        loan.status === "PENDING_APPROVAL"
+      ) {
+        throw new PaymentError("Loan is not active", "loanNotActive");
+      }
+
+      const allocatable = loan.installments.map((installment) => ({
+        id: installment.id,
+        number: installment.number,
+        dueDate: installment.dueDate,
+        principalCents: toCents(Number(installment.principalAmount)),
+        interestCents: toCents(Number(installment.interestAmount)),
+        lateFeeCents: toCents(Number(installment.lateFeeAmount)),
+        paidCents: toCents(Number(installment.paidAmount)),
+        status: installment.status,
+      }));
+
+      const result = allocatePayment(toCents(input.amount), allocatable);
+      if (result.allocations.length === 0) {
+        throw new PaymentError(
+          "This loan has no open installments",
+          "nothingToApply",
+        );
+      }
+
+      const receiptNumber = await nextReceiptNumber(tx, input.companyId);
+
+      const payment = await tx.payment.create({
+        data: {
+          companyId: input.companyId,
+          loanId: input.loanId,
+          cashBoxId: input.cashBoxId ?? null,
+          receiptNumber,
+          amount: input.amount,
+          method: input.method ?? "CASH",
+          paidAt,
+          reference: input.reference ?? null,
+          notes: input.notes ?? null,
+          collectedById: input.collectedById ?? null,
+          latitude: input.latitude ?? null,
+          longitude: input.longitude ?? null,
+          allocations: {
+            create: result.allocations.map((allocation) => ({
+              installmentId: allocation.installmentId,
+              principalAmount: fromCents(allocation.principalCents),
+              interestAmount: fromCents(allocation.interestCents),
+              lateFeeAmount: fromCents(allocation.lateFeeCents),
+            })),
+          },
+        },
+      });
+
+      for (const allocation of result.allocations) {
+        await tx.loanInstallment.update({
+          where: { id: allocation.installmentId },
+          data: {
+            paidAmount: fromCents(allocation.resultingPaidCents),
+            status: allocation.resultingStatus,
+            paidAt: allocation.resultingStatus === "PAID" ? paidAt : null,
+          },
+        });
+      }
+
+      if (input.cashBoxId) {
+        const cashBox = await tx.cashBox.findUniqueOrThrow({
+          where: { id: input.cashBoxId },
+          select: { balance: true },
+        });
+        const balanceAfter = Number(cashBox.balance) + input.amount;
+
+        await tx.cashBox.update({
+          where: { id: input.cashBoxId },
+          data: { balance: balanceAfter },
+        });
+        await tx.cashMovement.create({
+          data: {
+            cashBoxId: input.cashBoxId,
+            kind: "PAYMENT_RECEIVED",
+            amount: input.amount,
+            balanceAfter,
+            description: `Recibo ${receiptNumber}`,
+            paymentId: payment.id,
+            createdById: input.collectedById ?? null,
+          },
+        });
+      }
+
+      await refreshLoan(tx, input.loanId, paidAt);
+
+      await tx.auditLog.create({
+        data: {
+          companyId: input.companyId,
+          userId: input.collectedById ?? null,
+          action: "payment.posted",
+          entityType: "Payment",
+          entityId: payment.id,
+          metadata: { receiptNumber, amount: input.amount },
+        },
+      });
+
+      return {
+        paymentId: payment.id,
+        receiptNumber,
+        appliedAmount: fromCents(result.appliedCents),
+        unappliedAmount: fromCents(result.unappliedCents),
+      };
+    }),
+  );
+}
+
+export async function reversePayment(
+  paymentId: string,
+  options: { reason?: string; userId?: string | null } = {},
+): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const payment = await tx.payment.findUniqueOrThrow({
+      where: { id: paymentId },
+      include: { allocations: true },
+    });
+
+    if (payment.status === "REVERSED") return;
+
+    for (const allocation of payment.allocations) {
+      const installment = await tx.loanInstallment.findUniqueOrThrow({
+        where: { id: allocation.installmentId },
+      });
+
+      const returnedCents =
+        toCents(Number(allocation.principalAmount)) +
+        toCents(Number(allocation.interestAmount)) +
+        toCents(Number(allocation.lateFeeAmount));
+
+      const remainingPaidCents = Math.max(
+        0,
+        toCents(Number(installment.paidAmount)) - returnedCents,
+      );
+
+      await tx.loanInstallment.update({
+        where: { id: installment.id },
+        data: {
+          paidAmount: fromCents(remainingPaidCents),
+          status: remainingPaidCents > 0 ? "PARTIALLY_PAID" : "PENDING",
+          paidAt: null,
+        },
+      });
+    }
+
+    if (payment.cashBoxId) {
+      const cashBox = await tx.cashBox.findUniqueOrThrow({
+        where: { id: payment.cashBoxId },
+        select: { balance: true },
+      });
+      const balanceAfter = Number(cashBox.balance) - Number(payment.amount);
+
+      await tx.cashBox.update({
+        where: { id: payment.cashBoxId },
+        data: { balance: balanceAfter },
+      });
+      await tx.cashMovement.create({
+        data: {
+          cashBoxId: payment.cashBoxId,
+          kind: "ADJUSTMENT",
+          amount: -Number(payment.amount),
+          balanceAfter,
+          description: `Anulación recibo ${payment.receiptNumber}`,
+          paymentId: payment.id,
+          createdById: options.userId ?? null,
+        },
+      });
+    }
+
+    await tx.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: "REVERSED",
+        reversedAt: new Date(),
+        reversalNote: options.reason ?? null,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        companyId: payment.companyId,
+        userId: options.userId ?? null,
+        action: "payment.reversed",
+        entityType: "Payment",
+        entityId: paymentId,
+        metadata: {
+          receiptNumber: payment.receiptNumber,
+          reason: options.reason ?? null,
+        },
+      },
+    });
+
+    await refreshLoan(tx, payment.loanId);
+  });
+}
