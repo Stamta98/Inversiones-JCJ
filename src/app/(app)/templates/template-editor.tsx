@@ -1,7 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useRef, useState } from "react";
 
 import {
   Alert,
@@ -15,6 +14,7 @@ import {
   Textarea,
 } from "@/components/ui";
 import { es } from "@/i18n/es";
+import { useFormAction } from "@/lib/use-form-action";
 import { renderTemplate } from "@/modules/templates/render";
 import {
   TEMPLATE_VARIABLES,
@@ -59,8 +59,7 @@ export interface TemplateInput {
   isSystem: boolean;
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
+function SubmitButton({ pending }: { pending: boolean }) {
   return (
     <Button type="submit" disabled={pending}>
       {pending ? es.common.saving : es.common.save}
@@ -69,10 +68,7 @@ function SubmitButton() {
 }
 
 export function TemplateEditor({ template }: { template?: TemplateInput }) {
-  const [state, formAction] = useActionState<TemplateFormState, FormData>(
-    saveTemplate,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<TemplateFormState>(saveTemplate, {});
   const [body, setBody] = useState(template?.body ?? "");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -95,7 +91,7 @@ export function TemplateEditor({ template }: { template?: TemplateInput }) {
   };
 
   return (
-    <form action={formAction} className="grid items-start gap-4 lg:grid-cols-3">
+    <form onSubmit={onSubmit} className="grid items-start gap-4 lg:grid-cols-3">
       {template?.id ? (
         <input type="hidden" name="id" value={template.id} />
       ) : null}
@@ -179,7 +175,7 @@ export function TemplateEditor({ template }: { template?: TemplateInput }) {
         </Card>
 
         <div className="flex justify-end">
-          <SubmitButton />
+          <SubmitButton pending={pending} />
         </div>
       </div>
 

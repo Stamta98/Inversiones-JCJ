@@ -14,7 +14,7 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, initials } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -143,12 +143,28 @@ export default async function CustomersPage({
                       </Link>
                     </Td>
                     <Td>
-                      {customer.firstName} {customer.lastName}
-                      {worstArrears > 0 ? (
-                        <Badge tone="danger" className="ml-2">
-                          {worstArrears} d
-                        </Badge>
-                      ) : null}
+                      <span className="flex items-center gap-2.5">
+                        {customer.photoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={customer.photoUrl}
+                            alt=""
+                            className="size-8 shrink-0 rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[0.625rem] font-medium text-ink-subtle">
+                            {initials(`${customer.firstName} ${customer.lastName}`)}
+                          </span>
+                        )}
+                        <span className="min-w-0">
+                          {customer.firstName} {customer.lastName}
+                          {worstArrears > 0 ? (
+                            <Badge tone="danger" className="ml-2">
+                              {worstArrears} d
+                            </Badge>
+                          ) : null}
+                        </span>
+                      </span>
                     </Td>
                     <Td numeric>{customer.mobilePhone ?? "—"}</Td>
                     <Td align="right" numeric>

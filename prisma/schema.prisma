@@ -257,6 +257,9 @@ model Customer {
   workNeighborhood String?
   monthlyIncome  Decimal?       @db.Decimal(18, 2)
   status         CustomerStatus @default(ACTIVE)
+  /// Profile photo. Required when creating a customer through the UI; the
+  /// column stays nullable so records created before this existed still load.
+  photoUrl       String?
   /// Internal 0-100 score used to warn before granting new credit.
   creditScore    Int?
   notes          String?
@@ -291,19 +294,31 @@ model CustomerReference {
   @@index([customerId])
 }
 
+enum AttachmentKind {
+  ID_FRONT
+  ID_BACK
+  PROOF_OF_ADDRESS
+  /// Photo of the customer's home or business, used to verify the address.
+  PLACE_PHOTO
+  COLLATERAL
+  CONTRACT
+  OTHER
+}
+
 model Attachment {
-  id         String    @id @default(cuid())
+  id         String         @id @default(cuid())
   customerId String?
-  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer   Customer?      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   loanId     String?
-  loan       Loan?     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  loan       Loan?          @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  kind       AttachmentKind @default(OTHER)
   name       String
   url        String
   mimeType   String?
   sizeBytes  Int?
-  createdAt  DateTime  @default(now())
+  createdAt  DateTime       @default(now())
 
-  @@index([customerId])
+  @@index([customerId, kind])
   @@index([loanId])
 }
 

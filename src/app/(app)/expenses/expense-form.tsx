@@ -1,15 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-
 import { Alert, Button, CardBody, Field, Input, Select } from "@/components/ui";
 import { es } from "@/i18n/es";
+import { useFormAction } from "@/lib/use-form-action";
 
 import { createExpense, type ExpenseFormState } from "./actions";
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
+function SubmitButton({ pending }: { pending: boolean }) {
   return (
     <Button type="submit" size="sm" disabled={pending}>
       {pending ? es.common.saving : es.expenses.new}
@@ -24,13 +21,10 @@ export function ExpenseForm({
   categories: Array<{ id: string; label: string }>;
   cashBoxes: Array<{ id: string; label: string }>;
 }) {
-  const [state, formAction] = useActionState<ExpenseFormState, FormData>(
-    createExpense,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<ExpenseFormState>(createExpense, {});
 
   return (
-    <form action={formAction}>
+    <form onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">
@@ -88,7 +82,7 @@ export function ExpenseForm({
         </Field>
 
         <div className="sm:col-span-2 flex justify-end">
-          <SubmitButton />
+          <SubmitButton pending={pending} />
         </div>
       </CardBody>
     </form>

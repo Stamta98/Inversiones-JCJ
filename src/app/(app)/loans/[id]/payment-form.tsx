@@ -1,10 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-
 import { Alert, Button, Field, Input, Select } from "@/components/ui";
 import { es } from "@/i18n/es";
+import { useFormAction } from "@/lib/use-form-action";
 
 import {
   postPaymentAction,
@@ -20,8 +18,7 @@ const METHODS = [
   "OTHER",
 ] as const;
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
+function SubmitButton({ pending }: { pending: boolean }) {
   return (
     <Button type="submit" icon="receipt" disabled={pending} className="w-full sm:w-auto">
       {pending ? es.common.saving : es.payments.new}
@@ -38,13 +35,10 @@ export function PaymentForm({
   suggestedAmount: number;
   cashBoxes: Array<{ id: string; label: string }>;
 }) {
-  const [state, formAction] = useActionState<PaymentFormState, FormData>(
-    postPaymentAction,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<PaymentFormState>(postPaymentAction, {});
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form onSubmit={onSubmit} className="space-y-3">
       <input type="hidden" name="loanId" value={loanId} />
 
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
@@ -107,7 +101,7 @@ export function PaymentForm({
 
       <p className="text-xs text-ink-subtle">{es.payments.allocationHint}</p>
 
-      <SubmitButton />
+      <SubmitButton pending={pending} />
     </form>
   );
 }

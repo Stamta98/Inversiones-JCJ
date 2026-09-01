@@ -54,6 +54,7 @@ export default async function CustomerDetailPage({
     include: {
       loans: { orderBy: { createdAt: "desc" } },
       references: true,
+      attachments: { orderBy: { createdAt: "asc" } },
       interactions: {
         orderBy: { occurredAt: "desc" },
         take: 10,
@@ -66,6 +67,10 @@ export default async function CustomerDetailPage({
 
   const { t, currencyCode } = context;
   const money = (value: number) => formatCurrency(value, currencyCode);
+  const idDocuments = customer.attachments.filter(
+    (attachment) =>
+      attachment.kind === "ID_FRONT" || attachment.kind === "ID_BACK",
+  );
   const worstArrears = customer.loans.reduce(
     (worst, loan) => Math.max(worst, loan.daysInArrears),
     0,
@@ -99,7 +104,22 @@ export default async function CustomerDetailPage({
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader title={t("customers.singular")} />
-          <CardBody>
+          <CardBody className="flex flex-col items-center pb-2">
+            {customer.photoUrl ? (
+              // Same-origin, authenticated route; next/image adds nothing.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={customer.photoUrl}
+                alt={`${customer.firstName} ${customer.lastName}`}
+                className="size-28 rounded-full border border-border object-cover"
+              />
+            ) : (
+              <div className="flex size-28 items-center justify-center rounded-full border border-dashed border-border bg-surface-muted text-xs text-ink-subtle">
+                {t("customers.noPhoto")}
+              </div>
+            )}
+          </CardBody>
+          <CardBody className="pt-0">
             <dl>
               <DetailRow
                 label={t("customers.documentNumber")}
@@ -224,6 +244,36 @@ export default async function CustomerDetailPage({
                   ))}
                 </tbody>
               </TableWrap>
+            )}
+          </Card>
+
+          <Card>
+            <CardHeader
+              title={t("customers.documentsSection")}
+              description={t("customers.documentsHint")}
+            />
+            {idDocuments.length === 0 ? (
+              <EmptyState icon="image" title={t("common.empty")} />
+            ) : (
+              <CardBody className="grid gap-4 sm:grid-cols-2">
+                {idDocuments.map((document) => (
+                  <figure key={document.id}>
+                    <a href={document.url} target="_blank" rel="noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={document.url}
+                        alt={document.name}
+                        className="aspect-[16/10] w-full rounded-xl border border-border object-cover"
+                      />
+                    </a>
+                    <figcaption className="mt-1.5 text-xs text-ink-muted">
+                      {document.kind === "ID_FRONT"
+                        ? t("customers.idFront")
+                        : t("customers.idBack")}
+                    </figcaption>
+                  </figure>
+                ))}
+              </CardBody>
             )}
           </Card>
 

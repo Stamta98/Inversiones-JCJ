@@ -17,6 +17,11 @@ const schema = z.object({
   WHATSAPP_BRIDGE_URL: z.string().optional(),
   WHATSAPP_BRIDGE_TOKEN: z.string().optional(),
   JOBS_SECRET: z.string().min(8).default("development-jobs-secret"),
+  STORAGE_PROVIDER: z.enum(["local", "supabase"]).default("local"),
+  STORAGE_LOCAL_DIR: z.string().default("./storage"),
+  SUPABASE_URL: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  SUPABASE_STORAGE_BUCKET: z.string().default("customer-files"),
 });
 
 export type Env = z.infer<typeof schema>;

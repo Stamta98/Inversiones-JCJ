@@ -10,26 +10,43 @@ import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import { nextCustomerCode, withCodeRetry } from "@/server/services/sequences";
 
+/**
+ * An optional text field.
+ *
+ * It must tolerate the key being absent, not just empty: fields that only
+ * render under a condition (the employer name, shown only for an employee)
+ * never reach FormData when that condition is false.
+ */
 const optionalText = z
   .string()
   .trim()
-  .transform((value) => (value.length === 0 ? null : value))
-  .nullable();
+  .optional()
+  .transform((value) =>
+    value === undefined || value.length === 0 ? null : value,
+  );
+
+/** Only paths this app itself serves; never an arbitrary external URL. */
+const storedFileUrl = z
+  .string()
+  .trim()
+  .refine((value) => value.length === 0 || value.startsWith("/api/files/"), {
+    message: "Archivo inválido",
+  });
 
 const customerSchema = z.object({
+  photoUrl: storedFileUrl.refine((value) => value.length > 0, {
+    message: t("customers.photoRequired"),
+  }),
+  idFrontUrl: storedFileUrl.optional().default(""),
+  idBackUrl: storedFileUrl.optional().default(""),
   firstName: z.string().trim().min(1),
   lastName: z.string().trim().min(1),
   documentType: optionalText,
   documentNumber: optionalText,
-  email: z
-    .string()
-    .trim()
-    .transform((value) => (value.length === 0 ? null : value))
-    .nullable()
-    .refine(
-      (value) => value === null || z.string().email().safeParse(value).success,
-      { message: t("validation.email") },
-    ),
+  email: optionalText.refine(
+    (value) => value === null || z.string().email().safeParse(value).success,
+    { message: t("validation.email") },
+  ),
   phone: optionalText,
   mobilePhone: optionalText,
   address: optionalText,
@@ -46,8 +63,10 @@ const customerSchema = z.object({
   monthlyIncome: z
     .string()
     .trim()
-    .transform((value) => (value.length === 0 ? null : Number(value)))
-    .nullable(),
+    .optional()
+    .transform((value) =>
+      value === undefined || value.length === 0 ? null : Number(value),
+    ),
   notes: optionalText,
 });
 
@@ -70,14 +89,12 @@ export async function createCustomer(
   const parsed = customerSchema.safeParse(readForm(formData));
 
   if (!parsed.success) {
+    const fieldErrors = Object.fromEntries(
+      parsed.error.issues.map((issue) => [issue.path.join("."), issue.message]),
+    );
     return {
-      error: t("common.error"),
-      fieldErrors: Object.fromEntries(
-        parsed.error.issues.map((issue) => [
-          issue.path.join("."),
-          issue.message,
-        ]),
-      ),
+      error: fieldErrors.photoUrl ?? t("common.error"),
+      fieldErrors,
     };
   }
 
@@ -112,6 +129,20 @@ export async function createCustomer(
           workNeighborhood: data.workNeighborhood,
           monthlyIncome: data.monthlyIncome,
           notes: data.notes,
+          photoUrl: data.photoUrl,
+          attachments: {
+            create: [
+              { url: data.idFrontUrl, kind: "ID_FRONT" as const, name: "Documento (frente)" },
+              { url: data.idBackUrl, kind: "ID_BACK" as const, name: "Documento (reverso)" },
+            ]
+              .filter((attachment) => attachment.url.length > 0)
+              .map((attachment) => ({
+                kind: attachment.kind,
+                name: attachment.name,
+                url: attachment.url,
+                mimeType: "image/jpeg",
+              })),
+          },
         },
       });
 

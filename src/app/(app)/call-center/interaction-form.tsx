@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useState } from "react";
 
 import { Alert, Button, Field, Input, Select, Textarea } from "@/components/ui";
 import { es } from "@/i18n/es";
+import { useFormAction } from "@/lib/use-form-action";
 
 import { logInteraction, type InteractionFormState } from "./actions";
 
@@ -20,8 +20,7 @@ const OUTCOMES = [
   "CALLBACK_REQUESTED",
 ] as const;
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
+function SubmitButton({ pending }: { pending: boolean }) {
   return (
     <Button type="submit" size="sm" disabled={pending} className="w-full">
       {pending ? es.common.saving : es.callCenter.newInteraction}
@@ -36,15 +35,12 @@ export function InteractionForm({
   customerId: string;
   loanId?: string;
 }) {
-  const [state, formAction] = useActionState<InteractionFormState, FormData>(
-    logInteraction,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<InteractionFormState>(logInteraction, {});
   const [outcome, setOutcome] = useState<string>("CONTACTED");
   const showsPromise = outcome === "PAYMENT_PROMISED";
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form onSubmit={onSubmit} className="space-y-3">
       <input type="hidden" name="customerId" value={customerId} />
       {loanId ? <input type="hidden" name="loanId" value={loanId} /> : null}
 
@@ -116,7 +112,7 @@ export function InteractionForm({
         <Textarea id={`notes-${customerId}`} name="notes" rows={2} />
       </Field>
 
-      <SubmitButton />
+      <SubmitButton pending={pending} />
     </form>
   );
 }

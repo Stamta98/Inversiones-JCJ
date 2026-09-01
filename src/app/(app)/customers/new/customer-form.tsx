@@ -1,7 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useState } from "react";
 
 import {
   Alert,
@@ -14,14 +13,15 @@ import {
   Select,
   Textarea,
 } from "@/components/ui";
+import { PhotoUpload } from "@/components/ui/photo-upload";
 import { es } from "@/i18n/es";
+import { useFormAction } from "@/lib/use-form-action";
 
 import { createCustomer, type CustomerFormState } from "../actions";
 
 const EMPLOYMENT_TYPES = ["INDEPENDENT", "EMPLOYEE", "OTHER"] as const;
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
+function SubmitButton({ pending }: { pending: boolean }) {
   return (
     <Button type="submit" disabled={pending}>
       {pending ? es.common.saving : es.common.save}
@@ -30,10 +30,7 @@ function SubmitButton() {
 }
 
 export function CustomerForm() {
-  const [state, formAction] = useActionState<CustomerFormState, FormData>(
-    createCustomer,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<CustomerFormState>(createCustomer, {});
   const [employmentType, setEmploymentType] = useState<string>("");
   const fieldError = (name: string) => state.fieldErrors?.[name];
 
@@ -41,12 +38,21 @@ export function CustomerForm() {
   const isEmployee = employmentType === "EMPLOYEE";
 
   return (
-    <form action={formAction} className="max-w-4xl space-y-4">
+    <form onSubmit={onSubmit} className="max-w-4xl space-y-4">
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
 
       <Card>
         <CardHeader title={es.customers.personalSection} />
         <CardBody className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2 flex justify-center pb-2">
+            <PhotoUpload
+              name="photoUrl"
+              label={es.customers.photo}
+              hint={es.customers.photoHint}
+              shape="avatar"
+              required
+            />
+          </div>
           <Field
             label={es.customers.firstName}
             htmlFor="firstName"
@@ -198,6 +204,17 @@ export function CustomerForm() {
       </Card>
 
       <Card>
+        <CardHeader
+          title={es.customers.documentsSection}
+          description={es.customers.documentsHint}
+        />
+        <CardBody className="grid gap-4 sm:grid-cols-2">
+          <PhotoUpload name="idFrontUrl" label={es.customers.idFront} />
+          <PhotoUpload name="idBackUrl" label={es.customers.idBack} />
+        </CardBody>
+      </Card>
+
+      <Card>
         <CardHeader title={es.common.notes} />
         <CardBody>
           <Field label={es.common.notes} htmlFor="notes">
@@ -207,7 +224,7 @@ export function CustomerForm() {
       </Card>
 
       <div className="flex justify-end gap-2">
-        <SubmitButton />
+        <SubmitButton pending={pending} />
       </div>
     </form>
   );

@@ -1,10 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-
 import { Alert, Button, CardBody, Field, Input, Select } from "@/components/ui";
 import { es } from "@/i18n/es";
+import { useFormAction } from "@/lib/use-form-action";
 
 import {
   createCashBox,
@@ -12,8 +10,13 @@ import {
   type CashFormState,
 } from "./actions";
 
-function SubmitButton({ label }: { label: string }) {
-  const { pending } = useFormStatus();
+function SubmitButton({
+  label,
+  pending,
+}: {
+  label: string;
+  pending: boolean;
+}) {
   return (
     <Button type="submit" size="sm" disabled={pending}>
       {pending ? es.common.saving : label}
@@ -22,13 +25,10 @@ function SubmitButton({ label }: { label: string }) {
 }
 
 export function CashBoxForm() {
-  const [state, formAction] = useActionState<CashFormState, FormData>(
-    createCashBox,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<CashFormState>(createCashBox, {});
 
   return (
-    <form action={formAction}>
+    <form onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">
@@ -64,7 +64,7 @@ export function CashBoxForm() {
         </Field>
 
         <div className="sm:col-span-2 flex justify-end">
-          <SubmitButton label={es.cash.new} />
+          <SubmitButton label={es.cash.new} pending={pending} />
         </div>
       </CardBody>
     </form>
@@ -76,13 +76,10 @@ export function MovementForm({
 }: {
   cashBoxes: Array<{ id: string; label: string }>;
 }) {
-  const [state, formAction] = useActionState<CashFormState, FormData>(
-    createCashMovement,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<CashFormState>(createCashMovement, {});
 
   return (
-    <form action={formAction}>
+    <form onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">
@@ -127,7 +124,7 @@ export function MovementForm({
         </Field>
 
         <div className="sm:col-span-2 flex justify-end">
-          <SubmitButton label={es.common.save} />
+          <SubmitButton label={es.common.save} pending={pending} />
         </div>
       </CardBody>
     </form>

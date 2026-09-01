@@ -17,6 +17,9 @@ android/local.properties
 ios/App/Pods/
 ios/App/build/
 
+# Uploaded customer photos and documents (local storage provider)
+storage/
+
 *.log
 npm-debug.log*
 .DS_Store

@@ -1,7 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useState } from "react";
 
 import {
   Alert,
@@ -12,6 +11,7 @@ import {
   Select,
 } from "@/components/ui";
 import { es } from "@/i18n/es";
+import { useFormAction } from "@/lib/use-form-action";
 import { PROVIDER_KEYS } from "@/modules/messaging/providers";
 
 import {
@@ -27,8 +27,13 @@ const SCHEDULED_TRIGGERS = [
   "ARREARS_THRESHOLD",
 ] as const;
 
-function SubmitButton({ label }: { label: string }) {
-  const { pending } = useFormStatus();
+function SubmitButton({
+  label,
+  pending,
+}: {
+  label: string;
+  pending: boolean;
+}) {
   return (
     <Button type="submit" size="sm" disabled={pending}>
       {pending ? es.common.saving : label}
@@ -37,14 +42,11 @@ function SubmitButton({ label }: { label: string }) {
 }
 
 export function AccountForm() {
-  const [state, formAction] = useActionState<MessagingFormState, FormData>(
-    saveMessagingAccount,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<MessagingFormState>(saveMessagingAccount, {});
   const [provider, setProvider] = useState<string>("log");
 
   return (
-    <form action={formAction}>
+    <form onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">
@@ -98,7 +100,7 @@ export function AccountForm() {
         ) : null}
 
         <div className="sm:col-span-2 flex justify-end">
-          <SubmitButton label={es.messaging.newAccount} />
+          <SubmitButton label={es.messaging.newAccount} pending={pending} />
         </div>
       </CardBody>
     </form>
@@ -110,15 +112,12 @@ export function RuleForm({
 }: {
   templates: Array<{ id: string; name: string }>;
 }) {
-  const [state, formAction] = useActionState<MessagingFormState, FormData>(
-    saveAutomationRule,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<MessagingFormState>(saveAutomationRule, {});
   const [trigger, setTrigger] = useState<string>("AFTER_DUE_DATE");
   const needsOffset = trigger !== "ON_DUE_DATE";
 
   return (
-    <form action={formAction}>
+    <form onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">
@@ -184,7 +183,7 @@ export function RuleForm({
         </Field>
 
         <div className="sm:col-span-2 flex justify-end">
-          <SubmitButton label={es.messaging.newRule} />
+          <SubmitButton label={es.messaging.newRule} pending={pending} />
         </div>
       </CardBody>
     </form>

@@ -123,6 +123,32 @@ cualquier programador.
 
 ---
 
+## Fotos y documentos
+
+La foto del cliente es **obligatoria** al darlo de alta, y las fotos del
+documento de identidad (frente y reverso) se guardan aparte. En el celular el
+campo abre la cámara directamente; la imagen se reduce a 1600 px y se
+recomprime en el navegador antes de subirla, para que un cobrador en la calle
+no gaste datos ni espere.
+
+Los archivos **nunca son públicos**: se sirven por `/api/files/...`, que exige
+sesión y sólo entrega archivos de la empresa del usuario.
+
+| Proveedor | Cuándo usarlo |
+| --- | --- |
+| `local` | Disco del servidor. Es el valor por defecto y lo correcto en un VPS o Docker. |
+| `supabase` | Supabase Storage, para plataformas sin disco persistente (Vercel y similares). |
+
+```bash
+STORAGE_PROVIDER="local"
+STORAGE_LOCAL_DIR="./storage"
+```
+
+> Si despliegas en una plataforma serverless, `local` **no sirve**: el disco se
+> borra en cada despliegue. Usa `supabase` con un bucket privado.
+
+---
+
 ## Aplicación móvil (APK)
 
 Capacitor envuelve la misma aplicación web en un contenedor nativo.
@@ -157,6 +183,7 @@ src/
 ├─ modules/              Funcionalidad por área.
 │  ├─ templates/         Variables y renderizado de plantillas.
 │  ├─ messaging/         Motor de automatización y proveedores de WhatsApp.
+│  ├─ storage/           Almacenamiento de fotos y documentos.
 │  └─ builder/           Campos del constructor de módulos.
 ├─ server/               Base de datos, autenticación y servicios.
 ├─ components/           Interfaz compartida.

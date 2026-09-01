@@ -1,7 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useMemo, useState } from "react";
 
 import {
   Alert,
@@ -28,6 +27,7 @@ import {
   type PaymentFrequency,
 } from "@/core/types";
 import { es } from "@/i18n/es";
+import { useFormAction } from "@/lib/use-form-action";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 import { createLoanAction, type LoanFormState } from "../actions";
@@ -46,8 +46,7 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
+function SubmitButton({ pending }: { pending: boolean }) {
   return (
     <Button type="submit" disabled={pending}>
       {pending ? es.common.saving : es.common.save}
@@ -66,10 +65,7 @@ export function LoanForm({
   currencyCode: string;
   defaultCustomerId?: string;
 }) {
-  const [state, formAction] = useActionState<LoanFormState, FormData>(
-    createLoanAction,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<LoanFormState>(createLoanAction, {});
 
   const [principal, setPrincipal] = useState("10000");
   const [interestRate, setInterestRate] = useState("10");
@@ -109,7 +105,7 @@ export function LoanForm({
   const schedule = preview.schedule;
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
@@ -375,7 +371,7 @@ export function LoanForm({
       </div>
 
       <div className="flex justify-end">
-        <SubmitButton />
+        <SubmitButton pending={pending} />
       </div>
     </form>
   );

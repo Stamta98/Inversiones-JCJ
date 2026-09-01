@@ -1,7 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useState } from "react";
 
 import {
   Alert,
@@ -13,6 +12,7 @@ import {
   Textarea,
 } from "@/components/ui";
 import { es } from "@/i18n/es";
+import { useFormAction } from "@/lib/use-form-action";
 import {
   CUSTOM_FIELD_TYPES,
   FIELD_TYPES_WITH_OPTIONS,
@@ -31,8 +31,13 @@ import {
 
 const EXTENDABLE = ["customer", "loan", "payment"] as const;
 
-function SubmitButton({ label }: { label: string }) {
-  const { pending } = useFormStatus();
+function SubmitButton({
+  label,
+  pending,
+}: {
+  label: string;
+  pending: boolean;
+}) {
   return (
     <Button type="submit" size="sm" disabled={pending}>
       {pending ? es.common.saving : label}
@@ -41,14 +46,11 @@ function SubmitButton({ label }: { label: string }) {
 }
 
 export function EntityForm() {
-  const [state, formAction] = useActionState<BuilderFormState, FormData>(
-    createEntity,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<BuilderFormState>(createEntity, {});
   const [name, setName] = useState("");
 
   return (
-    <form action={formAction}>
+    <form onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">
@@ -109,7 +111,7 @@ export function EntityForm() {
         </div>
 
         <div className="sm:col-span-2 flex justify-end">
-          <SubmitButton label={es.moduleBuilder.newEntity} />
+          <SubmitButton label={es.moduleBuilder.newEntity} pending={pending} />
         </div>
       </CardBody>
     </form>
@@ -117,16 +119,13 @@ export function EntityForm() {
 }
 
 export function FieldForm({ entityId }: { entityId: string }) {
-  const [state, formAction] = useActionState<BuilderFormState, FormData>(
-    createField,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<BuilderFormState>(createField, {});
   const [type, setType] = useState<CustomFieldType>("TEXT");
   const [label, setLabel] = useState("");
   const needsOptions = FIELD_TYPES_WITH_OPTIONS.includes(type);
 
   return (
-    <form action={formAction}>
+    <form onSubmit={onSubmit}>
       <input type="hidden" name="entityId" value={entityId} />
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
@@ -208,7 +207,7 @@ export function FieldForm({ entityId }: { entityId: string }) {
             {es.moduleBuilder.showInList}
           </label>
           <div className="ml-auto">
-            <SubmitButton label={es.moduleBuilder.newField} />
+            <SubmitButton label={es.moduleBuilder.newField} pending={pending} />
           </div>
         </div>
       </CardBody>
@@ -232,13 +231,10 @@ export function RecordForm({
   entityId: string;
   fields: RecordFieldInput[];
 }) {
-  const [state, formAction] = useActionState<BuilderFormState, FormData>(
-    createRecord,
-    {},
-  );
+  const { state, pending, onSubmit } = useFormAction<BuilderFormState>(createRecord, {});
 
   return (
-    <form action={formAction}>
+    <form onSubmit={onSubmit}>
       <input type="hidden" name="entityId" value={entityId} />
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
@@ -326,7 +322,7 @@ export function RecordForm({
         })}
 
         <div className="sm:col-span-2 flex justify-end">
-          <SubmitButton label={es.moduleBuilder.newRecord} />
+          <SubmitButton label={es.moduleBuilder.newRecord} pending={pending} />
         </div>
       </CardBody>
     </form>
