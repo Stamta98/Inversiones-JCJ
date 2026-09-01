@@ -139,20 +139,30 @@ en el día a día no cambia nada.
 
 ## Los mensajes automáticos de cobranza
 
-`vercel.json` ya deja programado `/api/jobs/run` cada hora. Ese trabajo
-actualiza la mora de todos los préstamos y despacha los mensajes del día.
+`vercel.json` deja programado `/api/jobs/run` **una vez al día, a las 12:00
+UTC** — las 8:00 de la mañana en Santo Domingo. Ese trabajo actualiza la mora de
+todos los préstamos y despacha los mensajes del día.
 
 Dos cosas a tener en cuenta:
 
-1. **El plan gratis de Vercel limita cuántas veces corre el cron** (suele ser
-   una vez al día). Si necesitas que corra cada hora sin pagar el plan Pro, usa
-   un programador externo gratuito como [cron-job.org](https://cron-job.org)
-   apuntando a:
+1. **El plan gratis (Hobby) solo admite un cron diario, y no lo avisa: rechaza
+   el despliegue entero.** Si pones una expresión que corra más de una vez al
+   día (por ejemplo `0 * * * *`, cada hora), Vercel falla con *"Hobby accounts
+   are limited to daily cron jobs"* y **no se construye nada** — ni producción
+   ni preview. El proyecto se queda en "No Production Deployment" sin ninguna
+   pista de por qué.
+
+   Si necesitas que corra más seguido sin pagar el plan Pro, deja el cron diario
+   y añade un programador externo gratuito como
+   [cron-job.org](https://cron-job.org) apuntando a:
 
    ```
    GET https://tu-dominio.vercel.app/api/jobs/run
    Authorization: Bearer TU_JOBS_SECRET
    ```
+
+   Correrlo de más no hace daño: cada mensaje lleva clave de deduplicación
+   (`regla + cuota + día`), así que a un cliente no le llega dos veces.
 
 2. **No sale ningún mensaje hasta que conectes una cuenta de WhatsApp de
    verdad**, en *Mensajería → Conectar cuenta*. Mientras tanto el proveedor es
@@ -169,5 +179,6 @@ Dos cosas a tener en cuenta:
 | `Can't reach database server` | La contraseña de la base está mal, o le falta `?pgbouncer=true` a `DATABASE_URL`. |
 | Entra pero no guarda fotos | `STORAGE_PROVIDER` no está en `supabase`, o falta la `service_role`. |
 | `Unauthorized` en `/api/jobs/run` | El `JOBS_SECRET` de la petición no es el mismo que el de Vercel. |
+| No se construye nada y sigue en "No Production Deployment" | El cron de `vercel.json` corre más de una vez al día y la cuenta es Hobby. |
 
 Los errores completos están en Vercel → tu proyecto → *Logs*.
