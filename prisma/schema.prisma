@@ -212,6 +212,17 @@ enum CustomerStatus {
   BLACKLISTED
 }
 
+/// How the customer earns their income, which changes how a collector
+/// verifies them: an independent is visited at their business, an employee
+/// at their workplace.
+enum EmploymentType {
+  /// Works for themselves: own business, street vending, trades.
+  INDEPENDENT
+  /// Salaried at a company.
+  EMPLOYEE
+  OTHER
+}
+
 model Customer {
   id             String         @id @default(cuid())
   companyId      String
@@ -227,13 +238,23 @@ model Customer {
   phone          String?
   mobilePhone    String?
   address        String?
+  /// Barrio / sector. In informal lending this locates a customer far more
+  /// reliably than the street address does.
+  neighborhood   String?
   city           String?
   state          String?
   country        String?
   latitude       Float?
   longitude      Float?
   birthDate      DateTime?
+
+  // --- Work -------------------------------------------------------------
+  employmentType EmploymentType?
   occupation     String?
+  /// Company the customer works for, when employmentType is EMPLOYEE.
+  employerName   String?
+  workAddress    String?
+  workNeighborhood String?
   monthlyIncome  Decimal?       @db.Decimal(18, 2)
   status         CustomerStatus @default(ACTIVE)
   /// Internal 0-100 score used to warn before granting new credit.

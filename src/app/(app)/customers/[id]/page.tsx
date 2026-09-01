@@ -122,8 +122,50 @@ export default async function CustomerDetailPage({
                 value={customer.address ?? "—"}
               />
               <DetailRow
+                label={t("customers.neighborhood")}
+                value={customer.neighborhood ?? "—"}
+              />
+              <DetailRow
+                label={t("customers.city")}
+                value={customer.city ?? "—"}
+              />
+              <DetailRow
+                label={t("common.status")}
+                value={t(`customers.status.${customer.status}`)}
+              />
+            </dl>
+          </CardBody>
+
+          <CardHeader title={t("customers.workSection")} />
+          <CardBody>
+            <dl>
+              <DetailRow
+                label={t("customers.employmentType")}
+                value={
+                  customer.employmentType
+                    ? t(
+                        `customers.employmentTypeLabel.${customer.employmentType}`,
+                      )
+                    : "—"
+                }
+              />
+              <DetailRow
                 label={t("customers.occupation")}
                 value={customer.occupation ?? "—"}
+              />
+              {customer.employmentType === "EMPLOYEE" ? (
+                <DetailRow
+                  label={t("customers.employerName")}
+                  value={customer.employerName ?? "—"}
+                />
+              ) : null}
+              <DetailRow
+                label={t("customers.workAddress")}
+                value={customer.workAddress ?? "—"}
+              />
+              <DetailRow
+                label={t("customers.workNeighborhood")}
+                value={customer.workNeighborhood ?? "—"}
               />
               <DetailRow
                 label={t("customers.monthlyIncome")}
@@ -132,10 +174,6 @@ export default async function CustomerDetailPage({
                     ? money(Number(customer.monthlyIncome))
                     : "—"
                 }
-              />
-              <DetailRow
-                label={t("common.status")}
-                value={t(`customers.status.${customer.status}`)}
               />
             </dl>
           </CardBody>

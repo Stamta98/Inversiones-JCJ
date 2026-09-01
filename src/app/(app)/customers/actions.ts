@@ -33,8 +33,16 @@ const customerSchema = z.object({
   phone: optionalText,
   mobilePhone: optionalText,
   address: optionalText,
+  neighborhood: optionalText,
   city: optionalText,
+  employmentType: z
+    .enum(["INDEPENDENT", "EMPLOYEE", "OTHER"])
+    .nullable()
+    .catch(null),
   occupation: optionalText,
+  employerName: optionalText,
+  workAddress: optionalText,
+  workNeighborhood: optionalText,
   monthlyIncome: z
     .string()
     .trim()
@@ -95,8 +103,13 @@ export async function createCustomer(
               }) ?? data.mobilePhone)
             : null,
           address: data.address,
+          neighborhood: data.neighborhood,
           city: data.city,
+          employmentType: data.employmentType,
           occupation: data.occupation,
+          employerName: data.employerName,
+          workAddress: data.workAddress,
+          workNeighborhood: data.workNeighborhood,
           monthlyIncome: data.monthlyIncome,
           notes: data.notes,
         },

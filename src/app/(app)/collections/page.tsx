@@ -143,8 +143,16 @@ export default async function CollectionsPage() {
                           </Td>
                           <Td className="max-w-xs">
                             <span className="line-clamp-1 text-ink-muted">
-                              {stop.customer.address ?? "—"}
+                              {stop.customer.neighborhood ??
+                                stop.customer.address ??
+                                "—"}
                             </span>
+                            {stop.customer.neighborhood &&
+                            stop.customer.address ? (
+                              <span className="line-clamp-1 text-xs text-ink-subtle">
+                                {stop.customer.address}
+                              </span>
+                            ) : null}
                           </Td>
                           <Td align="right" numeric>
                             {money(Number(stop.expectedAmount))}
