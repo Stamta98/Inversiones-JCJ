@@ -51,19 +51,46 @@ la contraseña de la base de datos.
 | `DEFAULT_TIMEZONE` | `America/Santo_Domingo` |
 | `DEFAULT_LOCALE` | `es` |
 
-**La `SUPABASE_SERVICE_ROLE_KEY`** la sacas de: Supabase → *Project Settings* →
-*API Keys* → `service_role`. Esa clave **salta todas las protecciones de la base
-de datos**: no la pegues en un chat, ni en el código, ni se la mandes a nadie.
-Solo en Vercel.
+**La `SUPABASE_SERVICE_ROLE_KEY`** la sacas de Supabase → *Project Settings* →
+*API Keys*. Si el proyecto usa el formato nuevo de claves, la que sirve está en
+**Secret keys** y empieza por `sb_secret_` — **no** la de *Publishable key*, que
+es pública. En proyectos viejos es la `service_role` de *Legacy API Keys*. Las
+dos cumplen la misma función y la variable se sigue llamando igual.
+
+Esa clave **salta todas las protecciones de la base de datos**: no la pegues en
+un chat, ni en el código, ni se la mandes a nadie. Solo en Vercel. Si se te
+escapa, bórrala y crea otra desde esa misma pantalla.
 
 > `STORAGE_PROVIDER` tiene que ser `supabase`. Vercel borra el disco en cada
 > despliegue, así que con `local` las fotos de los clientes se perderían.
+
+### Cuidado con las variables duplicadas
+
+Vercel lee los nombres de `.env.example` y los precarga **vacíos**. Si además
+cargas un archivo con *Import .env*, los añade encima y quedan repetidos: sale
+*"A variable with the name X already exists"* y no deja continuar.
+
+La regla para limpiarlo: **si la fila tiene valor se queda, si está vacía se
+borra** (botón `−` a la derecha del nombre). Deben quedar solo las de la tabla
+de arriba.
 
 Ahora sí: **Deploy**.
 
 ---
 
-## 3. Terminar de configurar
+## 3. La rama de producción
+
+Vercel toma como rama de producción la que sea **la rama por defecto del
+repositorio en el momento de importar**, no necesariamente `main`. Se ve y se
+cambia en *Settings → Environments → Production → Branch Tracking*.
+
+Solo se despliega a producción lo que se sube a esa rama; cualquier otra rama
+genera un *preview* con su propia dirección. Si la página principal del
+proyecto dice **"No Production Deployment"**, es que a esa rama todavía no ha
+llegado ningún push desde que se creó el proyecto: haz uno y el despliegue
+arranca solo.
+
+## 4. Terminar de configurar
 
 Cuando termine, Vercel te da una dirección tipo
 `https://inversiones-jcj.vercel.app`. Agrega una variable más con esa dirección
@@ -75,7 +102,7 @@ y vuelve a desplegar (*Deployments* → los tres puntos → *Redeploy*):
 
 ---
 
-## 4. Entrar y cambiar la contraseña
+## 5. Entrar y cambiar la contraseña
 
 Entra a tu dirección `/login` con:
 
@@ -93,7 +120,7 @@ usar todavía.
 
 ---
 
-## 5. Instalarla en el celular
+## 6. Instalarla en el celular
 
 No hace falta el APK para empezar. La aplicación es instalable desde el
 navegador:
