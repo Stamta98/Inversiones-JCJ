@@ -16,7 +16,7 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -70,8 +70,7 @@ export default async function CustomerDetailPage({
 
   if (!customer) notFound();
 
-  const { t, currencyCode } = context;
-  const money = (value: number) => formatCurrency(value, currencyCode);
+  const { t, money } = context;
   const idDocuments = customer.attachments.filter(
     (attachment) =>
       attachment.kind === "ID_FRONT" || attachment.kind === "ID_BACK",

@@ -91,12 +91,17 @@ export function LoanForm({
   customers,
   cashBoxes,
   currencyCode,
+  locale,
+  decimalPlaces,
   defaultCustomerId,
   loan,
 }: {
   customers: CustomerOption[];
   cashBoxes: CashBoxOption[];
   currencyCode: string;
+  /** Del contexto de la empresa: cómo se escriben los montos aquí. */
+  locale: string;
+  decimalPlaces: number;
   defaultCustomerId?: string;
   /** Present when editing an existing draft instead of creating a loan. */
   loan?: LoanDefaults;
@@ -138,6 +143,9 @@ export function LoanForm({
     loan?.lateFeeMode ?? "NONE",
   );
 
+  const money = (value: number) =>
+    formatCurrency(value, currencyCode, locale, decimalPlaces);
+
   const toggleNonCollectionDay = (day: number) =>
     setNonCollectionDays((current) =>
       current.includes(day)
@@ -145,7 +153,6 @@ export function LoanForm({
         : [...current, day].sort(),
     );
 
-  const money = (value: number) => formatCurrency(value, currencyCode);
 
   /**
    * First due date suggested from the customer's payday, so the installment

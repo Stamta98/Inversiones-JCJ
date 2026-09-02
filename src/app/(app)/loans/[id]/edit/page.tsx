@@ -7,7 +7,11 @@ import {
   LinkButton,
   PageHeader,
 } from "@/components/ui";
-import { canCancel, canEditTerms, lockedReasonKey } from "@/core/loans/editable";
+import {
+  canCancel,
+  canEditTerms,
+  lockedReasonKey,
+} from "@/core/loans/editable";
 import type { LoanStatus } from "@/core/types";
 import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
@@ -76,6 +80,8 @@ export default async function EditLoanPage({
       {editableTerms ? (
         <LoanForm
           currencyCode={context.currencyCode}
+          locale={context.locale}
+          decimalPlaces={context.decimalPlaces}
           loan={{
             id: loan.id,
             customerId: loan.customerId,

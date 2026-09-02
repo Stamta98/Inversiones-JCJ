@@ -11,7 +11,7 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { formatCurrency, formatDateTime } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { requirePermission } from "@/server/auth/context";
 import {
   getDashboardSummary,
@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const context = await requirePermission("dashboard.read");
-  const { t, companyId, currencyCode } = context;
+  const { t, companyId, money } = context;
 
   const [summary, dueToday, arrears, recentPayments] = await Promise.all([
     getDashboardSummary(companyId),
@@ -33,7 +33,6 @@ export default async function DashboardPage() {
     getRecentPayments(companyId),
   ]);
 
-  const money = (value: number) => formatCurrency(value, currencyCode);
 
   return (
     <>

@@ -11,7 +11,7 @@ import {
   Th,
 } from "@/components/ui";
 import { startOfDay } from "@/core/dates";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -41,8 +41,7 @@ export default async function PaymentsPage() {
     }),
   ]);
 
-  const { t, currencyCode } = context;
-  const money = (value: number) => formatCurrency(value, currencyCode);
+  const { t, money } = context;
   const canReverse = can(context, "payments.delete");
 
   return (

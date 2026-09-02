@@ -13,7 +13,7 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -52,8 +52,7 @@ export default async function CallCenterPage() {
     }),
   ]);
 
-  const { t, currencyCode } = context;
-  const money = (value: number) => formatCurrency(value, currencyCode);
+  const { t, money } = context;
   const canLog = can(context, "callCenter.create");
 
   return (

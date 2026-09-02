@@ -41,6 +41,8 @@ export default async function NewLoanPage({
       <PageHeader title={context.t("loans.new")} />
       <LoanForm
         currencyCode={context.currencyCode}
+        locale={context.locale}
+        decimalPlaces={context.decimalPlaces}
         defaultCustomerId={customerId}
         customers={customers.map((customer) => ({
           id: customer.id,

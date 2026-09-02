@@ -787,6 +787,31 @@ export const es = {
     currency: "Moneda",
     timezone: "Zona horaria",
     logo: "Logo",
+
+    companyTitle: "Datos de la empresa",
+    identityTitle: "Identificación",
+    companyHint:
+      "Aparecen en los recibos, los contratos y los mensajes que se le mandan al cliente.",
+    companyEmail: "Correo de la empresa",
+    companyPhone: "Teléfono de la empresa",
+    companyAddress: "Dirección",
+    country: "País",
+    city: "Ciudad",
+    stateGeneric: "Provincia / Departamento",
+    location: "Ubicación de la oficina",
+    locationHint:
+      "Se guarda el punto exacto, para que las rutas de cobro puedan salir desde aquí.",
+    logoHint: "Sale en los recibos y arriba a la izquierda.",
+    regionTitle: "Moneda y formato",
+    regionHint:
+      "Al elegir el país se llenan solos la moneda, la zona horaria y el formato de fechas. Puedes cambiarlos después.",
+    decimals: "Decimales en los montos",
+    decimalsHint:
+      "Dos para pesos dominicanos o mexicanos. Cero para pesos colombianos, chilenos y guaraníes, donde no se usan centavos.",
+    decimalsNone: "Sin decimales (1.250)",
+    decimalsTwo: "Dos decimales (1,250.00)",
+    preview: "Así se van a ver los montos",
+    saved: "Los datos de la empresa quedaron guardados.",
     branches: "Sucursales",
     newBranch: "Nueva sucursal",
     users: "Usuarios",

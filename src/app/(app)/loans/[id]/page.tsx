@@ -19,7 +19,7 @@ import {
 } from "@/components/ui";
 import { canEditAtAll } from "@/core/loans/editable";
 import type { LoanStatus } from "@/core/types";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -77,8 +77,7 @@ export default async function LoanDetailPage({
 
   if (!loan) notFound();
 
-  const { t, currencyCode } = context;
-  const money = (value: number) => formatCurrency(value, currencyCode);
+  const { t, money } = context;
 
   const nextOpen = loan.installments.find(
     (installment) =>

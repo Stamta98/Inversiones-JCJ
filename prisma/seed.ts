@@ -198,7 +198,7 @@ async function main(): Promise<void> {
       legalName: "Inversiones JCJ, SRL",
       phone: "809-555-0100",
       currencyCode: "DOP",
-      locale: "es",
+      locale: "es-DO",
       timezone: "America/Santo_Domingo",
     },
   });

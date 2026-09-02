@@ -13,7 +13,7 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -54,7 +54,7 @@ export default async function LoansPage({
     take: 50,
   });
 
-  const { t, currencyCode } = context;
+  const { t, money } = context;
 
   return (
     <>
@@ -135,10 +135,10 @@ export default async function LoansPage({
                   </Td>
                   <Td>{t(`loans.frequencyLabel.${loan.frequency}`)}</Td>
                   <Td align="right" numeric>
-                    {formatCurrency(Number(loan.principal), currencyCode)}
+                    {money(Number(loan.principal))}
                   </Td>
                   <Td align="right" numeric>
-                    {formatCurrency(Number(loan.outstanding), currencyCode)}
+                    {money(Number(loan.outstanding))}
                   </Td>
                   <Td align="center">
                     {loan.daysInArrears > 0 ? (

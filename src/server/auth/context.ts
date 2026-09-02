@@ -20,6 +20,7 @@ import {
   type Translator,
   type TranslationOverrides,
 } from "@/i18n";
+import { formatCurrency } from "@/lib/format";
 
 import { db } from "../db";
 import { hashSessionToken, readSessionToken } from "./session";
@@ -32,6 +33,8 @@ export interface AuthContext {
   companyId: string;
   companyName: string;
   currencyCode: string;
+  /** Decimals amounts are written with; zero where cents are not used. */
+  decimalPlaces: number;
   locale: string;
   timezone: string;
   branchId: string | null;
@@ -42,6 +45,13 @@ export interface AuthContext {
   visibleModules: ModuleDefinition[];
   translationOverrides: TranslationOverrides;
   t: Translator;
+  /**
+   * Amounts formatted with this company's currency, locale and decimals.
+   *
+   * Lives here so a screen cannot forget one of the three and quietly print
+   * Colombian pesos with cents.
+   */
+  money: (amount: number) => string;
 }
 
 /**
@@ -105,6 +115,7 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
     companyId: membership.companyId,
     companyName: membership.company.name,
     currencyCode: membership.company.currencyCode,
+    decimalPlaces: membership.company.decimalPlaces,
     locale: membership.company.locale,
     timezone: membership.company.timezone,
     branchId: membership.branchId,
@@ -119,6 +130,13 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
     ),
     translationOverrides: overrides,
     t: createTranslator({ overrides }),
+    money: (amount: number) =>
+      formatCurrency(
+        amount,
+        membership.company.currencyCode,
+        membership.company.locale,
+        membership.company.decimalPlaces,
+      ),
   };
 });
 

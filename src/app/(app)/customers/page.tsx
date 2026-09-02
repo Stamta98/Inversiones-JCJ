@@ -14,7 +14,7 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
-import { formatCurrency, initials } from "@/lib/format";
+import { initials } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -64,7 +64,7 @@ export default async function CustomersPage({
     },
   });
 
-  const { t, currencyCode } = context;
+  const { t, money } = context;
 
   return (
     <>
@@ -168,7 +168,7 @@ export default async function CustomersPage({
                     </Td>
                     <Td numeric>{customer.mobilePhone ?? "—"}</Td>
                     <Td align="right" numeric>
-                      {formatCurrency(outstanding, currencyCode)}
+                      {money(outstanding)}
                     </Td>
                     <Td align="center">
                       <Badge tone={STATUS_TONES[customer.status] ?? "neutral"}>

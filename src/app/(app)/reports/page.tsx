@@ -8,7 +8,7 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -93,8 +93,7 @@ export default async function ReportsPage() {
     collectors.map((user) => [user.id, user.fullName]),
   );
 
-  const { t, currencyCode } = context;
-  const money = (value: number) => formatCurrency(value, currencyCode);
+  const { t, money } = context;
 
   const interestEarned =
     Number(interest._sum.interestAmount ?? 0) +

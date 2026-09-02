@@ -3,18 +3,27 @@
  * and currency.
  */
 
+import { defaultDecimalsFor } from "@/core/locales/currencies";
 import { fromCents, type Cents } from "@/core/money";
 
+/**
+ * Decimals are not fixed at two: Colombian and Chilean pesos are written
+ * without cents, and "$1.250,00" reads as a mistake to anyone there. The
+ * company can override the default its currency implies.
+ */
 export function formatCurrency(
   amount: number,
   currencyCode = "DOP",
   locale = "es-DO",
+  decimals?: number,
 ): string {
+  const fractionDigits = decimals ?? defaultDecimalsFor(currencyCode);
+
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: currencyCode,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   }).format(amount);
 }
 
@@ -22,8 +31,9 @@ export function formatCentsAsCurrency(
   cents: Cents,
   currencyCode = "DOP",
   locale = "es-DO",
+  decimals?: number,
 ): string {
-  return formatCurrency(fromCents(cents), currencyCode, locale);
+  return formatCurrency(fromCents(cents), currencyCode, locale, decimals);
 }
 
 export function formatNumber(value: number, locale = "es-DO"): string {

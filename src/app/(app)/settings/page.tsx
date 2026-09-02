@@ -85,6 +85,13 @@ export default async function SettingsPage() {
       <PageHeader
         title={t("settings.title")}
         description={context.companyName}
+        action={
+          can(context, "settings.update") ? (
+            <LinkButton href="/settings/company" icon="settings">
+              {t("settings.companyTitle")}
+            </LinkButton>
+          ) : null
+        }
       />
 
       <div className="space-y-4">
