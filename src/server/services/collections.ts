@@ -12,7 +12,9 @@ import {
   resequence,
   type StopStatus,
 } from "@/core/collections/route";
+import { settle } from "@/core/collections/settlement";
 import { startOfDay } from "@/core/dates";
+import { fromCents, stepForDecimals, toCents } from "@/core/money";
 
 import type { Prisma } from "@prisma/client";
 
@@ -29,7 +31,9 @@ export class CollectionError extends Error {
       | "alreadyOnRoute"
       | "amount"
       | "loanNotActive"
-      | "nothingToApply",
+      | "nothingToApply"
+      | "alreadySettled"
+      | "notSettled",
   ) {
     super(message);
     this.name = "CollectionError";
@@ -479,4 +483,159 @@ export async function deleteRoute(input: {
       },
     });
   });
+}
+
+/**
+ * What the route's receipts say the collector is holding in cash.
+ *
+ * Only cash: a transfer or a card payment never passes through their hands,
+ * so counting it would turn every settlement into a shortfall.
+ */
+export async function expectedCashFor(
+  companyId: string,
+  routeId: string,
+): Promise<number> {
+  const stops = await db.routeStop.findMany({
+    where: { routeId, route: { companyId }, paymentId: { not: null } },
+    select: {
+      payment: {
+        select: { amount: true, method: true, status: true },
+      },
+    },
+  });
+
+  return stops.reduce((total, stop) => {
+    const payment = stop.payment;
+    if (!payment) return total;
+    // A reversed receipt is money that went back out.
+    if (payment.status === "REVERSED") return total;
+    if (payment.method !== "CASH") return total;
+    return total + Number(payment.amount);
+  }, 0);
+}
+
+export interface SettleRouteInput {
+  companyId: string;
+  routeId: string;
+  /** What the collector actually handed over. */
+  deliveredAmount: number;
+  cashBoxId?: string | null;
+  notes?: string | null;
+  decimalPlaces?: number;
+  userId?: string | null;
+}
+
+export interface SettleRouteResult {
+  expectedAmount: number;
+  deliveredAmount: number;
+  differenceAmount: number;
+  result: "balanced" | "short" | "over";
+}
+
+/**
+ * Closes a collector's day: counts the cash against the receipts, records the
+ * difference and corrects the cash box.
+ *
+ * The correction matters. Every receipt credited the box the moment it was
+ * written, so a box that was never handed 450 pesos still believes it has
+ * them. Posting the difference is what makes the balance mean something again,
+ * and it leaves the shortfall attached to a route, a collector and whoever
+ * accepted it.
+ */
+export async function settleRoute(
+  input: SettleRouteInput,
+): Promise<SettleRouteResult> {
+  const route = await db.collectionRoute.findFirst({
+    where: { id: input.routeId, companyId: input.companyId },
+    select: {
+      id: true,
+      name: true,
+      settlement: { select: { id: true } },
+      stops: { select: { collectorId: true }, take: 1 },
+    },
+  });
+  if (!route) throw new CollectionError("Route not found", "notFound");
+  if (route.settlement) {
+    throw new CollectionError("Already settled", "alreadySettled");
+  }
+
+  const step = stepForDecimals(input.decimalPlaces ?? 2);
+  const expected = await expectedCashFor(input.companyId, route.id);
+  const counted = settle(
+    toCents(expected),
+    toCents(input.deliveredAmount),
+    step,
+  );
+
+  const expectedAmount = fromCents(counted.expectedCents);
+  const deliveredAmount = fromCents(counted.deliveredCents);
+  const differenceAmount = fromCents(counted.differenceCents);
+
+  await db.$transaction(async (tx) => {
+    await tx.routeSettlement.create({
+      data: {
+        companyId: input.companyId,
+        routeId: route.id,
+        collectorId: route.stops[0]?.collectorId ?? null,
+        expectedAmount,
+        deliveredAmount,
+        differenceAmount,
+        cashBoxId: input.cashBoxId ?? null,
+        notes: input.notes ?? null,
+        settledById: input.userId ?? null,
+      },
+    });
+
+    if (differenceAmount !== 0 && input.cashBoxId) {
+      const cashBox = await tx.cashBox.findFirstOrThrow({
+        where: { id: input.cashBoxId, companyId: input.companyId },
+        select: { balance: true },
+      });
+      const balanceAfter = Number(cashBox.balance) + differenceAmount;
+
+      await tx.cashBox.update({
+        where: { id: input.cashBoxId },
+        data: { balance: balanceAfter },
+      });
+      await tx.cashMovement.create({
+        data: {
+          cashBoxId: input.cashBoxId,
+          kind: "ADJUSTMENT",
+          amount: differenceAmount,
+          balanceAfter,
+          description: `Liquidación de ${route.name}`,
+          createdById: input.userId ?? null,
+        },
+      });
+    }
+
+    // The day is closed by settling it: leaving the route open afterwards
+    // would invite receipts that the count already excluded.
+    await tx.collectionRoute.update({
+      where: { id: route.id },
+      data: { closedAt: new Date() },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        companyId: input.companyId,
+        userId: input.userId ?? null,
+        action: "route.settled",
+        entityType: "CollectionRoute",
+        entityId: route.id,
+        metadata: {
+          expected: expectedAmount,
+          delivered: deliveredAmount,
+          difference: differenceAmount,
+        },
+      },
+    });
+  });
+
+  return {
+    expectedAmount,
+    deliveredAmount,
+    differenceAmount,
+    result: counted.result,
+  };
 }

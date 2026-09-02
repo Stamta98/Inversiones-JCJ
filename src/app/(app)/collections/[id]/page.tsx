@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 
 import {
   Alert,
+  Badge,
   Card,
+  CardBody,
   CardHeader,
   EmptyState,
   LinkButton,
@@ -10,12 +12,14 @@ import {
   StatCard,
 } from "@/components/ui";
 import { summarizeRoute, type StopStatus } from "@/core/collections/route";
+import { expectedCashFor } from "@/server/services/collections";
 import { toCents } from "@/core/money";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
 import { AddStopForm, AssignRouteForm, RouteLifecycle } from "./route-tools";
+import { SettlementForm } from "./settlement-form";
 import { StopCard, type StopView } from "./stop-card";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +43,12 @@ export default async function RouteDetailPage({
         },
         orderBy: { sortOrder: "asc" },
       },
+      settlement: {
+        include: {
+          collector: { select: { fullName: true } },
+          settledBy: { select: { fullName: true } },
+        },
+      },
     },
   });
 
@@ -46,6 +56,11 @@ export default async function RouteDetailPage({
 
   const { t, money } = context;
   const closed = route.closedAt !== null;
+  const settlement = route.settlement;
+  const canSettle = can(context, "cash.update") && settlement === null;
+  const expectedCash = canSettle
+    ? await expectedCashFor(context.companyId, route.id)
+    : 0;
   const canEdit = can(context, "collections.update") && !closed;
   const canCollect = can(context, "payments.create") && !closed;
 
@@ -65,14 +80,14 @@ export default async function RouteDetailPage({
       },
       orderBy: { createdAt: "asc" },
     }),
-    canCollect
-      ? db.cashBox.findMany({
-          where: { companyId: context.companyId, isActive: true },
-          orderBy: { name: "asc" },
-          select: { id: true, name: true },
-        })
-      : Promise.resolve([]),
+    db.cashBox.findMany({
+      where: { companyId: context.companyId, isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
+  // Collecting hides the box picker on a closed route; settling still needs it.
+  const cashBoxesForSettlement = cashBoxes;
 
   // Loans not already on this route, offered for a stop added by hand.
   const routedLoanIds = route.stops
@@ -225,6 +240,93 @@ export default async function RouteDetailPage({
                   label: `${loan.code} — ${loan.customer.firstName} ${loan.customer.lastName}`,
                 }))}
               />
+            </Card>
+          ) : null}
+
+          {canSettle ? (
+            <Card>
+              <CardHeader
+                title={t("collections.settlement")}
+                description={t("collections.settlementHint")}
+              />
+              <SettlementForm
+                routeId={route.id}
+                expectedAmount={expectedCash}
+                cashBoxes={cashBoxesForSettlement.map((cashBox) => ({
+                  id: cashBox.id,
+                  label: cashBox.name,
+                }))}
+                currencyCode={context.currencyCode}
+                locale={context.locale}
+                decimalPlaces={context.decimalPlaces}
+              />
+            </Card>
+          ) : null}
+
+          {settlement ? (
+            <Card>
+              <CardHeader
+                title={t("collections.settlement")}
+                description={t("collections.settledOn").replace(
+                  "{date}",
+                  formatDate(settlement.settledAt, context.locale),
+                )}
+                action={
+                  <Badge
+                    tone={
+                      Number(settlement.differenceAmount) === 0
+                        ? "positive"
+                        : Number(settlement.differenceAmount) < 0
+                          ? "danger"
+                          : "warning"
+                    }
+                  >
+                    {Number(settlement.differenceAmount) === 0
+                      ? t("collections.balancedLabel")
+                      : Number(settlement.differenceAmount) < 0
+                        ? t("collections.shortLabel")
+                        : t("collections.overLabel")}
+                  </Badge>
+                }
+              />
+              <CardBody className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-ink-muted">
+                    {t("collections.expectedCash")}
+                  </span>
+                  <span className="numeric text-ink">
+                    {money(Number(settlement.expectedAmount))}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-ink-muted">
+                    {t("collections.delivered")}
+                  </span>
+                  <span className="numeric text-ink">
+                    {money(Number(settlement.deliveredAmount))}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t border-border pt-2 font-medium">
+                  <span className="text-ink">{t("collections.difference")}</span>
+                  <span
+                    className={
+                      Number(settlement.differenceAmount) < 0
+                        ? "numeric text-danger"
+                        : "numeric text-ink"
+                    }
+                  >
+                    {money(Number(settlement.differenceAmount))}
+                  </span>
+                </div>
+                {settlement.notes ? (
+                  <p className="pt-1 text-ink-muted">{settlement.notes}</p>
+                ) : null}
+                {settlement.settledBy ? (
+                  <p className="text-xs text-ink-subtle">
+                    {t("collections.settledBy")}: {settlement.settledBy.fullName}
+                  </p>
+                ) : null}
+              </CardBody>
             </Card>
           ) : null}
 

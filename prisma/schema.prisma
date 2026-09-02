@@ -75,6 +75,7 @@ model Company {
   auditLogs         AuditLog[]
   automationRules   AutomationRule[]
   messagingAccounts MessagingAccount[]
+  routeSettlements  RouteSettlement[]
 
   @@index([isActive])
 }
@@ -117,12 +118,14 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  memberships   Membership[]
-  sessions      Session[]
-  auditLogs     AuditLog[]
-  interactions  Interaction[]
-  routeStops    RouteStop[]    @relation("RouteStopCollector")
-  cashMovements CashMovement[]
+  memberships          Membership[]
+  sessions             Session[]
+  auditLogs            AuditLog[]
+  interactions         Interaction[]
+  routeStops           RouteStop[]       @relation("RouteStopCollector")
+  settlementsCollected RouteSettlement[] @relation("SettlementCollector")
+  settlementsReceived  RouteSettlement[] @relation("SettlementReceiver")
+  cashMovements        CashMovement[]
 
   @@index([isActive])
 }
@@ -650,9 +653,10 @@ model CashBox {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  movements CashMovement[]
-  payments  Payment[]
-  expenses  Expense[]
+  movements   CashMovement[]
+  payments    Payment[]
+  expenses    Expense[]
+  settlements RouteSettlement[]
 
   @@index([companyId, isActive])
 }
@@ -744,7 +748,8 @@ model CollectionRoute {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  stops RouteStop[]
+  stops      RouteStop[]
+  settlement RouteSettlement?
 
   @@index([companyId, isActive])
   @@index([companyId, scheduledFor])
@@ -783,6 +788,39 @@ model RouteStop {
 
   @@index([routeId, sortOrder])
   @@index([collectorId, status])
+}
+
+/// A collector's cash, counted at the end of the day.
+///
+/// The system knows what a route collected the moment each receipt is written;
+/// what it cannot know is how much of that cash actually came back. This is
+/// where the two are put side by side, and where a shortfall gets a name, a
+/// reason and someone who approved it.
+model RouteSettlement {
+  id               String          @id @default(cuid())
+  companyId        String
+  company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// One settlement per route: closing the day happens once.
+  routeId          String          @unique
+  route            CollectionRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  collectorId      String?
+  collector        User?           @relation("SettlementCollector", fields: [collectorId], references: [id], onDelete: SetNull)
+  /// Cash the route's receipts add up to.
+  expectedAmount   Decimal         @db.Decimal(18, 2)
+  /// Cash the collector actually handed over.
+  deliveredAmount  Decimal         @db.Decimal(18, 2)
+  /// Delivered minus expected. Negative is missing money.
+  differenceAmount Decimal         @db.Decimal(18, 2)
+  /// Where the correction was posted, so the box matches the count.
+  cashBoxId        String?
+  cashBox          CashBox?        @relation(fields: [cashBoxId], references: [id], onDelete: SetNull)
+  notes            String?
+  settledById      String?
+  settledBy        User?           @relation("SettlementReceiver", fields: [settledById], references: [id], onDelete: SetNull)
+  settledAt        DateTime        @default(now())
+
+  @@index([companyId, settledAt])
+  @@index([collectorId, settledAt])
 }
 
 // ---------------------------------------------------------------------------

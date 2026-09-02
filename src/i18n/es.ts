@@ -668,8 +668,34 @@ export const es = {
     showClosed: "Ver también las cerradas",
     apply: "Filtrar",
 
+    // --- Liquidación del cobrador ---
+    settlement: "Liquidación del cobrador",
+    settlementHint:
+      "Cuenta el efectivo que trajo y compáralo con lo que dicen los recibos.",
+    expectedCash: "Según los recibos",
+    expectedCashHint: "Solo efectivo: una transferencia no pasa por sus manos.",
+    delivered: "¿Cuánto entregó?",
+    difference: "Diferencia",
+    settleAction: "Cuadrar y cerrar la ruta",
+    settling: "Cuadrando…",
+    settlementBalanced: "La ruta cuadró exacto.",
+    settlementShort: "Faltan {amount}. Quedó registrado a nombre del cobrador.",
+    settlementOver: "Sobran {amount}. Quedó registrado.",
+    settlementNotes: "¿Por qué la diferencia?",
+    settlementNotesHint: "Lo que explicó el cobrador. Queda en el historial.",
+    settledOn: "Liquidada el {date}",
+    settledBy: "Recibido por",
+    shortLabel: "Faltante",
+    overLabel: "Sobrante",
+    balancedLabel: "Cuadró",
+    settleFirst:
+      "Cierra la ruta con la liquidación, para que el efectivo quede cuadrado.",
+
     errors: {
       nameRequired: "Ponle un nombre a la ruta.",
+      delivered: "Escribe cuánto efectivo entregó el cobrador.",
+      alreadySettled: "Esta ruta ya fue liquidada.",
+      notSettled: "Falta liquidar la ruta.",
       noStops:
         "No hay nada que cobrar con ese criterio ese día. Prueba con otro día o con otro filtro.",
       notFound: "No se encontró la ruta o la visita.",

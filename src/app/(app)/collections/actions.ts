@@ -19,12 +19,15 @@ import {
   removeStop,
   reopenRoute,
   reorderStop,
+  settleRoute,
 } from "@/server/services/collections";
 import type { PaymentMethod } from "@/server/services/payments";
 
 export interface RouteFormState {
   error?: string;
   success?: string;
+  /** How the message should read. A shortfall is not good news. */
+  tone?: "positive" | "danger" | "warning";
 }
 
 /** Every collection failure already carries its reason; this names it. */
@@ -335,4 +338,56 @@ export async function deleteRouteAction(formData: FormData): Promise<void> {
 
   revalidatePath("/collections");
   redirect("/collections");
+}
+
+const settleSchema = z.object({
+  routeId: z.string().min(1),
+  deliveredAmount: z.coerce.number().min(0),
+  cashBoxId: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export async function settleRouteAction(
+  _previous: RouteFormState,
+  formData: FormData,
+): Promise<RouteFormState> {
+  const context = await requirePermission("cash.update");
+  const parsed = settleSchema.safeParse(readForm(formData));
+
+  if (!parsed.success) return { error: t("collections.errors.delivered") };
+
+  let result;
+  try {
+    result = await settleRoute({
+      companyId: context.companyId,
+      routeId: parsed.data.routeId,
+      deliveredAmount: parsed.data.deliveredAmount,
+      cashBoxId: parsed.data.cashBoxId || null,
+      notes: parsed.data.notes || null,
+      decimalPlaces: context.decimalPlaces,
+      userId: context.userId,
+    });
+  } catch (error) {
+    return { error: messageFor(error) };
+  }
+
+  revalidatePath("/collections");
+  revalidatePath("/cash");
+
+  // A shortfall is the whole reason this screen exists: say it plainly rather
+  // than reporting "listo" over money that never arrived.
+  if (result.result === "balanced") {
+    return { success: t("collections.settlementBalanced"), tone: "positive" };
+  }
+
+  const amount = context.money(Math.abs(result.differenceAmount));
+  return result.result === "short"
+    ? {
+        success: t("collections.settlementShort").replace("{amount}", amount),
+        tone: "danger",
+      }
+    : {
+        success: t("collections.settlementOver").replace("{amount}", amount),
+        tone: "warning",
+      };
 }
