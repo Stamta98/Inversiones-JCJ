@@ -50,7 +50,7 @@ export function EntityForm() {
   const [name, setName] = useState("");
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">
@@ -125,7 +125,7 @@ export function FieldForm({ entityId }: { entityId: string }) {
   const needsOptions = FIELD_TYPES_WITH_OPTIONS.includes(type);
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <input type="hidden" name="entityId" value={entityId} />
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
@@ -234,7 +234,7 @@ export function RecordForm({
   const { state, pending, onSubmit } = useFormAction<BuilderFormState>(createRecord, {});
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <input type="hidden" name="entityId" value={entityId} />
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (

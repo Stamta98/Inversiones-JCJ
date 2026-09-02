@@ -290,7 +290,24 @@ ruta**.
 Los proyectos nativos (`android/` e `ios/`) ya están generados y versionados,
 con los permisos de cámara y ubicación declarados.
 
-### Android
+### Android: bajar el APK desde GitHub
+
+**No hace falta instalar nada.** El APK se compila en GitHub Actions, que ya
+trae el SDK de Android:
+
+1. Repositorio → pestaña **Actions** → *APK de Android* → **Run workflow**.
+2. Al terminar, el `.apk` queda como artefacto de esa corrida.
+3. Descárgalo desde el teléfono y ábrelo. Android pide permiso para instalar
+   apps de esa fuente; acéptalo.
+
+Si en vez de eso publicas una etiqueta (`git tag v1.0.0 && git push --tags`),
+el mismo flujo crea una *release* con el APK adjunto, que es un enlace más
+cómodo de mandar por WhatsApp a los cobradores.
+
+El APK va firmado con la clave de depuración, que es lo que hace que se pueda
+instalar de una. Para Play Store hay que firmarlo con una clave propia.
+
+### Android: compilarlo en tu máquina
 
 Necesitas **Android Studio** (trae el SDK y Java).
 
@@ -331,11 +348,17 @@ Publicar en la App Store necesita además una cuenta de Apple Developer
 En iOS los tres llevan su explicación en español en `Info.plist`. **Sin eso la
 app se cierra sola** al pedir el permiso.
 
-### PWA
+### PWA: instalarla desde el navegador
 
-Sin compilar nada: desde el navegador del celular, *Agregar a la pantalla de
-inicio*. Queda con su ícono y sin barra de direcciones. Es la vía más rápida
-para poner a un cobrador a trabajar hoy mismo.
+La vía más rápida, y no necesita ni APK ni tienda. Dentro del sistema hay una
+pantalla que lo explica y lo hace: *Configuración → Instalar la aplicación*.
+
+- **Android:** Chrome ofrece *Instalar aplicación* directamente.
+- **iPhone:** Safari → botón de compartir → *Agregar a inicio*.
+
+Queda con su ícono, a pantalla completa y sin barra de direcciones. Se
+actualiza sola, porque es el mismo sitio. Y si el teléfono se queda sin señal,
+en vez del error del navegador sale un aviso que explica qué pasó.
 
 ---
 

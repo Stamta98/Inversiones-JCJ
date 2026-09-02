@@ -170,6 +170,31 @@ export const es = {
     signingIn: "Entrando…",
   },
 
+  install: {
+    title: "Instalar la aplicación",
+    hint: "Queda como una app con su ícono, a pantalla completa y sin la barra del navegador.",
+    action: "Instalar ahora",
+    alreadyInstalled: "Ya tienes la aplicación instalada en este dispositivo.",
+    androidIntro:
+      "Tu teléfono puede instalarla ahora mismo. No pesa casi nada y se actualiza sola.",
+    androidSteps: [
+      "Abre inversiones-jcj.vercel.app en Chrome.",
+      "Toca los tres puntos de arriba a la derecha.",
+      "Elige «Instalar aplicación» o «Agregar a pantalla de inicio».",
+    ],
+    manualIntro:
+      "En este navegador hay que hacerlo a mano. Desde el teléfono, en Chrome:",
+    iosIntro: "En iPhone y iPad se instala desde Safari, en tres pasos:",
+    iosSteps: [
+      "Abre la página en Safari (no en Chrome).",
+      "Toca el botón de compartir, el cuadrito con la flecha hacia arriba.",
+      "Baja y elige «Agregar a inicio».",
+    ],
+    apkTitle: "Aplicación de Android (APK)",
+    apkHint:
+      "Si prefieres el archivo instalable de Android, se genera desde GitHub. En Releases del repositorio está el archivo .apk listo para descargar.",
+  },
+
   nav: {
     menu: "Menú",
     more: "Más",

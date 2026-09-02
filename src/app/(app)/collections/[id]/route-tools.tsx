@@ -39,7 +39,7 @@ export function AssignRouteForm({
   );
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <CardBody className="space-y-3">
         <input type="hidden" name="routeId" value={routeId} />
         <Feedback state={state} />
@@ -87,7 +87,7 @@ export function AddStopForm({
   );
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <CardBody className="space-y-3">
         <input type="hidden" name="routeId" value={routeId} />
         <Feedback state={state} />

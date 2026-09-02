@@ -28,7 +28,7 @@ export function CashBoxForm() {
   const { state, pending, onSubmit } = useFormAction<CashFormState>(createCashBox, {});
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">
@@ -79,7 +79,7 @@ export function MovementForm({
   const { state, pending, onSubmit } = useFormAction<CashFormState>(createCashMovement, {});
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">

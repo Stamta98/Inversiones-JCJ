@@ -38,7 +38,7 @@ export function PaymentForm({
   const { state, pending, onSubmit } = useFormAction<PaymentFormState>(postPaymentAction, {});
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3">
+    <form method="post" onSubmit={onSubmit} className="space-y-3">
       <input type="hidden" name="loanId" value={loanId} />
 
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}

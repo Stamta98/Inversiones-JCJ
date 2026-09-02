@@ -214,7 +214,7 @@ export function LoanForm({
   const schedule = preview.schedule;
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form method="post" onSubmit={onSubmit} className="space-y-4">
       {editando ? <input type="hidden" name="loanId" value={loan.id} /> : null}
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
 

@@ -17,6 +17,10 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   manifest: "/manifest.webmanifest",
+  icons: {
+    // iOS ignores the manifest and reads this one for the home screen icon.
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

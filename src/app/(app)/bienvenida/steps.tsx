@@ -30,7 +30,7 @@ export function CashBoxStep({
   );
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <CardBody className="space-y-4">
         {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
 

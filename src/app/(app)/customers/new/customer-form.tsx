@@ -121,7 +121,7 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
   const isEmployee = employmentType === "EMPLOYEE";
 
   return (
-    <form onSubmit={onSubmit} className="max-w-4xl space-y-4">
+    <form method="post" onSubmit={onSubmit} className="max-w-4xl space-y-4">
       {editando ? (
         <input type="hidden" name="customerId" value={customer.id} />
       ) : null}

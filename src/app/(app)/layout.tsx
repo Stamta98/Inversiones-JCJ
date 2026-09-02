@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/shell/app-shell";
 import type { NavItem } from "@/components/shell/nav-items";
+import { ServiceWorkerRegistration } from "@/components/shell/service-worker";
 import { requireAuth } from "@/server/auth/context";
 
 export default async function AppLayout({
@@ -18,16 +19,19 @@ export default async function AppLayout({
   }));
 
   return (
-    <AppShell
-      items={items}
-      user={{
-        fullName: context.fullName,
-        email: context.email,
-        roleName: context.roleName,
-        companyName: context.companyName,
-      }}
-    >
-      {children}
-    </AppShell>
+    <>
+      <ServiceWorkerRegistration />
+      <AppShell
+        items={items}
+        user={{
+          fullName: context.fullName,
+          email: context.email,
+          roleName: context.roleName,
+          companyName: context.companyName,
+        }}
+      >
+        {children}
+      </AppShell>
+    </>
   );
 }

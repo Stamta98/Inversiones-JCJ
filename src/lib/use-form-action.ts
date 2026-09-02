@@ -15,6 +15,11 @@ import type { FormEvent } from "react";
  *
  * A server action that redirects still works: the redirect is handled by the
  * router and the promise never resolves with a state.
+ *
+ * Every form using this must set `method="post"`. Until the page hydrates,
+ * pressing enter submits it the browser's own way, and a form with no method
+ * does that as a GET — which would put whatever was typed, a password
+ * included, into the address bar, the history and the server log.
  */
 export function useFormAction<State>(
   action: (previous: State, formData: FormData) => Promise<State>,

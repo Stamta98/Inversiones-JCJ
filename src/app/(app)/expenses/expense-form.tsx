@@ -24,7 +24,7 @@ export function ExpenseForm({
   const { state, pending, onSubmit } = useFormAction<ExpenseFormState>(createExpense, {});
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">

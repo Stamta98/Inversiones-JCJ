@@ -97,6 +97,18 @@ export default async function SettingsPage() {
       <div className="space-y-4">
         <Card>
           <CardHeader
+            title={t("install.title")}
+            description={t("install.hint")}
+            action={
+              <LinkButton href="/install" size="sm" variant="secondary" icon="plus">
+                {t("install.action")}
+              </LinkButton>
+            }
+          />
+        </Card>
+
+        <Card>
+          <CardHeader
             title={t("settings.modulesTitle")}
             description={t("settings.modulesHint")}
           />

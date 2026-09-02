@@ -101,7 +101,7 @@ export function CompanyForm({
     findCountry(country)?.stateLabel ?? es.settings.stateGeneric;
 
   return (
-    <form onSubmit={onSubmit} className="max-w-4xl space-y-4">
+    <form method="post" onSubmit={onSubmit} className="max-w-4xl space-y-4">
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
       {state.success ? (
         <Alert tone="positive" icon="check">

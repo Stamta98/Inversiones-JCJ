@@ -61,7 +61,7 @@ export function NewUserForm({ roles }: { roles: RoleOption[] }) {
   const [usernameEdited, setUsernameEdited] = useState(false);
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Estado state={state} />
@@ -183,7 +183,7 @@ export function EditUserForm({
   );
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <input type="hidden" name="userId" value={user.id} />
       <CardBody className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -275,7 +275,7 @@ export function ResetPasswordForm({ userId }: { userId: string }) {
   );
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <input type="hidden" name="userId" value={userId} />
       <CardBody className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">

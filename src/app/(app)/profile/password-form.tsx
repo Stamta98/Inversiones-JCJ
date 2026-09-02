@@ -13,7 +13,7 @@ export function PasswordForm() {
   );
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <CardBody className="grid max-w-xl gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">

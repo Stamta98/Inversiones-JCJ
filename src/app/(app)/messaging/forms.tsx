@@ -46,7 +46,7 @@ export function AccountForm() {
   const [provider, setProvider] = useState<string>("log");
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">
@@ -117,7 +117,7 @@ export function RuleForm({
   const needsOffset = trigger !== "ON_DUE_DATE";
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <CardBody className="grid gap-4 sm:grid-cols-2">
         {state.error ? (
           <div className="sm:col-span-2">

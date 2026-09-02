@@ -40,7 +40,7 @@ export function InteractionForm({
   const showsPromise = outcome === "PAYMENT_PROMISED";
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3">
+    <form method="post" onSubmit={onSubmit} className="space-y-3">
       <input type="hidden" name="customerId" value={customerId} />
       {loanId ? <input type="hidden" name="loanId" value={loanId} /> : null}
 

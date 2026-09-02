@@ -1,0 +1,82 @@
+name: APK de Android
+
+# The APK is built here rather than on a laptop: GitHub's runners already have
+# the Android SDK, so nobody has to install Android Studio to get an install
+# file. Run it by hand from the Actions tab, or push a tag like v1.0.0 to get
+# a release with the APK attached.
+on:
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: "Dirección del sitio que la app va a abrir"
+        required: true
+        default: "https://inversiones-jcj.vercel.app"
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Gradle 8.2.1, which this project is pinned to, does not run on
+          # Java 21; 17 is what that toolchain was built against.
+          java-version: "17"
+
+      - name: Instalar dependencias
+        # The APK does not bundle the site, so the web build is not needed:
+        # only the Capacitor CLI and the local loading screen.
+        run: npm ci --ignore-scripts
+
+      - name: Preparar el proyecto de Android
+        env:
+          # A tag build has no input, so it falls back to the production site.
+          MOBILE_SERVER_URL: ${{ inputs.server_url || 'https://inversiones-jcj.vercel.app' }}
+        run: npx cap sync android
+
+      - name: Compilar el APK
+        working-directory: android
+        # Debug signing, on purpose: a release APK has to be signed with a key
+        # before a phone will install it, and an unsigned one just fails at the
+        # tap. This one installs after allowing "unknown sources".
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Renombrar el archivo
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             "dist/inversiones-jcj-${{ github.ref_type == 'tag' && github.ref_name || github.run_number }}.apk"
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inversiones-jcj-apk
+          path: dist/*.apk
+          retention-days: 30
+
+      - name: Publicar el APK en la release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk
+          body: |
+            Aplicación de Android de Inversiones JCJ.
+
+            Descarga el archivo `.apk` desde el teléfono y ábrelo. Android va a
+            pedir permiso para instalar aplicaciones de esta fuente; acéptalo.
+
+            La app abre el mismo sitio que usas en el navegador, así que se
+            actualiza sola: no hay que reinstalarla cuando cambia el sistema.

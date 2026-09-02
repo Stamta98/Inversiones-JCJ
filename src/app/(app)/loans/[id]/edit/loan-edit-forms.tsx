@@ -29,7 +29,7 @@ export function LoanNotesForm({
   );
 
   return (
-    <form onSubmit={onSubmit}>
+    <form method="post" onSubmit={onSubmit}>
       <input type="hidden" name="loanId" value={loanId} />
       {/* Le dice a la acción que solo mire las notas. */}
       <input type="hidden" name="notesOnly" value="on" />

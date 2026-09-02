@@ -91,7 +91,7 @@ export function TemplateEditor({ template }: { template?: TemplateInput }) {
   };
 
   return (
-    <form onSubmit={onSubmit} className="grid items-start gap-4 lg:grid-cols-3">
+    <form method="post" onSubmit={onSubmit} className="grid items-start gap-4 lg:grid-cols-3">
       {template?.id ? (
         <input type="hidden" name="id" value={template.id} />
       ) : null}
