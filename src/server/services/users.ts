@@ -6,6 +6,8 @@
  * their own company.
  */
 
+import { isValidUsername, normalizeUsername } from "@/core/users/username";
+
 import { db } from "../db";
 import { MIN_PASSWORD_LENGTH, hashPassword, verifyPassword } from "../auth/password";
 import { hashSessionToken } from "../auth/session";
@@ -15,6 +17,8 @@ export class UserServiceError extends Error {
     message: string,
     readonly code:
       | "emailTaken"
+      | "usernameTaken"
+      | "invalidUsername"
       | "weakPassword"
       | "wrongPassword"
       | "notFound"
@@ -28,6 +32,7 @@ export class UserServiceError extends Error {
 export interface CreateUserInput {
   companyId: string;
   email: string;
+  username: string;
   fullName: string;
   phone?: string | null;
   password: string;
@@ -40,9 +45,13 @@ export async function createCompanyUser(
   input: CreateUserInput,
 ): Promise<string> {
   const email = input.email.trim().toLowerCase();
+  const username = normalizeUsername(input.username);
 
   if (input.password.length < MIN_PASSWORD_LENGTH) {
     throw new UserServiceError("Password too short", "weakPassword");
+  }
+  if (!isValidUsername(username)) {
+    throw new UserServiceError("Invalid username", "invalidUsername");
   }
 
   const existing = await db.user.findUnique({ where: { email } });
@@ -50,6 +59,13 @@ export async function createCompanyUser(
     // An account can only belong to one company in this model, so an email
     // already in use is a conflict rather than something to join.
     throw new UserServiceError("Email already in use", "emailTaken");
+  }
+
+  // Usernames are unique across the whole product, the same as emails: at
+  // sign-in there is no company yet to scope them to.
+  const takenName = await db.user.findUnique({ where: { username } });
+  if (takenName) {
+    throw new UserServiceError("Username already in use", "usernameTaken");
   }
 
   const passwordHash = await hashPassword(input.password);
@@ -63,6 +79,7 @@ export async function createCompanyUser(
     const user = await tx.user.create({
       data: {
         email,
+        username,
         passwordHash,
         fullName: input.fullName.trim(),
         phone: input.phone ?? null,
@@ -85,7 +102,7 @@ export async function createCompanyUser(
         action: "user.created",
         entityType: "User",
         entityId: user.id,
-        metadata: { email, role: role.key },
+        metadata: { email, username, role: role.key },
       },
     });
 
@@ -109,6 +126,7 @@ export interface UpdateUserInput {
   companyId: string;
   userId: string;
   fullName?: string;
+  username?: string;
   phone?: string | null;
   roleId?: string;
   isActive?: boolean;
@@ -132,14 +150,34 @@ export async function updateCompanyUser(input: UpdateUserInput): Promise<void> {
     throw new UserServiceError("Cannot remove the last owner", "lastOwner");
   }
 
+  let username: string | undefined;
+  if (input.username !== undefined) {
+    username = normalizeUsername(input.username);
+    if (!isValidUsername(username)) {
+      throw new UserServiceError("Invalid username", "invalidUsername");
+    }
+    if (username !== membership.user.username) {
+      const takenName = await db.user.findUnique({ where: { username } });
+      if (takenName) {
+        throw new UserServiceError("Username already in use", "usernameTaken");
+      }
+    }
+  }
+
   await db.$transaction(async (tx) => {
-    if (input.fullName !== undefined || input.phone !== undefined || input.isActive !== undefined) {
+    if (
+      input.fullName !== undefined ||
+      input.phone !== undefined ||
+      input.isActive !== undefined ||
+      username !== undefined
+    ) {
       await tx.user.update({
         where: { id: input.userId },
         data: {
           ...(input.fullName !== undefined
             ? { fullName: input.fullName.trim() }
             : {}),
+          ...(username !== undefined ? { username } : {}),
           ...(input.phone !== undefined ? { phone: input.phone } : {}),
           ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
         },
@@ -175,6 +213,7 @@ export async function updateCompanyUser(input: UpdateUserInput): Promise<void> {
         metadata: {
           isActive: input.isActive ?? null,
           roleChanged: input.roleId !== undefined,
+          username: username ?? null,
         },
       },
     });

@@ -5,6 +5,12 @@ import Link from "next/link";
 import { Alert, Button, Field, Input, Select } from "@/components/ui";
 import { COUNTRIES, findCountry } from "@/core/locales/countries";
 import { findCurrency } from "@/core/locales/currencies";
+import {
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
+  normalizeUsername,
+  suggestUsername,
+} from "@/core/users/username";
 import { es } from "@/i18n/es";
 import { useFormAction } from "@/lib/use-form-action";
 import { useState } from "react";
@@ -17,6 +23,9 @@ export function SignUpForm() {
     {},
   );
   const [country, setCountry] = useState("");
+  // The username follows the email until somebody types their own.
+  const [username, setUsername] = useState("");
+  const [usernameEdited, setUsernameEdited] = useState(false);
 
   // Saying what the country implies, before they commit to it.
   const chosen = findCountry(country);
@@ -78,6 +87,32 @@ export function SignUpForm() {
           name="ownerEmail"
           type="email"
           autoCapitalize="none"
+          onChange={(event) => {
+            if (!usernameEdited) setUsername(suggestUsername(event.target.value));
+          }}
+          required
+        />
+      </Field>
+
+      <Field
+        label={es.signUp.ownerUsername}
+        htmlFor="ownerUsername"
+        hint={es.signUp.ownerUsernameHint}
+        required
+      >
+        <Input
+          id="ownerUsername"
+          name="ownerUsername"
+          value={username}
+          onChange={(event) => {
+            setUsernameEdited(true);
+            setUsername(normalizeUsername(event.target.value));
+          }}
+          minLength={USERNAME_MIN_LENGTH}
+          maxLength={USERNAME_MAX_LENGTH}
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
           required
         />
       </Field>

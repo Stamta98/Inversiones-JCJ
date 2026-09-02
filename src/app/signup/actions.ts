@@ -24,6 +24,7 @@ const schema = z
     countryCode: z.string().trim().length(2),
     ownerFullName: z.string().trim().min(1),
     ownerEmail: z.string().trim().toLowerCase().email(),
+    ownerUsername: z.string().trim().toLowerCase().min(1),
     password: z.string().min(1),
     passwordRepeat: z.string().min(1),
   })
@@ -48,6 +49,9 @@ export async function signUpAction(
       return { error: t("signUp.errors.passwordMismatch") };
     }
     if (issue?.path[0] === "ownerEmail") return { error: t("validation.email") };
+    if (issue?.path[0] === "ownerUsername") {
+      return { error: t("signUp.errors.invalidUsername") };
+    }
     if (issue?.path[0] === "countryCode") {
       return { error: t("signUp.errors.unknownCountry") };
     }
@@ -63,6 +67,7 @@ export async function signUpAction(
       countryCode: data.countryCode,
       ownerFullName: data.ownerFullName,
       ownerEmail: data.ownerEmail,
+      ownerUsername: data.ownerUsername,
       password: data.password,
     });
   } catch (error) {

@@ -104,6 +104,9 @@ model Branch {
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
+  /// Sign-in name, an alternative to the email. Never contains an "@", which
+  /// is what keeps the two apart when someone types one of them to sign in.
+  username     String    @unique
   passwordHash String
   fullName     String
   phone        String?

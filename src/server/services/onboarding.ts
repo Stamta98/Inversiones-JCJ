@@ -14,6 +14,7 @@ import { defaultEnabledModuleKeys, MODULE_REGISTRY } from "@/core/modules/regist
 import { defaultsForCountry } from "@/core/locales/countries";
 import { defaultDecimalsFor } from "@/core/locales/currencies";
 import { ROLE_PRESETS } from "@/core/permissions";
+import { isValidUsername, normalizeUsername } from "@/core/users/username";
 import { es } from "@/i18n/es";
 import {
   DEFAULT_AUTOMATION_RULES,
@@ -26,7 +27,12 @@ import { MIN_PASSWORD_LENGTH, hashPassword } from "../auth/password";
 export class SignUpError extends Error {
   constructor(
     message: string,
-    readonly code: "emailTaken" | "weakPassword" | "unknownCountry",
+    readonly code:
+      | "emailTaken"
+      | "usernameTaken"
+      | "invalidUsername"
+      | "weakPassword"
+      | "unknownCountry",
   ) {
     super(message);
     this.name = "SignUpError";
@@ -46,6 +52,8 @@ export interface SignUpInput {
   countryCode: string;
   ownerFullName: string;
   ownerEmail: string;
+  /** What the owner types to sign in, when they would rather not type an email. */
+  ownerUsername: string;
   password: string;
 }
 
@@ -63,9 +71,13 @@ export interface SignUpResult {
  */
 export async function signUpCompany(input: SignUpInput): Promise<SignUpResult> {
   const email = input.ownerEmail.trim().toLowerCase();
+  const username = normalizeUsername(input.ownerUsername);
 
   if (input.password.length < MIN_PASSWORD_LENGTH) {
     throw new SignUpError("Password too short", "weakPassword");
+  }
+  if (!isValidUsername(username)) {
+    throw new SignUpError("Invalid username", "invalidUsername");
   }
 
   const regional = defaultsForCountry(input.countryCode);
@@ -76,6 +88,11 @@ export async function signUpCompany(input: SignUpInput): Promise<SignUpResult> {
   const existing = await db.user.findUnique({ where: { email } });
   if (existing) {
     throw new SignUpError("Email already in use", "emailTaken");
+  }
+
+  const takenName = await db.user.findUnique({ where: { username } });
+  if (takenName) {
+    throw new SignUpError("Username already in use", "usernameTaken");
   }
 
   const passwordHash = await hashPassword(input.password);
@@ -171,6 +188,7 @@ export async function signUpCompany(input: SignUpInput): Promise<SignUpResult> {
     const user = await tx.user.create({
       data: {
         email,
+        username,
         passwordHash,
         fullName: input.ownerFullName.trim(),
       },
@@ -191,7 +209,7 @@ export async function signUpCompany(input: SignUpInput): Promise<SignUpResult> {
         action: "company.created",
         entityType: "Company",
         entityId: company.id,
-        metadata: { country: input.countryCode, email },
+        metadata: { country: input.countryCode, email, username },
       },
     });
 

@@ -23,13 +23,17 @@ export function SignInForm() {
     >
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
 
-      <Field label={es.auth.email} htmlFor="email" required>
+      <Field
+        label={es.auth.identifier}
+        htmlFor="identifier"
+        hint={es.auth.identifierHint}
+        required
+      >
         <Input
-          id="email"
-          name="email"
-          type="email"
+          id="identifier"
+          name="identifier"
+          type="text"
           autoComplete="username"
-          inputMode="email"
           autoCapitalize="none"
           spellCheck={false}
           required

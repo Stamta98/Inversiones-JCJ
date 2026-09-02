@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { looksLikeEmail, normalizeUsername } from "@/core/users/username";
 import { t } from "@/i18n";
 
 import { db } from "../db";
@@ -22,7 +23,8 @@ import {
 } from "./session";
 
 const signInSchema = z.object({
-  email: z.string().email(),
+  /** A username or an email: the form takes whichever people remember. */
+  identifier: z.string().min(1),
   password: z.string().min(1),
 });
 
@@ -34,8 +36,13 @@ export async function signIn(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const identifier = normalizeUsername(
+    // "email" stays accepted so an autofilled or bookmarked form still works.
+    String(formData.get("identifier") ?? formData.get("email") ?? ""),
+  );
+
   const parsed = signInSchema.safeParse({
-    email: String(formData.get("email") ?? "").trim().toLowerCase(),
+    identifier,
     password: String(formData.get("password") ?? ""),
   });
 
@@ -43,13 +50,17 @@ export async function signIn(
     return { error: t("auth.invalidCredentials") };
   }
 
+  // An "@" can only be in an email, never in a username, so there is exactly
+  // one column to look in and no way for the two to collide.
   const user = await db.user.findUnique({
-    where: { email: parsed.data.email },
+    where: looksLikeEmail(parsed.data.identifier)
+      ? { email: parsed.data.identifier }
+      : { username: parsed.data.identifier },
     include: { memberships: { where: { isActive: true }, take: 1 } },
   });
 
   // Compare against a dummy hash when the user is missing so that a wrong
-  // email and a wrong password take the same amount of time.
+  // name and a wrong password take the same amount of time.
   const passwordHash =
     user?.passwordHash ??
     "$2a$12$0000000000000000000000000000000000000000000000000000";

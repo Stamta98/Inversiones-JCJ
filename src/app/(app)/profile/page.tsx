@@ -56,6 +56,7 @@ export default async function ProfilePage() {
           <CardHeader title={t("nav.profile")} />
           <CardBody className="space-y-2 text-sm">
             <p className="font-medium text-ink">{context.fullName}</p>
+            <p className="text-ink-muted">@{context.username}</p>
             <p className="text-ink-muted">{context.email}</p>
             <p className="text-ink-muted">{context.roleName}</p>
             <p className="text-ink-subtle">{context.companyName}</p>

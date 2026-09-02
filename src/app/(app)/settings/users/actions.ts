@@ -22,6 +22,7 @@ const createSchema = z
   .object({
     fullName: z.string().trim().min(1),
     email: z.string().trim().toLowerCase().email(),
+    username: z.string().trim().toLowerCase().min(1),
     phone: z
       .string()
       .trim()
@@ -64,6 +65,9 @@ export async function createUserAction(
       return { error: t("settings.userErrors.passwordMismatch") };
     }
     if (issue?.path[0] === "email") return { error: t("validation.email") };
+    if (issue?.path[0] === "username") {
+      return { error: t("settings.userErrors.invalidUsername") };
+    }
     return { error: t("common.error") };
   }
 
@@ -71,6 +75,7 @@ export async function createUserAction(
     await createCompanyUser({
       companyId: context.companyId,
       email: parsed.data.email,
+      username: parsed.data.username,
       fullName: parsed.data.fullName,
       phone: parsed.data.phone,
       password: parsed.data.password,
@@ -88,6 +93,7 @@ export async function createUserAction(
 const updateSchema = z.object({
   userId: z.string().min(1),
   fullName: z.string().trim().min(1),
+  username: z.string().trim().toLowerCase().min(1),
   phone: z
     .string()
     .trim()
@@ -113,6 +119,7 @@ export async function updateUserAction(
       companyId: context.companyId,
       userId: parsed.data.userId,
       fullName: parsed.data.fullName,
+      username: parsed.data.username,
       phone: parsed.data.phone,
       roleId: parsed.data.roleId,
       isActive: parsed.data.isActive === "on",

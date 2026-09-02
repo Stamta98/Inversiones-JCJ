@@ -65,7 +65,7 @@ export default async function UsersPage() {
             <Card key={membership.id}>
               <CardHeader
                 title={membership.user.fullName}
-                description={membership.user.email}
+                description={`@${membership.user.username} · ${membership.user.email}`}
                 action={
                   <Badge
                     tone={membership.user.isActive ? "positive" : "neutral"}
@@ -84,6 +84,7 @@ export default async function UsersPage() {
                       id: membership.userId,
                       fullName: membership.user.fullName,
                       email: membership.user.email,
+                      username: membership.user.username,
                       phone: membership.user.phone,
                       roleId: membership.roleId,
                       isActive: membership.user.isActive,

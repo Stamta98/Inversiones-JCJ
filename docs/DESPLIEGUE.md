@@ -106,7 +106,7 @@ y vuelve a desplegar (*Deployments* → los tres puntos → *Redeploy*):
 
 Entra a tu dirección `/login` con:
 
-- **Correo:** `admin@inversionesjcj.com`
+- **Usuario:** `admin` (o el correo `admin@inversionesjcj.com`, funcionan los dos)
 - **Contraseña:** `Cambiar123`
 
 **Lo primero que tienes que hacer es cambiar esa contraseña**, en *Perfil →

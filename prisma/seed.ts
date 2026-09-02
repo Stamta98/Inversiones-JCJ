@@ -247,6 +247,7 @@ async function main(): Promise<void> {
     update: {},
     create: {
       email: "admin@inversionesjcj.com",
+      username: "admin",
       passwordHash,
       fullName: "Juan Carlos Jiménez",
       phone: "809-555-0100",
@@ -258,6 +259,7 @@ async function main(): Promise<void> {
     update: {},
     create: {
       email: "cobrador@inversionesjcj.com",
+      username: "cobrador",
       passwordHash,
       fullName: "Pedro Martínez",
     },
@@ -479,8 +481,8 @@ async function main(): Promise<void> {
 
   console.log("Listo.");
   console.log(`  Empresa:   ${company.name}`);
-  console.log(`  Usuario:   ${owner.email}`);
-  console.log(`  Cobrador:  ${collector.email}`);
+  console.log(`  Usuario:   ${owner.username} (${owner.email})`);
+  console.log(`  Cobrador:  ${collector.username} (${collector.email})`);
   console.log(`  Clave:     ${DEMO_PASSWORD}`);
 }
 

@@ -8,8 +8,15 @@ import {
   Input,
   Select,
 } from "@/components/ui";
+import {
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
+  normalizeUsername,
+  suggestUsername,
+} from "@/core/users/username";
 import { es } from "@/i18n/es";
 import { useFormAction } from "@/lib/use-form-action";
+import { useState } from "react";
 
 import {
   createUserAction,
@@ -27,6 +34,7 @@ export interface UserRow {
   id: string;
   fullName: string;
   email: string;
+  username: string;
   phone: string | null;
   roleId: string;
   isActive: boolean;
@@ -48,6 +56,9 @@ export function NewUserForm({ roles }: { roles: RoleOption[] }) {
     createUserAction,
     {},
   );
+  // The username follows the email until somebody types their own.
+  const [username, setUsername] = useState("");
+  const [usernameEdited, setUsernameEdited] = useState(false);
 
   return (
     <form onSubmit={onSubmit}>
@@ -66,6 +77,34 @@ export function NewUserForm({ roles }: { roles: RoleOption[] }) {
             name="email"
             type="email"
             autoCapitalize="none"
+            onChange={(event) => {
+              if (!usernameEdited) {
+                setUsername(suggestUsername(event.target.value));
+              }
+            }}
+            required
+          />
+        </Field>
+
+        <Field
+          label={es.settings.userUsername}
+          htmlFor="username"
+          hint={es.settings.userUsernameHint}
+          required
+        >
+          <Input
+            id="username"
+            name="username"
+            value={username}
+            onChange={(event) => {
+              setUsernameEdited(true);
+              setUsername(normalizeUsername(event.target.value));
+            }}
+            minLength={USERNAME_MIN_LENGTH}
+            maxLength={USERNAME_MAX_LENGTH}
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
             required
           />
         </Field>
@@ -160,6 +199,25 @@ export function EditUserForm({
             id={`fullName-${user.id}`}
             name="fullName"
             defaultValue={user.fullName}
+            required
+          />
+        </Field>
+
+        <Field
+          label={es.settings.userUsername}
+          htmlFor={`username-${user.id}`}
+          hint={es.settings.userUsernameHint}
+          required
+        >
+          <Input
+            id={`username-${user.id}`}
+            name="username"
+            defaultValue={user.username}
+            minLength={USERNAME_MIN_LENGTH}
+            maxLength={USERNAME_MAX_LENGTH}
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
             required
           />
         </Field>

@@ -102,6 +102,9 @@ export const es = {
     ownerName: "Tu nombre completo",
     ownerEmail: "Tu correo electrónico",
     ownerEmailHint: "Con este correo vas a entrar al sistema.",
+    ownerUsername: "Nombre de usuario",
+    ownerUsernameHint:
+      "Para entrar sin escribir el correo. Letras, números, punto, guion y guion bajo.",
     password: "Contraseña",
     passwordHint: "Mínimo 8 caracteres.",
     passwordRepeat: "Repetir la contraseña",
@@ -113,6 +116,9 @@ export const es = {
     goToSignUp: "Crea tu financiera",
     errors: {
       emailTaken: "Ya hay una cuenta con ese correo. Entra o usa otro.",
+      usernameTaken: "Ese nombre de usuario ya está ocupado. Prueba con otro.",
+      invalidUsername:
+        "El nombre de usuario debe tener entre 3 y 30 caracteres, sin arroba ni espacios.",
       weakPassword: "La contraseña debe tener al menos 8 caracteres.",
       unknownCountry: "Selecciona el país donde operas.",
       passwordMismatch: "Las dos contraseñas no coinciden.",
@@ -152,10 +158,12 @@ export const es = {
     signInSubtitle: "Entra con tu cuenta para continuar",
     signOut: "Cerrar sesión",
     email: "Correo electrónico",
+    identifier: "Usuario o correo electrónico",
+    identifierHint: "Entra con tu nombre de usuario o con tu correo.",
     password: "Contraseña",
     rememberMe: "Mantener sesión iniciada",
     forgotPassword: "¿Olvidaste tu contraseña?",
-    invalidCredentials: "Correo o contraseña incorrectos",
+    invalidCredentials: "Usuario, correo o contraseña incorrectos",
     accountDisabled: "Tu cuenta está desactivada. Contacta al administrador.",
     sessionExpired: "Tu sesión expiró. Vuelve a iniciar sesión.",
     noCompany: "Tu usuario no está asignado a ninguna empresa.",
@@ -888,6 +896,9 @@ export const es = {
     editUserTitle: "Editar usuario",
     userFullName: "Nombre completo",
     userEmail: "Correo electrónico",
+    userUsername: "Nombre de usuario",
+    userUsernameHint:
+      "Con este nombre o con el correo va a entrar al sistema.",
     userPhone: "Teléfono",
     userPassword: "Contraseña",
     userPasswordHint: "Mínimo 8 caracteres.",
@@ -899,6 +910,9 @@ export const es = {
     activate: "Activar",
     userErrors: {
       emailTaken: "Ya existe un usuario con ese correo.",
+      usernameTaken: "Ya existe un usuario con ese nombre.",
+      invalidUsername:
+        "El nombre de usuario debe tener entre 3 y 30 caracteres, sin arroba ni espacios.",
       weakPassword: "La contraseña debe tener al menos 8 caracteres.",
       passwordMismatch: "Las dos contraseñas no coinciden.",
       wrongPassword: "La contraseña actual no es correcta.",

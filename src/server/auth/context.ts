@@ -29,6 +29,7 @@ export interface AuthContext {
   userId: string;
   fullName: string;
   email: string;
+  username: string;
   isSuperAdmin: boolean;
   companyId: string;
   companyName: string;
@@ -111,6 +112,7 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
     userId: session.user.id,
     fullName: session.user.fullName,
     email: session.user.email,
+    username: session.user.username,
     isSuperAdmin: session.user.isSuperAdmin,
     companyId: membership.companyId,
     companyName: membership.company.name,

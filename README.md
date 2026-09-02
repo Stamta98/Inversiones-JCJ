@@ -86,10 +86,12 @@ npm run dev                    # http://localhost:3000
 
 El seed deja lista una empresa con usuarios de prueba:
 
-| Correo | Rol | Clave |
-| --- | --- | --- |
-| `admin@inversionesjcj.com` | Dueño | `Cambiar123` |
-| `cobrador@inversionesjcj.com` | Cobrador | `Cambiar123` |
+| Usuario | Correo | Rol | Clave |
+| --- | --- | --- | --- |
+| `admin` | `admin@inversionesjcj.com` | Dueño | `Cambiar123` |
+| `cobrador` | `cobrador@inversionesjcj.com` | Cobrador | `Cambiar123` |
+
+Se puede entrar con el nombre de usuario o con el correo, la clave es la misma.
 
 > Cambia esas claves antes de poner el sistema en producción.
 > `AUTH_SECRET` se genera con `openssl rand -base64 32`.
