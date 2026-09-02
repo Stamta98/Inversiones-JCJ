@@ -53,6 +53,11 @@ export default async function EditCustomerPage({
           lastName: customer.lastName,
           documentType: customer.documentType,
           documentNumber: customer.documentNumber,
+          birthDate: customer.birthDate
+            ? customer.birthDate.toISOString().slice(0, 10)
+            : null,
+          gender: customer.gender,
+          nationality: customer.nationality,
           email: customer.email,
           phone: customer.phone,
           mobilePhone: customer.mobilePhone,

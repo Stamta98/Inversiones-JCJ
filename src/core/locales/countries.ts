@@ -8,7 +8,8 @@
  * `stateLabel` exists because the same administrative level is called
  * something different in each country — "provincia" in the Dominican Republic,
  * "departamento" in Colombia, "estado" in Mexico — and using the wrong word
- * makes the form feel foreign.
+ * makes the form feel foreign. `demonym` is here for the same reason: a
+ * customer's nationality is written the way people say it, not as a code.
  */
 
 export interface Country {
@@ -21,6 +22,8 @@ export interface Country {
   timezone: string;
   /** What the first administrative division is called here. */
   stateLabel: string;
+  /** What someone from here is called, for the nationality of a customer. */
+  demonym: string;
   /** International dialing prefix, without the plus. */
   phoneCode: string;
 }
@@ -33,6 +36,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-AR",
     timezone: "America/Argentina/Buenos_Aires",
     stateLabel: "Provincia",
+    demonym: "Argentina",
     phoneCode: "54",
   },
   {
@@ -42,6 +46,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-BO",
     timezone: "America/La_Paz",
     stateLabel: "Departamento",
+    demonym: "Boliviana",
     phoneCode: "591",
   },
   {
@@ -51,6 +56,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "pt-BR",
     timezone: "America/Sao_Paulo",
     stateLabel: "Estado",
+    demonym: "Brasileña",
     phoneCode: "55",
   },
   {
@@ -60,6 +66,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-CL",
     timezone: "America/Santiago",
     stateLabel: "Región",
+    demonym: "Chilena",
     phoneCode: "56",
   },
   {
@@ -69,6 +76,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-CO",
     timezone: "America/Bogota",
     stateLabel: "Departamento",
+    demonym: "Colombiana",
     phoneCode: "57",
   },
   {
@@ -78,6 +86,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-CR",
     timezone: "America/Costa_Rica",
     stateLabel: "Provincia",
+    demonym: "Costarricense",
     phoneCode: "506",
   },
   {
@@ -87,6 +96,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-DO",
     timezone: "America/Santo_Domingo",
     stateLabel: "Provincia",
+    demonym: "Dominicana",
     phoneCode: "1",
   },
   {
@@ -96,6 +106,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-EC",
     timezone: "America/Guayaquil",
     stateLabel: "Provincia",
+    demonym: "Ecuatoriana",
     phoneCode: "593",
   },
   {
@@ -105,6 +116,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-GT",
     timezone: "America/Guatemala",
     stateLabel: "Departamento",
+    demonym: "Guatemalteca",
     phoneCode: "502",
   },
   {
@@ -114,6 +126,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-HN",
     timezone: "America/Tegucigalpa",
     stateLabel: "Departamento",
+    demonym: "Hondureña",
     phoneCode: "504",
   },
   {
@@ -123,6 +136,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-MX",
     timezone: "America/Mexico_City",
     stateLabel: "Estado",
+    demonym: "Mexicana",
     phoneCode: "52",
   },
   {
@@ -132,6 +146,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-NI",
     timezone: "America/Managua",
     stateLabel: "Departamento",
+    demonym: "Nicaragüense",
     phoneCode: "505",
   },
   {
@@ -141,6 +156,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-PA",
     timezone: "America/Panama",
     stateLabel: "Provincia",
+    demonym: "Panameña",
     phoneCode: "507",
   },
   {
@@ -150,6 +166,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-PE",
     timezone: "America/Lima",
     stateLabel: "Departamento",
+    demonym: "Peruana",
     phoneCode: "51",
   },
   {
@@ -159,6 +176,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-PY",
     timezone: "America/Asuncion",
     stateLabel: "Departamento",
+    demonym: "Paraguaya",
     phoneCode: "595",
   },
   {
@@ -168,6 +186,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-SV",
     timezone: "America/El_Salvador",
     stateLabel: "Departamento",
+    demonym: "Salvadoreña",
     phoneCode: "503",
   },
   {
@@ -177,6 +196,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-UY",
     timezone: "America/Montevideo",
     stateLabel: "Departamento",
+    demonym: "Uruguaya",
     phoneCode: "598",
   },
   {
@@ -186,6 +206,7 @@ export const COUNTRIES: readonly Country[] = [
     locale: "es-VE",
     timezone: "America/Caracas",
     stateLabel: "Estado",
+    demonym: "Venezolana",
     phoneCode: "58",
   },
 ];

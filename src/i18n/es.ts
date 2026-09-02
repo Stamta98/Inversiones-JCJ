@@ -281,6 +281,18 @@ export const es = {
     country: "País",
     location: "Ubicación GPS",
     birthDate: "Fecha de nacimiento",
+    birthDateHint: "Va en el contrato. Se calcula la edad sola.",
+    age: "Edad",
+    ageYears: "{years} años",
+    gender: "Sexo",
+    genderLabel: {
+      FEMALE: "Femenino",
+      MALE: "Masculino",
+      OTHER: "Otro",
+    },
+    genderUnset: "Prefiere no decirlo",
+    nationality: "Nacionalidad",
+    nationalityHint: "Escríbela o elige una de la lista.",
     workSection: "Trabajo",
     employmentType: "¿De qué vive?",
     occupation: "Ocupación / oficio",
@@ -361,6 +373,9 @@ export const es = {
       "Este cliente está en lista negra. Revisa antes de aprobar un crédito.",
     arrearsWarning:
       "Este cliente tiene {days} días de mora en un préstamo activo.",
+    errors: {
+      birthDate: "Revisa la fecha de nacimiento: no puede ser futura.",
+    },
   },
 
   loans: {

@@ -256,6 +256,14 @@ enum PaydayKind {
 /// How the customer earns their income, which changes how a collector
 /// verifies them: an independent is visited at their business, an employee
 /// at their workplace.
+/// Optional on purpose: it is asked for the contract and for reporting, and a
+/// customer who would rather not say still gets their loan.
+enum Gender {
+  FEMALE
+  MALE
+  OTHER
+}
+
 enum EmploymentType {
   /// Works for themselves: own business, street vending, trades.
   INDEPENDENT
@@ -291,6 +299,10 @@ model Customer {
   latitude       Float?
   longitude      Float?
   birthDate      DateTime?
+  gender         Gender?
+  /// Written the way people say it ("Dominicana", "Haitiana"), not as a code:
+  /// a closed list would turn away a customer whose country is not in it.
+  nationality    String?
 
   // --- Work -------------------------------------------------------------
   employmentType   EmploymentType?

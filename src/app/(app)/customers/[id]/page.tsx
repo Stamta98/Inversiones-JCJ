@@ -16,6 +16,7 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
+import { ageOn } from "@/core/customers/identity";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
@@ -142,6 +143,28 @@ export default async function CustomerDetailPage({
               <DetailRow
                 label={t("customers.documentNumber")}
                 value={customer.documentNumber ?? "—"}
+              />
+              <DetailRow
+                label={t("customers.birthDate")}
+                value={
+                  customer.birthDate
+                    ? `${formatDate(customer.birthDate, context.locale)} · ${t(
+                        "customers.ageYears",
+                      ).replace("{years}", String(ageOn(customer.birthDate)))}`
+                    : "—"
+                }
+              />
+              <DetailRow
+                label={t("customers.gender")}
+                value={
+                  customer.gender
+                    ? t(`customers.genderLabel.${customer.gender}`)
+                    : "—"
+                }
+              />
+              <DetailRow
+                label={t("customers.nationality")}
+                value={customer.nationality ?? "—"}
               />
               <DetailRow
                 label={t("customers.mobilePhone")}

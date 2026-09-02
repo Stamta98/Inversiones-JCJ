@@ -28,6 +28,9 @@ const DEMO_PASSWORD = process.env.SEED_PASSWORD ?? "Cambiar123";
 const DEMO_CUSTOMERS = [
   {
     firstName: "María",
+    birthDate: new Date("1988-03-14"),
+    gender: "FEMALE" as const,
+    nationality: "Dominicana",
     lastName: "Pérez",
     mobilePhone: "18095550101",
     address: "Calle Duarte 45",
@@ -49,6 +52,9 @@ const DEMO_CUSTOMERS = [
   },
   {
     firstName: "José",
+    birthDate: new Date("1979-11-02"),
+    gender: "MALE" as const,
+    nationality: "Dominicana",
     lastName: "Rodríguez",
     mobilePhone: "18095550102",
     address: "Av. Independencia 210",
@@ -70,6 +76,9 @@ const DEMO_CUSTOMERS = [
   },
   {
     firstName: "Carmen",
+    birthDate: new Date("1995-07-21"),
+    gender: "FEMALE" as const,
+    nationality: "Haitiana",
     lastName: "Santana",
     mobilePhone: "18095550103",
     address: "Calle El Sol 12",
@@ -88,6 +97,9 @@ const DEMO_CUSTOMERS = [
   },
   {
     firstName: "Luis",
+    birthDate: new Date("1966-01-09"),
+    gender: "MALE" as const,
+    nationality: "Dominicana",
     lastName: "Fernández",
     mobilePhone: "18095550104",
     address: "Calle Primera 7",
@@ -110,6 +122,9 @@ const DEMO_CUSTOMERS = [
   },
   {
     firstName: "Ana",
+    birthDate: new Date("1992-05-30"),
+    gender: "FEMALE" as const,
+    nationality: "Venezolana",
     lastName: "Jiménez",
     mobilePhone: "18095550105",
     address: "Calle Mella 8",

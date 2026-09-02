@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { GENDERS, isPlausibleBirthDate } from "@/core/customers/identity";
 import { t } from "@/i18n";
 import { normalizePhoneNumber } from "@/modules/messaging/providers";
 import { requirePermission } from "@/server/auth/context";
@@ -42,6 +43,25 @@ const optionalCoordinate = z
     if (value === undefined || value.length === 0) return null;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
+  });
+
+/**
+ * A date of birth, or nothing.
+ *
+ * Kept at midnight UTC like every other calendar day in the app, so the
+ * birthday does not shift a day depending on where the server is.
+ */
+const optionalBirthDate = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) =>
+    value === undefined || value.length === 0
+      ? null
+      : new Date(`${value}T00:00:00.000Z`),
+  )
+  .refine((value) => value === null || isPlausibleBirthDate(value), {
+    message: t("customers.errors.birthDate"),
   });
 
 const optionalWholeNumber = z
@@ -102,6 +122,9 @@ const customerSchema = z.object({
   lastName: z.string().trim().min(1),
   documentType: optionalText,
   documentNumber: optionalText,
+  birthDate: optionalBirthDate,
+  gender: z.enum(GENDERS).nullable().catch(null),
+  nationality: optionalText,
   email: optionalText.refine(
     (value) => value === null || z.string().email().safeParse(value).success,
     { message: t("validation.email") },
@@ -126,7 +149,14 @@ const customerSchema = z.object({
   workLatitude: optionalCoordinate,
   workLongitude: optionalCoordinate,
   paydayKind: z
-    .enum(["DAILY", "WEEKLY", "BIWEEKLY", "SEMIMONTHLY", "MONTHLY", "IRREGULAR"])
+    .enum([
+      "DAILY",
+      "WEEKLY",
+      "BIWEEKLY",
+      "SEMIMONTHLY",
+      "MONTHLY",
+      "IRREGULAR",
+    ])
     .nullable()
     .catch(null),
   paydayWeekday: optionalWholeNumber,
@@ -183,6 +213,9 @@ export async function createCustomer(
           lastName: data.lastName,
           documentType: data.documentType,
           documentNumber: data.documentNumber,
+          birthDate: data.birthDate,
+          gender: data.gender,
+          nationality: data.nationality,
           email: data.email,
           phone: data.phone,
           // Stored in E.164 so WhatsApp can use it without re-parsing.
@@ -214,8 +247,16 @@ export async function createCustomer(
           references: { create: references },
           attachments: {
             create: [
-              { url: data.idFrontUrl, kind: "ID_FRONT" as const, name: "Documento (frente)" },
-              { url: data.idBackUrl, kind: "ID_BACK" as const, name: "Documento (reverso)" },
+              {
+                url: data.idFrontUrl,
+                kind: "ID_FRONT" as const,
+                name: "Documento (frente)",
+              },
+              {
+                url: data.idBackUrl,
+                kind: "ID_BACK" as const,
+                name: "Documento (reverso)",
+              },
             ]
               .filter((attachment) => attachment.url.length > 0)
               .map((attachment) => ({
@@ -284,6 +325,9 @@ export async function updateCustomer(
         lastName: data.lastName,
         documentType: data.documentType,
         documentNumber: data.documentNumber,
+        birthDate: data.birthDate,
+        gender: data.gender,
+        nationality: data.nationality,
         email: data.email,
         phone: data.phone,
         mobilePhone: data.mobilePhone
@@ -312,7 +356,10 @@ export async function updateCustomer(
           ? { latitude: data.homeLatitude, longitude: data.homeLongitude }
           : {}),
         ...(data.workLatitude !== null
-          ? { workLatitude: data.workLatitude, workLongitude: data.workLongitude }
+          ? {
+              workLatitude: data.workLatitude,
+              workLongitude: data.workLongitude,
+            }
           : {}),
       },
     });
@@ -320,8 +367,16 @@ export async function updateCustomer(
     // Las fotos del documento se reemplazan solo si se subió una nueva: el
     // formulario reenvía la URL actual cuando no se tocaron.
     for (const document of [
-      { kind: "ID_FRONT" as const, url: data.idFrontUrl, name: "Documento (frente)" },
-      { kind: "ID_BACK" as const, url: data.idBackUrl, name: "Documento (reverso)" },
+      {
+        kind: "ID_FRONT" as const,
+        url: data.idFrontUrl,
+        name: "Documento (frente)",
+      },
+      {
+        kind: "ID_BACK" as const,
+        url: data.idBackUrl,
+        name: "Documento (reverso)",
+      },
     ]) {
       if (document.url.length === 0) continue;
 

@@ -16,7 +16,9 @@ import {
 import { LocationField } from "@/components/ui/location-field";
 import { PhotoUpload } from "@/components/ui/photo-upload";
 
+import { GENDERS } from "@/core/customers/identity";
 import type { PaydayKind } from "@/core/customers/payday";
+import { NATIONALITY_SUGGESTIONS } from "@/core/locales/nationalities";
 
 import { PaydayFields } from "./payday-fields";
 import { ReferenceFields } from "./reference-fields";
@@ -37,6 +39,10 @@ export interface CustomerDefaults {
   lastName: string;
   documentType: string | null;
   documentNumber: string | null;
+  /** Calendar day as "YYYY-MM-DD", which is what a date input reads. */
+  birthDate: string | null;
+  gender: string | null;
+  nationality: string | null;
   email: string | null;
   phone: string | null;
   mobilePhone: string | null;
@@ -141,8 +147,13 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
             required
             error={fieldError("firstName")}
           >
-            <Input id="firstName" name="firstName"
-              defaultValue={v(customer?.firstName)} required autoFocus />
+            <Input
+              id="firstName"
+              name="firstName"
+              defaultValue={v(customer?.firstName)}
+              required
+              autoFocus
+            />
           </Field>
           <Field
             label={es.customers.lastName}
@@ -150,12 +161,20 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
             required
             error={fieldError("lastName")}
           >
-            <Input id="lastName" name="lastName"
-              defaultValue={v(customer?.lastName)} required />
+            <Input
+              id="lastName"
+              name="lastName"
+              defaultValue={v(customer?.lastName)}
+              required
+            />
           </Field>
           <Field label={es.customers.documentType} htmlFor="documentType">
-            <Input id="documentType" name="documentType"
-              defaultValue={v(customer?.documentType)} placeholder="Cédula" />
+            <Input
+              id="documentType"
+              name="documentType"
+              defaultValue={v(customer?.documentType)}
+              placeholder="Cédula"
+            />
           </Field>
           <Field label={es.customers.documentNumber} htmlFor="documentNumber">
             <Input
@@ -165,6 +184,57 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
               inputMode="numeric"
             />
           </Field>
+          <Field
+            label={es.customers.birthDate}
+            htmlFor="birthDate"
+            hint={es.customers.birthDateHint}
+            error={fieldError("birthDate")}
+          >
+            <Input
+              id="birthDate"
+              name="birthDate"
+              type="date"
+              defaultValue={v(customer?.birthDate)}
+              // Nobody is born tomorrow: the picker itself says so.
+              max={new Date().toISOString().slice(0, 10)}
+            />
+          </Field>
+          <Field label={es.customers.gender} htmlFor="gender">
+            <Select
+              id="gender"
+              name="gender"
+              defaultValue={v(customer?.gender)}
+            >
+              <option value="">{es.customers.genderUnset}</option>
+              {GENDERS.map((option) => (
+                <option key={option} value={option}>
+                  {es.customers.genderLabel[option]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <div className="sm:col-span-2">
+            <Field
+              label={es.customers.nationality}
+              htmlFor="nationality"
+              hint={es.customers.nationalityHint}
+            >
+              <Input
+                id="nationality"
+                name="nationality"
+                defaultValue={v(customer?.nationality)}
+                list="nationality-options"
+                autoComplete="off"
+              />
+            </Field>
+            {/* A suggestion list rather than a closed one: a customer whose
+                country is missing must still be registrable. */}
+            <datalist id="nationality-options">
+              {NATIONALITY_SUGGESTIONS.map((option) => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
+          </div>
         </CardBody>
       </Card>
 
@@ -185,8 +255,13 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
             />
           </Field>
           <Field label={es.customers.phone} htmlFor="phone">
-            <Input id="phone" name="phone"
-              defaultValue={v(customer?.phone)} type="tel" inputMode="tel" />
+            <Input
+              id="phone"
+              name="phone"
+              defaultValue={v(customer?.phone)}
+              type="tel"
+              inputMode="tel"
+            />
           </Field>
           <div className="sm:col-span-2">
             <Field
@@ -197,7 +272,7 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
               <Input
                 id="email"
                 name="email"
-              defaultValue={v(customer?.email)}
+                defaultValue={v(customer?.email)}
                 type="email"
                 autoCapitalize="none"
               />
@@ -214,7 +289,7 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
               <Input
                 id="address"
                 name="address"
-              defaultValue={v(customer?.address)}
+                defaultValue={v(customer?.address)}
                 placeholder="Calle y número"
               />
             </Field>
@@ -224,12 +299,14 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
             htmlFor="neighborhood"
             hint="Ayuda al cobrador a ubicar al cliente."
           >
-            <Input id="neighborhood" name="neighborhood"
-              defaultValue={v(customer?.neighborhood)} />
+            <Input
+              id="neighborhood"
+              name="neighborhood"
+              defaultValue={v(customer?.neighborhood)}
+            />
           </Field>
           <Field label={es.customers.city} htmlFor="city">
-            <Input id="city" name="city"
-              defaultValue={v(customer?.city)} />
+            <Input id="city" name="city" defaultValue={v(customer?.city)} />
           </Field>
           <div className="sm:col-span-2">
             <Field
@@ -237,15 +314,21 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
               htmlFor="landmark"
               hint={es.customers.landmarkHint}
             >
-              <Input id="landmark" name="landmark"
-              defaultValue={v(customer?.landmark)} />
+              <Input
+                id="landmark"
+                name="landmark"
+                defaultValue={v(customer?.landmark)}
+              />
             </Field>
           </div>
           <div className="sm:col-span-2">
             <LocationField
               name="home"
               label={es.customers.locationHome}
-              defaultValue={storedPoint(customer?.latitude, customer?.longitude)}
+              defaultValue={storedPoint(
+                customer?.latitude,
+                customer?.longitude,
+              )}
             />
           </div>
         </CardBody>
@@ -282,16 +365,22 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
           {isEmployee ? (
             <div className="sm:col-span-2">
               <Field label={es.customers.employerName} htmlFor="employerName">
-                <Input id="employerName" name="employerName"
-              defaultValue={v(customer?.employerName)} />
+                <Input
+                  id="employerName"
+                  name="employerName"
+                  defaultValue={v(customer?.employerName)}
+                />
               </Field>
             </div>
           ) : null}
 
           <div className="sm:col-span-2">
             <Field label={es.customers.workAddress} htmlFor="workAddress">
-              <Input id="workAddress" name="workAddress"
-              defaultValue={v(customer?.workAddress)} />
+              <Input
+                id="workAddress"
+                name="workAddress"
+                defaultValue={v(customer?.workAddress)}
+              />
             </Field>
           </div>
 
@@ -299,8 +388,11 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
             label={es.customers.workNeighborhood}
             htmlFor="workNeighborhood"
           >
-            <Input id="workNeighborhood" name="workNeighborhood"
-              defaultValue={v(customer?.workNeighborhood)} />
+            <Input
+              id="workNeighborhood"
+              name="workNeighborhood"
+              defaultValue={v(customer?.workNeighborhood)}
+            />
           </Field>
 
           <Field label={es.customers.monthlyIncome} htmlFor="monthlyIncome">
@@ -321,8 +413,11 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
               htmlFor="workLandmark"
               hint={es.customers.landmarkHint}
             >
-              <Input id="workLandmark" name="workLandmark"
-              defaultValue={v(customer?.workLandmark)} />
+              <Input
+                id="workLandmark"
+                name="workLandmark"
+                defaultValue={v(customer?.workLandmark)}
+              />
             </Field>
           </div>
           <div className="sm:col-span-2">
@@ -385,7 +480,11 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
         <CardHeader title={es.common.notes} />
         <CardBody>
           <Field label={es.common.notes} htmlFor="notes">
-            <Textarea id="notes" name="notes" defaultValue={v(customer?.notes)} />
+            <Textarea
+              id="notes"
+              name="notes"
+              defaultValue={v(customer?.notes)}
+            />
           </Field>
         </CardBody>
       </Card>
