@@ -97,6 +97,7 @@ export async function createLoanAction(
       lateFeeMode: data.lateFeeMode as never,
       lateFeeValue: data.lateFeeValue,
       gracePeriodDays: data.gracePeriodDays,
+      decimalPlaces: context.decimalPlaces,
       notes: data.notes || null,
       disburseNow: data.disburseNow === "on",
       cashBoxId: data.cashBoxId || null,
@@ -178,6 +179,7 @@ export async function updateLoanAction(
         lateFeeMode: data.lateFeeMode as never,
         lateFeeValue: data.lateFeeValue,
         gracePeriodDays: data.gracePeriodDays,
+        decimalPlaces: context.decimalPlaces,
       },
       updatedById: context.userId,
     });

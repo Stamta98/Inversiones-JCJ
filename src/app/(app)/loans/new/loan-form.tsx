@@ -21,7 +21,7 @@ import {
   type Payday,
 } from "@/core/customers/payday";
 import { ScheduleError, buildSchedule } from "@/core/loans/schedule";
-import { fromCents, toCents } from "@/core/money";
+import { fromCents, stepForDecimals, toCents } from "@/core/money";
 import {
   INTEREST_METHODS,
   LATE_FEE_MODES,
@@ -185,6 +185,9 @@ export function LoanForm({
           firstDueDate: new Date(`${firstDueDate}T00:00:00.000Z`),
           customIntervalDays: Number(customIntervalDays) || 0,
           nonCollectionDays,
+          // El mismo paso que usa el servidor, para que la vista previa no
+          // muestre cuotas distintas de las que se van a guardar.
+          minorUnitStep: stepForDecimals(decimalPlaces),
         }),
         error: null as string | null,
       };
@@ -205,6 +208,7 @@ export function LoanForm({
     firstDueDate,
     customIntervalDays,
     nonCollectionDays,
+    decimalPlaces,
   ]);
 
   const schedule = preview.schedule;
@@ -248,8 +252,8 @@ export function LoanForm({
                 name="principal"
                 type="number"
                 inputMode="decimal"
-                step="0.01"
-                min="0.01"
+                step={decimalPlaces === 0 ? "1" : "0.01"}
+                min={decimalPlaces === 0 ? "1" : "0.01"}
                 required
                 value={principal}
                 onChange={(event) => setPrincipal(event.target.value)}

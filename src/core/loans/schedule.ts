@@ -14,8 +14,9 @@ import {
 import {
   addCents,
   percentOf,
-  roundCents,
+  roundToStep,
   splitEvenly,
+  type MinorUnitStep,
   type Cents,
 } from "../money";
 import {
@@ -37,6 +38,12 @@ export interface ScheduleInput {
   customIntervalDays?: number;
   /** Weekdays with no collection, 0 = Sunday through 6 = Saturday. */
   nonCollectionDays?: readonly number[];
+  /**
+   * Smallest chargeable amount, from the company's currency. Defaults to one
+   * cent; a currency written without decimals passes 100 so every installment
+   * lands on a whole unit and the plan still adds up to the principal.
+   */
+  minorUnitStep?: MinorUnitStep;
 }
 
 export interface ScheduledInstallment {
@@ -148,11 +155,16 @@ function dueDates(input: ScheduleInput, count: number): Date[] {
  */
 function buildFlatSchedule(input: ScheduleInput): ScheduledInstallment[] {
   const count = input.termCount;
-  const interestPerPeriod = percentOf(input.principalCents, input.interestRate);
+  const step = input.minorUnitStep ?? 1;
+  const interestPerPeriod = percentOf(
+    input.principalCents,
+    input.interestRate,
+    step,
+  );
   const totalInterest = interestPerPeriod * count;
 
-  const principalParts = splitEvenly(input.principalCents, count);
-  const interestParts = splitEvenly(totalInterest, count);
+  const principalParts = splitEvenly(input.principalCents, count, step);
+  const interestParts = splitEvenly(totalInterest, count, step);
   const dates = dueDates(input, count);
 
   let balance = input.principalCents;
@@ -175,6 +187,7 @@ function buildFlatSchedule(input: ScheduleInput): ScheduledInstallment[] {
  */
 function buildFrenchSchedule(input: ScheduleInput): ScheduledInstallment[] {
   const count = input.termCount;
+  const step = input.minorUnitStep ?? 1;
   const rate = input.interestRate / 100;
   const dates = dueDates(input, count);
 
@@ -183,11 +196,12 @@ function buildFrenchSchedule(input: ScheduleInput): ScheduledInstallment[] {
   }
 
   const factor = Math.pow(1 + rate, -count);
-  const installmentCents = roundCents(
+  const installmentCents = roundToStep(
     (input.principalCents * rate) / (1 - factor),
+    step,
   );
 
-  const firstPeriodInterest = roundCents(input.principalCents * rate);
+  const firstPeriodInterest = roundToStep(input.principalCents * rate, step);
   if (installmentCents <= firstPeriodInterest) {
     throw new ScheduleError(
       "The installment does not cover the interest; lower the rate or extend the term",
@@ -200,7 +214,9 @@ function buildFrenchSchedule(input: ScheduleInput): ScheduledInstallment[] {
 
   for (let index = 0; index < count; index += 1) {
     const isLast = index === count - 1;
-    const interestCents = roundCents(balance * rate);
+    const interestCents = roundToStep(balance * rate, step);
+    // The last installment takes whatever balance is left, which stays a whole
+    // multiple of the step because every earlier deduction was one too.
     const principalCents = isLast
       ? balance
       : Math.min(installmentCents - interestCents, balance);
@@ -225,13 +241,14 @@ function buildFrenchSchedule(input: ScheduleInput): ScheduledInstallment[] {
  */
 function buildGermanSchedule(input: ScheduleInput): ScheduledInstallment[] {
   const count = input.termCount;
+  const step = input.minorUnitStep ?? 1;
   const rate = input.interestRate / 100;
-  const principalParts = splitEvenly(input.principalCents, count);
+  const principalParts = splitEvenly(input.principalCents, count, step);
   const dates = dueDates(input, count);
 
   let balance = input.principalCents;
   return principalParts.map((principalCents, index) => {
-    const interestCents = roundCents(balance * rate);
+    const interestCents = roundToStep(balance * rate, step);
     balance -= principalCents;
     return {
       number: index + 1,
@@ -250,7 +267,11 @@ function buildGermanSchedule(input: ScheduleInput): ScheduledInstallment[] {
  */
 function buildAmericanSchedule(input: ScheduleInput): ScheduledInstallment[] {
   const count = input.termCount;
-  const interestPerPeriod = percentOf(input.principalCents, input.interestRate);
+  const interestPerPeriod = percentOf(
+    input.principalCents,
+    input.interestRate,
+    input.minorUnitStep ?? 1,
+  );
   const dates = dueDates(input, count);
 
   return dates.map((dueDate, index) => {
@@ -273,7 +294,11 @@ function buildAmericanSchedule(input: ScheduleInput): ScheduledInstallment[] {
  * generated rows are a rolling horizon, not a closed plan.
  */
 function buildCreditLineSchedule(input: ScheduleInput): ScheduledInstallment[] {
-  const interestPerPeriod = percentOf(input.principalCents, input.interestRate);
+  const interestPerPeriod = percentOf(
+    input.principalCents,
+    input.interestRate,
+    input.minorUnitStep ?? 1,
+  );
   return dueDates(input, input.termCount).map((dueDate, index) => ({
     number: index + 1,
     dueDate,
@@ -298,8 +323,15 @@ const BUILDERS: Record<
 export function buildSchedule(input: ScheduleInput): Schedule {
   assertValidInput(input);
 
-  const normalized: ScheduleInput =
-    input.frequency === "SINGLE" ? { ...input, termCount: 1 } : input;
+  const step = input.minorUnitStep ?? 1;
+
+  const normalized: ScheduleInput = {
+    ...input,
+    // A principal that is not a whole chargeable amount can never be split
+    // into installments that add back up to it, so it is settled first.
+    principalCents: roundToStep(input.principalCents, step),
+    ...(input.frequency === "SINGLE" ? { termCount: 1 } : {}),
+  };
 
   const builder = BUILDERS[normalized.interestMethod];
   if (!builder) {

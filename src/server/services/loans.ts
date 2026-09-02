@@ -14,7 +14,7 @@ import {
   canEditTerms,
 } from "@/core/loans/editable";
 import { buildSchedule, type Schedule } from "@/core/loans/schedule";
-import { fromCents, toCents } from "@/core/money";
+import { fromCents, stepForDecimals, toCents } from "@/core/money";
 import type {
   InterestMethod,
   LateFeeMode,
@@ -43,6 +43,12 @@ export interface CreateLoanInput {
   lateFeeValue?: number;
   gracePeriodDays?: number;
   notes?: string | null;
+  /**
+   * Decimals the company writes amounts with. Zero makes every installment
+   * land on a whole unit, so a plan in Colombian pesos adds up to the
+   * principal instead of drifting by a few pesos.
+   */
+  decimalPlaces?: number;
   /** Disburse straight away instead of leaving the loan as a draft. */
   disburseNow?: boolean;
   cashBoxId?: string | null;
@@ -61,6 +67,7 @@ export function previewSchedule(
     | "firstDueDate"
     | "customIntervalDays"
     | "nonCollectionDays"
+    | "decimalPlaces"
   >,
 ): Schedule {
   return buildSchedule({
@@ -72,6 +79,7 @@ export function previewSchedule(
     firstDueDate: input.firstDueDate,
     customIntervalDays: input.customIntervalDays ?? undefined,
     nonCollectionDays: input.nonCollectionDays,
+    minorUnitStep: stepForDecimals(input.decimalPlaces ?? 2),
   });
 }
 
@@ -182,6 +190,7 @@ export interface UpdateLoanInput {
     | "lateFeeMode"
     | "lateFeeValue"
     | "gracePeriodDays"
+    | "decimalPlaces"
   >;
   updatedById?: string | null;
 }
@@ -335,11 +344,14 @@ async function recordDisbursement(
   });
 }
 
-export function lateFeePolicyOf(loan: {
-  lateFeeMode: string;
-  lateFeeValue: Prisma.Decimal | number;
-  gracePeriodDays: number;
-}): LateFeePolicy {
+export function lateFeePolicyOf(
+  loan: {
+    lateFeeMode: string;
+    lateFeeValue: Prisma.Decimal | number;
+    gracePeriodDays: number;
+  },
+  decimalPlaces = 2,
+): LateFeePolicy {
   const rawValue = Number(loan.lateFeeValue);
   const mode = loan.lateFeeMode as LateFeeMode;
 
@@ -351,6 +363,7 @@ export function lateFeePolicyOf(loan: {
         ? toCents(rawValue)
         : rawValue,
     gracePeriodDays: loan.gracePeriodDays,
+    minorUnitStep: stepForDecimals(decimalPlaces),
   };
 }
 
@@ -365,12 +378,17 @@ export async function refreshLoan(
 ): Promise<void> {
   const loan = await tx.loan.findUniqueOrThrow({
     where: { id: loanId },
-    include: { installments: { orderBy: { number: "asc" } } },
+    include: {
+      installments: { orderBy: { number: "asc" } },
+      // The late fee has to be a chargeable amount too, and how small that is
+      // depends on the company's currency.
+      company: { select: { decimalPlaces: true } },
+    },
   });
 
   if (loan.status === "CANCELLED" || loan.status === "WRITTEN_OFF") return;
 
-  const policy = lateFeePolicyOf(loan);
+  const policy = lateFeePolicyOf(loan, loan.company.decimalPlaces);
   const snapshots = loan.installments.map((installment) => ({
     id: installment.id,
     number: installment.number,

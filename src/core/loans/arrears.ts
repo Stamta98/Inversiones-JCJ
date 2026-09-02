@@ -3,7 +3,13 @@
  */
 
 import { daysBetween, startOfDay } from "../dates";
-import { clampToZero, percentOf, roundCents, type Cents } from "../money";
+import {
+  clampToZero,
+  percentOf,
+  roundToStep,
+  type Cents,
+  type MinorUnitStep,
+} from "../money";
 import type { InstallmentStatus, LateFeeMode } from "../types";
 
 export interface LateFeePolicy {
@@ -14,6 +20,11 @@ export interface LateFeePolicy {
   gracePeriodDays: number;
   /** Optional ceiling as a percentage of the installment. 0 means no cap. */
   maxPercentOfInstallment?: number;
+  /**
+   * Smallest chargeable amount. A late fee of 3,33 pesos colombianos cannot be
+   * collected, so it is rounded like every other amount.
+   */
+  minorUnitStep?: MinorUnitStep;
 }
 
 export interface InstallmentSnapshot {
@@ -56,6 +67,7 @@ export function calculateLateFee(
   asOf: Date,
 ): Cents {
   if (policy.mode === "NONE" || policy.value <= 0) return 0;
+  const step = policy.minorUnitStep ?? 1;
   if (installment.status === "PAID" || installment.status === "WAIVED") return 0;
 
   const lateDays = chargeableLateDays(
@@ -73,16 +85,16 @@ export function calculateLateFee(
   let fee: Cents;
   switch (policy.mode) {
     case "PERCENT_OF_INSTALLMENT":
-      fee = percentOf(unpaid, policy.value);
+      fee = percentOf(unpaid, policy.value, step);
       break;
     case "PERCENT_PER_DAY":
-      fee = percentOf(unpaid, policy.value) * lateDays;
+      fee = percentOf(unpaid, policy.value, step) * lateDays;
       break;
     case "FIXED_PER_DAY":
-      fee = roundCents(policy.value) * lateDays;
+      fee = roundToStep(policy.value, step) * lateDays;
       break;
     case "FIXED_ONCE":
-      fee = roundCents(policy.value);
+      fee = roundToStep(policy.value, step);
       break;
     default:
       fee = 0;
@@ -90,7 +102,7 @@ export function calculateLateFee(
 
   const cap = policy.maxPercentOfInstallment ?? 0;
   if (cap > 0) {
-    fee = Math.min(fee, percentOf(installmentTotal, cap));
+    fee = Math.min(fee, percentOf(installmentTotal, cap, step));
   }
   return fee;
 }
