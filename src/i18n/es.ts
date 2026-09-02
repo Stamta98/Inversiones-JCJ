@@ -575,6 +575,70 @@ export const es = {
     },
     emptyTitle: "Todavía no hay rutas",
     emptyHint: "Arma una ruta para organizar los cobros del día.",
+
+    // --- Armar la ruta ---
+    source: "¿Qué visitas incluir?",
+    sourceDue: "Las cuotas que vencen ese día",
+    sourceArrears: "Los préstamos en mora",
+    sourceAll: "Todos los préstamos con cuotas pendientes",
+    unassigned: "Sin cobrador asignado",
+    assignCollector: "Asignar cobrador",
+    assigned: "Ruta asignada.",
+
+    // --- Trabajar la ruta ---
+    open: "Abrir la ruta",
+    progress: "Avance",
+    visited: "Visitadas",
+    pending: "Por visitar",
+    ofTotal: "de {total}",
+    routeClosed: "Ruta cerrada",
+    closedNotice:
+      "Esta ruta está cerrada. Para seguir cobrando en ella, vuelve a abrirla.",
+    reopenRoute: "Volver a abrir",
+    deleteRoute: "Eliminar la ruta",
+    deleteRouteConfirm:
+      "Se borra la ruta y sus visitas. Los cobros que ya hiciste no se tocan: quedan en el préstamo y en la caja.",
+    visitResult: "¿Qué pasó en la visita?",
+    visitSaved: "Visita registrada.",
+    notes: "Nota de la visita",
+    notesHint: "Lo que quieras recordar: quién atendió, qué dijo, cuándo volver.",
+
+    // --- Cobrar ---
+    collect: "Cobrar",
+    collecting: "Cobrando…",
+    collectHint: "Se registra el recibo, se aplica a las cuotas y entra a la caja.",
+    collectedReceipt: "Cobrado. Recibo {receipt}.",
+    alreadyCollected: "Ya cobrado",
+
+    // --- Visitas ---
+    addStop: "Agregar una visita",
+    addStopHint: "Un préstamo que quieres incluir aunque no lo haya puesto el sistema.",
+    stopAdded: "Visita agregada a la ruta.",
+    removeStop: "Quitar de la ruta",
+    moveUp: "Subir",
+    moveDown: "Bajar",
+    noPhone: "Sin teléfono",
+    call: "Llamar",
+    whatsapp: "WhatsApp",
+
+    // --- Filtros de la lista ---
+    filterDay: "Día",
+    filterCollector: "Cobrador",
+    allCollectors: "Todos",
+    showClosed: "Ver también las cerradas",
+    apply: "Filtrar",
+
+    errors: {
+      nameRequired: "Ponle un nombre a la ruta.",
+      noStops:
+        "No hay nada que cobrar con ese criterio ese día. Prueba con otro día o con otro filtro.",
+      notFound: "No se encontró la ruta o la visita.",
+      routeClosed: "La ruta está cerrada. Vuelve a abrirla para poder cambiarla.",
+      alreadyOnRoute: "Ese préstamo ya está en la ruta.",
+      amount: "El monto debe ser mayor que cero.",
+      loanNotActive: "El préstamo no está activo.",
+      nothingToApply: "Este préstamo no tiene cuotas pendientes.",
+    },
   },
 
   cash: {

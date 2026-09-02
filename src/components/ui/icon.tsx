@@ -77,6 +77,8 @@ const PATHS: Record<string, string[]> = {
   "chevron-left": ["m15 18-6-6 6-6"],
   "chevron-down": ["m6 9 6 6 6-6"],
   "arrow-left": ["m12 19-7-7 7-7", "M19 12H5"],
+  "arrow-up": ["m5 12 7-7 7 7", "M12 19V5"],
+  "arrow-down": ["m19 12-7 7-7-7", "M12 5v14"],
   check: ["M20 6 9 17l-5-5"],
   "alert-triangle": [
     "m10.3 3.9-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3.1l-8-14a2 2 0 0 0-3.4 0z",

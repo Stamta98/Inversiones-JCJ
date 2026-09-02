@@ -18,7 +18,7 @@ Una sola base de código sirve la web y se empaqueta como APK de Android.
 | **Clientes** | Ficha con foto, referencias, punto de referencia, GPS, día de pago, documentos e historial. |
 | **Préstamos** | Cinco modalidades de interés, seis frecuencias, tabla de amortización, mora automática y desembolso a caja. |
 | **Cobros** | Recibo, aplicación automática a las cuotas y movimiento de caja. |
-| **Rutas de cobro** | Rutas por cobrador, armadas solas con lo que vence hoy o con los morosos. |
+| **Rutas de cobro** | Rutas por cobrador, armadas solas con lo que vence hoy o con los morosos. Se cobra desde la visita: el recibo, la cuota y la caja se mueven de una vez. |
 | **Caja y bancos** | Cajas, cuentas, movimientos y saldo en vivo. |
 | **Gastos** | Gastos por categoría, con o sin préstamo asociado. |
 | **Reportes** | Cartera, cobranza, mora por tramos, rentabilidad y productividad. |

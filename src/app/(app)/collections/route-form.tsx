@@ -19,7 +19,10 @@ export function RouteForm({
 }: {
   collectors: Array<{ id: string; label: string }>;
 }) {
-  const { state, pending, onSubmit } = useFormAction<RouteFormState>(createRoute, {});
+  const { state, pending, onSubmit } = useFormAction<RouteFormState>(
+    createRoute,
+    {},
+  );
 
   return (
     <form onSubmit={onSubmit}>
@@ -54,10 +57,11 @@ export function RouteForm({
           </Select>
         </Field>
 
-        <Field label={es.common.filter} htmlFor="source">
+        <Field label={es.collections.source} htmlFor="source">
           <Select id="source" name="source" defaultValue="due">
-            <option value="due">{es.dashboard.dueTodayTitle}</option>
-            <option value="arrears">{es.dashboard.arrearsTitle}</option>
+            <option value="due">{es.collections.sourceDue}</option>
+            <option value="arrears">{es.collections.sourceArrears}</option>
+            <option value="all">{es.collections.sourceAll}</option>
           </Select>
         </Field>
 

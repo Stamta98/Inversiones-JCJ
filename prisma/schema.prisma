@@ -593,6 +593,7 @@ model Payment {
 
   allocations   PaymentAllocation[]
   cashMovements CashMovement[]
+  routeStops    RouteStop[]
 
   @@unique([companyId, receiptNumber])
   @@index([companyId, paidAt])
@@ -725,12 +726,16 @@ model CollectionRoute {
   description  String?
   scheduledFor DateTime?
   isActive     Boolean   @default(true)
+  /// Set when the day is done. A closed route is history: its stops stop
+  /// being editable, so the record of what was collected cannot drift.
+  closedAt     DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   stops RouteStop[]
 
   @@index([companyId, isActive])
+  @@index([companyId, scheduledFor])
 }
 
 enum RouteStopStatus {
@@ -759,6 +764,10 @@ model RouteStop {
   visitedAt       DateTime?
   promisedFor     DateTime?
   notes           String?
+  /// Receipt this visit produced, so a stop can be traced to the money and a
+  /// reversal can be seen from the route.
+  paymentId       String?
+  payment         Payment?        @relation(fields: [paymentId], references: [id], onDelete: SetNull)
 
   @@index([routeId, sortOrder])
   @@index([collectorId, status])
