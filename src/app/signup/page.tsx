@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { es } from "@/i18n/es";
 import { getAuthContext } from "@/server/auth/context";
 
-import { SignInForm } from "./sign-in-form";
+import { SignUpForm } from "./sign-up-form";
 
-export const metadata: Metadata = { title: es.auth.signIn };
+export const metadata: Metadata = { title: es.signUp.title };
 
-export default async function LoginPage() {
+export default async function SignUpPage() {
   const context = await getAuthContext();
   if (context) redirect("/dashboard");
 
@@ -21,28 +20,12 @@ export default async function LoginPage() {
             JCJ
           </span>
           <h1 className="mt-4 text-xl font-semibold tracking-tight text-ink">
-            {es.common.appName}
+            {es.signUp.title}
           </h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            {es.auth.signInSubtitle}
-          </p>
+          <p className="mt-1 text-sm text-ink-muted">{es.signUp.subtitle}</p>
         </div>
 
-        <SignInForm />
-
-        <p className="mt-6 text-center text-xs text-ink-muted">
-          {es.signUp.noAccount}{" "}
-          <Link
-            href="/signup"
-            className="font-medium text-brand-strong hover:underline"
-          >
-            {es.signUp.goToSignUp}
-          </Link>
-        </p>
-
-        <p className="mt-4 text-center text-xs text-ink-subtle">
-          {es.common.tagline}
-        </p>
+        <SignUpForm />
       </div>
     </main>
   );

@@ -12,7 +12,9 @@ import {
   Th,
 } from "@/components/ui";
 import { formatDateTime } from "@/lib/format";
-import { requirePermission } from "@/server/auth/context";
+import { can, requirePermission } from "@/server/auth/context";
+import { db } from "@/server/db";
+import { redirect } from "next/navigation";
 import {
   getDashboardSummary,
   getDueToday,
@@ -24,6 +26,17 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const context = await requirePermission("dashboard.read");
+  // Una financiera recién creada va al asistente antes que a un panel vacío,
+  // pero solo quien puede completarlo: mandar allí a un cobrador lo dejaría
+  // rebotando contra la pantalla de "sin permiso".
+  if (can(context, "settings.update")) {
+    const setup = await db.company.findUniqueOrThrow({
+      where: { id: context.companyId },
+      select: { setupCompletedAt: true },
+    });
+    if (setup.setupCompletedAt === null) redirect("/bienvenida");
+  }
+
   const { t, companyId, money } = context;
 
   const [summary, dueToday, arrears, recentPayments] = await Promise.all([

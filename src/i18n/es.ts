@@ -91,6 +91,62 @@ export const es = {
       "Estás usando la contraseña que trae el sistema de fábrica. Cámbiala ahora: está publicada en la documentación y cualquiera podría entrar.",
   },
 
+  signUp: {
+    title: "Crea tu financiera",
+    subtitle: "Unos datos y empiezas a trabajar. El resto se configura después.",
+    companyName: "Nombre de la financiera",
+    companyNameHint: "Como lo conocen tus clientes.",
+    country: "¿En qué país operas?",
+    countryHint:
+      "Define la moneda, la zona horaria y cómo se escriben los montos.",
+    ownerName: "Tu nombre completo",
+    ownerEmail: "Tu correo electrónico",
+    ownerEmailHint: "Con este correo vas a entrar al sistema.",
+    password: "Contraseña",
+    passwordHint: "Mínimo 8 caracteres.",
+    passwordRepeat: "Repetir la contraseña",
+    submit: "Crear mi cuenta",
+    creating: "Creando tu financiera…",
+    haveAccount: "¿Ya tienes cuenta?",
+    goToSignIn: "Entra aquí",
+    noAccount: "¿Todavía no tienes cuenta?",
+    goToSignUp: "Crea tu financiera",
+    errors: {
+      emailTaken: "Ya hay una cuenta con ese correo. Entra o usa otro.",
+      weakPassword: "La contraseña debe tener al menos 8 caracteres.",
+      unknownCountry: "Selecciona el país donde operas.",
+      passwordMismatch: "Las dos contraseñas no coinciden.",
+    },
+  },
+
+  onboarding: {
+    title: "Bienvenido a {company}",
+    subtitle: "Tres pasos y quedas listo para prestar.",
+    stepOf: "Paso {current} de {total}",
+    companyStep: "Datos de tu financiera",
+    companyStepHint:
+      "Salen en los recibos, los contratos y los mensajes al cliente.",
+    cashStep: "Tu caja",
+    cashStepHint:
+      "De aquí sale el dinero que prestas y aquí entra lo que cobras.",
+    cashBoxName: "Nombre de la caja",
+    openingBalance: "¿Con cuánto dinero empiezas?",
+    openingBalanceHint:
+      "Lo que tienes disponible ahora para prestar. Puedes dejarlo en cero.",
+    readyStep: "Todo listo",
+    readyHint:
+      "Ya puedes registrar tu primer cliente y darle su préstamo. Las plantillas de cobranza por WhatsApp ya están cargadas.",
+    createdFor: "Preparamos esto para ti:",
+    createdRoles: "Los roles: dueño, gerente, cobrador y consulta",
+    createdTemplates: "Cinco plantillas de mensajes y el recibo de cobro",
+    createdAutomations:
+      "Cuatro automatizaciones de cobranza, en modo prueba hasta que conectes WhatsApp",
+    firstCustomer: "Registrar mi primer cliente",
+    skip: "Lo hago después",
+    finish: "Terminar",
+    done: "Configuración terminada.",
+  },
+
   auth: {
     signIn: "Iniciar sesión",
     signInSubtitle: "Entra con tu cuenta para continuar",

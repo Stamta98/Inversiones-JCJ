@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   Alert,
@@ -41,11 +42,24 @@ export interface CompanyDefaults {
   timezone: string;
 }
 
-export function CompanyForm({ company }: { company: CompanyDefaults }) {
+export function CompanyForm({
+  company,
+  nextHref,
+}: {
+  company: CompanyDefaults;
+  /** Set during first-run setup: saving moves on instead of staying put. */
+  nextHref?: string;
+}) {
+  const router = useRouter();
   const { state, pending, onSubmit } = useFormAction<CompanyFormState>(
     saveCompany,
     {},
   );
+
+  // In the wizard the save is a step, not a destination.
+  useEffect(() => {
+    if (state.success && nextHref) router.push(nextHref);
+  }, [state.success, nextHref, router]);
 
   const [country, setCountry] = useState(company.country ?? "");
   const [currencyCode, setCurrencyCode] = useState(company.currencyCode);
@@ -266,7 +280,11 @@ export function CompanyForm({ company }: { company: CompanyDefaults }) {
 
       <div className="flex justify-end">
         <Button type="submit" disabled={pending}>
-          {pending ? es.common.saving : es.common.save}
+          {pending
+            ? es.common.saving
+            : nextHref
+              ? es.common.next
+              : es.common.save}
         </Button>
       </div>
     </form>
