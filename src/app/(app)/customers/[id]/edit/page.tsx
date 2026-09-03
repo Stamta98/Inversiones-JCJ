@@ -52,6 +52,7 @@ export default async function EditCustomerPage({
       />
 
       <CustomerForm
+        stateLabel={context.stateLabel}
         decimalPlaces={context.decimalPlaces}
         customer={{
           id: customer.id,
@@ -71,6 +72,7 @@ export default async function EditCustomerPage({
           neighborhood: customer.neighborhood,
           landmark: customer.landmark,
           city: customer.city,
+          state: customer.state,
           employmentType: customer.employmentType,
           occupation: customer.occupation,
           employerName: customer.employerName,
@@ -85,6 +87,7 @@ export default async function EditCustomerPage({
           paydayKind: customer.paydayKind,
           paydayWeekday: customer.paydayWeekday,
           paydayDayOfMonth: customer.paydayDayOfMonth,
+          vehiclePlate: customer.vehiclePlate,
           notes: customer.notes,
           photoUrl: customer.photoUrl,
           latitude: customer.latitude,

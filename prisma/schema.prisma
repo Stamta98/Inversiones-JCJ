@@ -317,6 +317,9 @@ model Customer {
   workAddress      String?
   workNeighborhood String?
   workLandmark     String?
+  /// Placa del vehículo con el que trabaja: taxi, moto, camión. Sirve para
+  /// identificarlo y para saber dónde encontrarlo cuando no está en la casa.
+  vehiclePlate     String?
   workLatitude     Float?
   workLongitude    Float?
   monthlyIncome    Decimal?        @db.Decimal(18, 2)

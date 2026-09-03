@@ -14,6 +14,8 @@ import {
   resolveVisibleModules,
   type ModuleDefinition,
 } from "@/core/modules/registry";
+import { findCountry } from "@/core/locales/countries";
+import { es } from "@/i18n/es";
 import { hasPermission, type PermissionKey } from "@/core/permissions";
 import {
   createTranslator,
@@ -38,6 +40,12 @@ export interface AuthContext {
   decimalPlaces: number;
   locale: string;
   timezone: string;
+  /**
+   * Cómo se llama la división administrativa donde opera la empresa:
+   * departamento en Colombia, provincia en República Dominicana, estado en
+   * México. Poner la palabra equivocada en el formulario se nota.
+   */
+  stateLabel: string;
   branchId: string | null;
   roleKey: string;
   roleName: string;
@@ -127,6 +135,9 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
     decimalPlaces: membership.company.decimalPlaces,
     locale: membership.company.locale,
     timezone: membership.company.timezone,
+    stateLabel:
+      findCountry(membership.company.country ?? "")?.stateLabel ??
+      es.customers.state,
     branchId: membership.branchId,
     roleKey: membership.role.key,
     roleName: membership.role.name,

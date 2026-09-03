@@ -358,11 +358,11 @@ export const es = {
     mainSection: "Datos principales",
     mainSectionHint: "Lo mínimo para registrarlo. El resto se puede llenar después.",
     generalSection: "Datos generales",
-    generalSectionHint: "Documento, fecha de nacimiento, sexo y nacionalidad.",
+    generalSectionHint: "Fecha de nacimiento, sexo y nacionalidad.",
     contactSection: "Contacto",
     contactSectionHint: "Teléfono fijo y correo electrónico.",
     homeSectionHint: "Dirección, barrio, punto de referencia y ubicación.",
-    workSectionHint: "De qué vive, dónde trabaja y cuánto gana.",
+    workSectionHint: "De qué vive, dónde trabaja, con qué vehículo y cuánto gana.",
     notesHint: "Cualquier cosa que quieras recordar de este cliente.",
     homeSection: "Dónde vive",
     landmark: "Punto de referencia",
@@ -405,6 +405,9 @@ export const es = {
     photoHint: "Obligatoria. Tómala de frente y con buena luz.",
     photoRequired: "La foto del cliente es obligatoria.",
     documentRequired: "El número de documento es obligatorio.",
+    vehiclePlate: "Placa del vehículo",
+    vehiclePlateHint:
+      "Si trabaja con taxi, moto o carro. Sirve para ubicarlo cuando no está en la casa.",
     delete: "Eliminar cliente",
     deleteConfirm:
       "Se borra el cliente con todo lo suyo y no se puede deshacer.",

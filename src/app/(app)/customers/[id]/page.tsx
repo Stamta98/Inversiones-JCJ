@@ -242,6 +242,10 @@ export default async function CustomerDetailPage({
                 value={customer.city ?? "—"}
               />
               <DetailRow
+                label={context.stateLabel}
+                value={customer.state ?? "—"}
+              />
+              <DetailRow
                 label={t("common.status")}
                 value={t(`customers.status.${customer.status}`)}
               />
@@ -302,17 +306,25 @@ export default async function CustomerDetailPage({
                 />
               ) : null}
               <DetailRow
-                label={t("customers.workAddress")}
-                value={customer.workAddress ?? "—"}
-              />
-              <DetailRow
                 label={t("customers.workNeighborhood")}
                 value={customer.workNeighborhood ?? "—"}
+              />
+              <DetailRow
+                label={t("customers.workAddress")}
+                value={customer.workAddress ?? "—"}
               />
               <DetailRow
                 label={t("customers.workLandmark")}
                 value={customer.workLandmark ?? "—"}
               />
+              {/* Solo cuando la hay: la mayoría de clientes no trabaja con
+                  vehículo y una fila con raya no dice nada. */}
+              {customer.vehiclePlate ? (
+                <DetailRow
+                  label={t("customers.vehiclePlate")}
+                  value={customer.vehiclePlate}
+                />
+              ) : null}
               <DetailRow
                 label={t("customers.monthlyIncome")}
                 value={

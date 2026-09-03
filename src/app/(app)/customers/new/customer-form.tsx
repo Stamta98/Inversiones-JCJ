@@ -51,6 +51,7 @@ export interface CustomerDefaults {
   neighborhood: string | null;
   landmark: string | null;
   city: string | null;
+  state: string | null;
   employmentType: string | null;
   occupation: string | null;
   employerName: string | null;
@@ -58,6 +59,7 @@ export interface CustomerDefaults {
   workNeighborhood: string | null;
   workLandmark: string | null;
   monthlyIncome: number | null;
+  vehiclePlate: string | null;
   paydayKind: string | null;
   paydayWeekday: number | null;
   paydayDayOfMonth: number | null;
@@ -105,10 +107,13 @@ function SubmitButton({ pending }: { pending: boolean }) {
 export function CustomerForm({
   customer,
   decimalPlaces,
+  stateLabel,
 }: {
   customer?: CustomerDefaults;
   /** Zero where the currency has no cents, so the income field offers none. */
   decimalPlaces: number;
+  /** Departamento, provincia o estado: depende del país de la empresa. */
+  stateLabel: string;
 }) {
   // Un mismo formulario sirve para crear y para editar: la única diferencia es
   // a qué acción se envía y de dónde salen los valores iniciales.
@@ -124,15 +129,6 @@ export function CustomerForm({
   /** A folded section that holds a rejected field has to unfold itself. */
   const sectionHasError = (names: readonly string[]) =>
     names.some((name) => fieldError(name) !== undefined);
-  /**
-   * Editing someone whose work is already on file should not hide it: a
-   * section that has something in it starts open.
-   */
-  const filled = (...values: Array<string | number | null | undefined>) =>
-    editando &&
-    values.some(
-      (value) => value !== null && value !== undefined && value !== "",
-    );
   /** Los campos de texto no aceptan null, y en creación no hay valor previo. */
   const v = (value: string | number | null | undefined) =>
     value === null || value === undefined ? "" : String(value);
@@ -191,55 +187,13 @@ export function CustomerForm({
               required
             />
           </Field>
-          <div className="sm:col-span-2">
-            <Field
-              label={es.customers.mobilePhone}
-              htmlFor="mobilePhone"
-              hint="Se usa para enviar los mensajes de cobro por WhatsApp."
-            >
-              <Input
-                id="mobilePhone"
-                name="mobilePhone"
-                defaultValue={v(customer?.mobilePhone)}
-                type="tel"
-                inputMode="tel"
-              />
-            </Field>
-          </div>
-        </CardBody>
-      </Card>
-
-      <FormSection
-        icon="credit-card"
-        title={es.customers.generalSection}
-        hint={es.customers.generalSectionHint}
-        defaultOpen={filled(
-          customer?.documentNumber,
-          customer?.birthDate,
-          customer?.gender,
-          customer?.nationality,
-        )}
-        hasError={sectionHasError([
-          "documentType",
-          "documentNumber",
-          "birthDate",
-          "gender",
-          "nationality",
-        ])}
-      >
-        <CardBody className="grid gap-4 sm:grid-cols-2">
-          <Field label={es.customers.documentType} htmlFor="documentType">
-            <Input
-              id="documentType"
-              name="documentType"
-              defaultValue={v(customer?.documentType)}
-              placeholder="Cédula"
-            />
-          </Field>
+          {/* El documento es con lo que se identifica a quien recibe la plata:
+              va con el nombre, no escondido en una sección plegada. */}
           <Field
             label={es.customers.documentNumber}
             htmlFor="documentNumber"
             required
+            error={fieldError("documentNumber")}
           >
             <Input
               id="documentNumber"
@@ -249,6 +203,29 @@ export function CustomerForm({
               required
             />
           </Field>
+          <Field
+            label={es.customers.mobilePhone}
+            htmlFor="mobilePhone"
+            hint="Se usa para enviar los mensajes de cobro por WhatsApp."
+          >
+            <Input
+              id="mobilePhone"
+              name="mobilePhone"
+              defaultValue={v(customer?.mobilePhone)}
+              type="tel"
+              inputMode="tel"
+            />
+          </Field>
+        </CardBody>
+      </Card>
+
+      <FormSection
+        icon="credit-card"
+        title={es.customers.generalSection}
+        hint={es.customers.generalSectionHint}
+        hasError={sectionHasError(["birthDate", "gender", "nationality"])}
+      >
+        <CardBody className="grid gap-4 sm:grid-cols-2">
           <Field
             label={es.customers.birthDate}
             htmlFor="birthDate"
@@ -307,7 +284,6 @@ export function CustomerForm({
         icon="phone"
         title={es.customers.contactSection}
         hint={es.customers.contactSectionHint}
-        defaultOpen={filled(customer?.phone, customer?.email)}
         hasError={sectionHasError(["phone", "email"])}
       >
         <CardBody className="grid gap-4 sm:grid-cols-2">
@@ -340,20 +316,30 @@ export function CustomerForm({
         icon="map-pin"
         title={es.customers.homeSection}
         hint={es.customers.homeSectionHint}
-        defaultOpen={filled(
-          customer?.address,
-          customer?.neighborhood,
-          customer?.city,
-          customer?.landmark,
-        )}
         hasError={sectionHasError([
           "address",
           "neighborhood",
           "city",
+          "state",
           "landmark",
         ])}
       >
+        {/* El barrio primero: es lo que el cobrador pregunta antes que la
+            calle, y con lo que arma la ruta. */}
         <CardBody className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Field
+              label={es.customers.neighborhood}
+              htmlFor="neighborhood"
+              hint="Ayuda al cobrador a ubicar al cliente."
+            >
+              <Input
+                id="neighborhood"
+                name="neighborhood"
+                defaultValue={v(customer?.neighborhood)}
+              />
+            </Field>
+          </div>
           <div className="sm:col-span-2">
             <Field label={es.customers.address} htmlFor="address">
               <Input
@@ -364,19 +350,11 @@ export function CustomerForm({
               />
             </Field>
           </div>
-          <Field
-            label={es.customers.neighborhood}
-            htmlFor="neighborhood"
-            hint="Ayuda al cobrador a ubicar al cliente."
-          >
-            <Input
-              id="neighborhood"
-              name="neighborhood"
-              defaultValue={v(customer?.neighborhood)}
-            />
-          </Field>
           <Field label={es.customers.city} htmlFor="city">
             <Input id="city" name="city" defaultValue={v(customer?.city)} />
+          </Field>
+          <Field label={stateLabel} htmlFor="state">
+            <Input id="state" name="state" defaultValue={v(customer?.state)} />
           </Field>
           <div className="sm:col-span-2">
             <Field
@@ -408,12 +386,6 @@ export function CustomerForm({
         icon="building"
         title={es.customers.workSection}
         hint={es.customers.workSectionHint}
-        defaultOpen={filled(
-          customer?.employmentType,
-          customer?.occupation,
-          customer?.workAddress,
-          customer?.monthlyIncome,
-        )}
         hasError={sectionHasError([
           "employmentType",
           "occupation",
@@ -421,6 +393,7 @@ export function CustomerForm({
           "workAddress",
           "workNeighborhood",
           "workLandmark",
+          "vehiclePlate",
           "monthlyIncome",
         ])}
       >
@@ -462,6 +435,20 @@ export function CustomerForm({
             </div>
           ) : null}
 
+          {/* El barrio antes que la calle, igual que en la casa. */}
+          <div className="sm:col-span-2">
+            <Field
+              label={es.customers.workNeighborhood}
+              htmlFor="workNeighborhood"
+            >
+              <Input
+                id="workNeighborhood"
+                name="workNeighborhood"
+                defaultValue={v(customer?.workNeighborhood)}
+              />
+            </Field>
+          </div>
+
           <div className="sm:col-span-2">
             <Field label={es.customers.workAddress} htmlFor="workAddress">
               <Input
@@ -473,13 +460,16 @@ export function CustomerForm({
           </div>
 
           <Field
-            label={es.customers.workNeighborhood}
-            htmlFor="workNeighborhood"
+            label={es.customers.vehiclePlate}
+            htmlFor="vehiclePlate"
+            hint={es.customers.vehiclePlateHint}
           >
             <Input
-              id="workNeighborhood"
-              name="workNeighborhood"
-              defaultValue={v(customer?.workNeighborhood)}
+              id="vehiclePlate"
+              name="vehiclePlate"
+              defaultValue={v(customer?.vehiclePlate)}
+              autoCapitalize="characters"
+              className="uppercase"
             />
           </Field>
 
@@ -525,7 +515,6 @@ export function CustomerForm({
         icon="calendar"
         title={es.customers.paydaySection}
         hint={es.customers.paydayHint}
-        defaultOpen={filled(customer?.paydayKind)}
       >
         <CardBody>
           <PaydayFields
@@ -540,7 +529,6 @@ export function CustomerForm({
         icon="users"
         title={es.customers.referencesSection}
         hint={es.customers.referencesHint}
-        defaultOpen={editando && (customer?.references.length ?? 0) > 0}
       >
         <CardBody>
           <ReferenceFields defaultValues={customer?.references ?? []} />
@@ -551,7 +539,6 @@ export function CustomerForm({
         icon="camera"
         title={es.customers.documentsSection}
         hint={es.customers.documentsHint}
-        defaultOpen={filled(customer?.idFrontUrl, customer?.idBackUrl)}
         hasError={sectionHasError(["idFrontUrl", "idBackUrl"])}
       >
         <CardBody className="grid gap-4 sm:grid-cols-2">
@@ -572,7 +559,6 @@ export function CustomerForm({
         icon="file-text"
         title={es.common.notes}
         hint={es.customers.notesHint}
-        defaultOpen={filled(customer?.notes)}
       >
         <CardBody>
           <Field label={es.common.notes} htmlFor="notes">
