@@ -129,10 +129,9 @@ export default async function LoansPage({
             }
           />
         ) : (
-          <TableWrap>
+          <TableWrap roomy>
             <thead>
               <tr>
-                <Th>{t("loans.code")}</Th>
                 <Th>{t("loans.customer")}</Th>
                 <Th>{t("loans.frequency")}</Th>
                 <Th align="right">{t("loans.principal")}</Th>
@@ -149,19 +148,19 @@ export default async function LoansPage({
               {loans.map((loan) => (
                 // Lo lee SortableRows para saber qué fila se está moviendo.
                 <tr key={loan.id} data-sortable-id={loan.id}>
-                  <Td numeric>
+                  {/* El número de préstamo ocupaba una columna entera. La
+                      fecha se queda porque es lo que distingue dos préstamos
+                      del mismo cliente; el número sigue en su ficha. */}
+                  <Td>
                     <Link
                       href={`/loans/${loan.id}`}
-                      className="text-brand-strong hover:underline"
+                      className="block font-medium text-ink hover:text-brand-strong"
                     >
-                      {loan.code}
+                      {loan.customer.firstName} {loan.customer.lastName}
+                      <span className="numeric block text-xs font-normal text-ink-subtle">
+                        {formatDate(loan.firstDueDate)}
+                      </span>
                     </Link>
-                    <span className="block text-xs text-ink-subtle">
-                      {formatDate(loan.firstDueDate)}
-                    </span>
-                  </Td>
-                  <Td>
-                    {loan.customer.firstName} {loan.customer.lastName}
                   </Td>
                   <Td>{t(`loans.frequencyLabel.${loan.frequency}`)}</Td>
                   <Td align="right" numeric>

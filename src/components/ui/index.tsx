@@ -312,10 +312,13 @@ export function EmptyState({
 export function TableWrap({
   children,
   dense = false,
+  roomy = false,
 }: {
   children: ReactNode;
   /** Tighter type, for a table that has to share the row with a form. */
   dense?: boolean;
+  /** Más aire entre filas, para una lista que se recorre con el dedo. */
+  roomy?: boolean;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -325,6 +328,7 @@ export function TableWrap({
           dense
             ? "min-w-[28rem] text-xs [&_td]:px-2 [&_th]:px-2"
             : "min-w-[36rem] text-sm",
+          roomy && "[&_td]:py-4",
         )}
       >
         {children}

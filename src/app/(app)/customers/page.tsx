@@ -3,7 +3,6 @@ import type { Prisma } from "@prisma/client";
 
 import {
   Badge,
-  Button,
   Card,
   EmptyState,
   Icon,
@@ -22,7 +21,7 @@ import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import { CUSTOMER_ORDER } from "@/server/services/ordering";
 
-import { moveCustomerAction, resetCustomerOrderAction } from "./actions";
+import { moveCustomerAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -105,20 +104,8 @@ export default async function CustomersPage({
         </div>
       </form>
 
-      {canOrder ? (
-        <form
-          action={resetCustomerOrderAction}
-          className="mb-3 flex flex-wrap items-center gap-3"
-        >
-          <span className="text-xs text-ink-subtle">
-            {handOrdered ? t("common.orderedByHand") : t("common.dragHint")}
-          </span>
-          {handOrdered ? (
-            <Button type="submit" size="sm" variant="ghost" icon="refresh">
-              {t("common.resetOrder")}
-            </Button>
-          ) : null}
-        </form>
+      {canOrder && !handOrdered ? (
+        <p className="mb-3 text-xs text-ink-subtle">{t("common.dragHint")}</p>
       ) : null}
 
       <Card>
@@ -136,7 +123,7 @@ export default async function CustomersPage({
             }
           />
         ) : (
-          <TableWrap>
+          <TableWrap roomy>
             <thead>
               <tr>
                 <Th>{t("customers.fullName")}</Th>
