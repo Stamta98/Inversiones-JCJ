@@ -35,10 +35,7 @@ export const es = {
     details: "Detalle",
     actions: "Acciones",
     // --- Ordenar la lista a mano ---
-    order: "Orden",
-    moveToTop: "Mover al principio",
-    moveUp: "Subir",
-    moveDown: "Bajar",
+    dragHint: "Arrastra una fila para organizarla. En el celular, mantenla pulsada primero.",
     resetOrder: "Volver al orden automático",
     orderedByHand: "Esta lista está ordenada a mano.",
     export: "Exportar",

@@ -15,7 +15,7 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
-import { ReorderButtons } from "@/components/ui/reorder-buttons";
+import { SortableRows } from "@/components/ui/sortable-rows";
 import { isManuallyOrdered } from "@/core/ordering";
 import { initials } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
@@ -105,17 +105,19 @@ export default async function CustomersPage({
         </div>
       </form>
 
-      {canOrder && handOrdered ? (
+      {canOrder ? (
         <form
           action={resetCustomerOrderAction}
           className="mb-3 flex flex-wrap items-center gap-3"
         >
           <span className="text-xs text-ink-subtle">
-            {t("common.orderedByHand")}
+            {handOrdered ? t("common.orderedByHand") : t("common.dragHint")}
           </span>
-          <Button type="submit" size="sm" variant="ghost" icon="refresh">
-            {t("common.resetOrder")}
-          </Button>
+          {handOrdered ? (
+            <Button type="submit" size="sm" variant="ghost" icon="refresh">
+              {t("common.resetOrder")}
+            </Button>
+          ) : null}
         </form>
       ) : null}
 
@@ -137,7 +139,6 @@ export default async function CustomersPage({
           <TableWrap>
             <thead>
               <tr>
-                {canOrder ? <Th>{t("common.order")}</Th> : null}
                 <Th>{t("customers.code")}</Th>
                 <Th>{t("customers.fullName")}</Th>
                 <Th>{t("customers.mobilePhone")}</Th>
@@ -145,8 +146,12 @@ export default async function CustomersPage({
                 <Th align="center">{t("common.status")}</Th>
               </tr>
             </thead>
-            <tbody>
-              {customers.map((customer, index) => {
+            <SortableRows
+              ids={customers.map((customer) => customer.id)}
+              action={moveCustomerAction}
+              enabled={canOrder}
+            >
+              {customers.map((customer) => {
                 const outstanding = customer.loans.reduce(
                   (total, loan) => total + Number(loan.outstanding),
                   0,
@@ -158,21 +163,6 @@ export default async function CustomersPage({
 
                 return (
                   <tr key={customer.id}>
-                    {canOrder ? (
-                      <Td>
-                        <ReorderButtons
-                          id={customer.id}
-                          previousId={customers[index - 1]?.id ?? null}
-                          nextId={customers[index + 1]?.id ?? null}
-                          action={moveCustomerAction}
-                          labels={{
-                            top: t("common.moveToTop"),
-                            up: t("common.moveUp"),
-                            down: t("common.moveDown"),
-                          }}
-                        />
-                      </Td>
-                    ) : null}
                     <Td numeric>
                       <Link
                         href={`/customers/${customer.id}`}
@@ -217,7 +207,7 @@ export default async function CustomersPage({
                   </tr>
                 );
               })}
-            </tbody>
+            </SortableRows>
           </TableWrap>
         )}
       </Card>

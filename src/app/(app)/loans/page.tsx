@@ -14,7 +14,7 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
-import { ReorderButtons } from "@/components/ui/reorder-buttons";
+import { SortableRows } from "@/components/ui/sortable-rows";
 import { isManuallyOrdered } from "@/core/ordering";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
@@ -98,17 +98,19 @@ export default async function LoansPage({
         </noscript>
       </form>
 
-      {canOrder && handOrdered ? (
+      {canOrder ? (
         <form
           action={resetLoanOrderAction}
           className="mb-3 flex flex-wrap items-center gap-3"
         >
           <span className="text-xs text-ink-subtle">
-            {t("common.orderedByHand")}
+            {handOrdered ? t("common.orderedByHand") : t("common.dragHint")}
           </span>
-          <Button type="submit" size="sm" variant="ghost" icon="refresh">
-            {t("common.resetOrder")}
-          </Button>
+          {handOrdered ? (
+            <Button type="submit" size="sm" variant="ghost" icon="refresh">
+              {t("common.resetOrder")}
+            </Button>
+          ) : null}
         </form>
       ) : null}
 
@@ -130,7 +132,6 @@ export default async function LoansPage({
           <TableWrap>
             <thead>
               <tr>
-                {canOrder ? <Th>{t("common.order")}</Th> : null}
                 <Th>{t("loans.code")}</Th>
                 <Th>{t("loans.customer")}</Th>
                 <Th>{t("loans.frequency")}</Th>
@@ -140,24 +141,13 @@ export default async function LoansPage({
                 <Th align="center">{t("common.status")}</Th>
               </tr>
             </thead>
-            <tbody>
-              {loans.map((loan, index) => (
+            <SortableRows
+              ids={loans.map((loan) => loan.id)}
+              action={moveLoanAction}
+              enabled={canOrder}
+            >
+              {loans.map((loan) => (
                 <tr key={loan.id}>
-                  {canOrder ? (
-                    <Td>
-                      <ReorderButtons
-                        id={loan.id}
-                        previousId={loans[index - 1]?.id ?? null}
-                        nextId={loans[index + 1]?.id ?? null}
-                        action={moveLoanAction}
-                        labels={{
-                          top: t("common.moveToTop"),
-                          up: t("common.moveUp"),
-                          down: t("common.moveDown"),
-                        }}
-                      />
-                    </Td>
-                  ) : null}
                   <Td numeric>
                     <Link
                       href={`/loans/${loan.id}`}
@@ -197,7 +187,7 @@ export default async function LoansPage({
                   </Td>
                 </tr>
               ))}
-            </tbody>
+            </SortableRows>
           </TableWrap>
         )}
       </Card>
