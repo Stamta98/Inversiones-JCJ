@@ -16,20 +16,19 @@ import {
   Textarea,
   Th,
 } from "@/components/ui";
-import {
-  suggestFirstDueDate,
-  type Payday,
-} from "@/core/customers/payday";
+import { suggestFirstDueDate, type Payday } from "@/core/customers/payday";
 import { ScheduleError, buildSchedule } from "@/core/loans/schedule";
 import { fromCents, stepForDecimals, toCents } from "@/core/money";
 import {
   INTEREST_METHODS,
   LATE_FEE_MODES,
   PAYMENT_FREQUENCIES,
+  RATE_BASES,
   WEEKDAYS,
   type InterestMethod,
   type LateFeeMode,
   type PaymentFrequency,
+  type RateBasis,
 } from "@/core/types";
 import { es } from "@/i18n/es";
 import { useFormAction } from "@/lib/use-form-action";
@@ -57,6 +56,7 @@ export interface LoanDefaults {
   customerId: string;
   principal: number;
   interestRate: number;
+  rateBasis: RateBasis;
   interestMethod: InterestMethod;
   frequency: PaymentFrequency;
   customIntervalDays: number | null;
@@ -116,7 +116,10 @@ export function LoanForm({
     loan ? String(loan.principal) : "10000",
   );
   const [interestRate, setInterestRate] = useState(
-    loan ? String(loan.interestRate) : "10",
+    loan ? String(loan.interestRate) : "20",
+  );
+  const [rateBasis, setRateBasis] = useState<RateBasis>(
+    loan?.rateBasis ?? "TOTAL",
   );
   const [interestMethod, setInterestMethod] = useState<InterestMethod>(
     loan?.interestMethod ?? "FLAT",
@@ -153,7 +156,6 @@ export function LoanForm({
         : [...current, day].sort(),
     );
 
-
   /**
    * First due date suggested from the customer's payday, so the installment
    * lands while they still have the money in hand.
@@ -179,6 +181,7 @@ export function LoanForm({
         schedule: buildSchedule({
           principalCents: toCents(Number(principal) || 0),
           interestRate: Number(interestRate) || 0,
+          rateBasis,
           interestMethod,
           frequency,
           termCount: Number(termCount) || 0,
@@ -202,6 +205,7 @@ export function LoanForm({
   }, [
     principal,
     interestRate,
+    rateBasis,
     interestMethod,
     frequency,
     termCount,
@@ -280,6 +284,29 @@ export function LoanForm({
             </Field>
 
             <div className="sm:col-span-2">
+              <Field
+                label={es.loans.rateBasis}
+                htmlFor="rateBasis"
+                hint={es.loans.rateBasisHint[rateBasis]}
+              >
+                <Select
+                  id="rateBasis"
+                  name="rateBasis"
+                  value={rateBasis}
+                  onChange={(event) =>
+                    setRateBasis(event.target.value as RateBasis)
+                  }
+                >
+                  {RATE_BASES.map((basis) => (
+                    <option key={basis} value={basis}>
+                      {es.loans.rateBasisLabel[basis]}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+
+            <div className="sm:col-span-2">
               <Field label={es.loans.interestMethod} htmlFor="interestMethod">
                 <Select
                   id="interestMethod"
@@ -352,7 +379,11 @@ export function LoanForm({
               />
             </Field>
 
-            <Field label={es.loans.firstDueDate} htmlFor="firstDueDate" required>
+            <Field
+              label={es.loans.firstDueDate}
+              htmlFor="firstDueDate"
+              required
+            >
               <Input
                 id="firstDueDate"
                 name="firstDueDate"
@@ -493,7 +524,11 @@ export function LoanForm({
 
             <div className="sm:col-span-2">
               <Field label={es.common.notes} htmlFor="notes">
-                <Textarea id="notes" name="notes" defaultValue={loan?.notes ?? ""} />
+                <Textarea
+                  id="notes"
+                  name="notes"
+                  defaultValue={loan?.notes ?? ""}
+                />
               </Field>
             </div>
           </CardBody>

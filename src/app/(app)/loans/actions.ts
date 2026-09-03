@@ -9,6 +9,7 @@ import {
   INTEREST_METHODS,
   LATE_FEE_MODES,
   PAYMENT_FREQUENCIES,
+  RATE_BASES,
 } from "@/core/types";
 import { t } from "@/i18n";
 import { requirePermission } from "@/server/auth/context";
@@ -24,6 +25,7 @@ const loanSchema = z.object({
   customerId: z.string().min(1),
   principal: z.coerce.number().positive(),
   interestRate: z.coerce.number().min(0),
+  rateBasis: z.enum(RATE_BASES as [string, ...string[]]).default("TOTAL"),
   interestMethod: z.enum(INTEREST_METHODS as [string, ...string[]]),
   frequency: z.enum(PAYMENT_FREQUENCIES as [string, ...string[]]),
   customIntervalDays: z
@@ -34,9 +36,7 @@ const loanSchema = z.object({
       value === undefined || value.length === 0 ? null : Number(value),
     ),
   /** Checkbox group: absent when nothing is ticked. */
-  nonCollectionDays: z
-    .array(z.coerce.number().int().min(0).max(6))
-    .default([]),
+  nonCollectionDays: z.array(z.coerce.number().int().min(0).max(6)).default([]),
   termCount: z.coerce.number().int().positive(),
   firstDueDate: z.string().min(1),
   lateFeeMode: z.enum(LATE_FEE_MODES as [string, ...string[]]).default("NONE"),
@@ -88,6 +88,7 @@ export async function createLoanAction(
       customerId: data.customerId,
       principal: data.principal,
       interestRate: data.interestRate,
+      rateBasis: data.rateBasis as never,
       interestMethod: data.interestMethod as never,
       frequency: data.frequency as never,
       customIntervalDays: data.customIntervalDays,
@@ -107,7 +108,8 @@ export async function createLoanAction(
     if (error instanceof ScheduleError) {
       const message = t(`loans.errors.${error.code}`);
       return {
-        error: message === `loans.errors.${error.code}` ? error.message : message,
+        error:
+          message === `loans.errors.${error.code}` ? error.message : message,
       };
     }
     throw error;
@@ -170,6 +172,7 @@ export async function updateLoanAction(
       terms: {
         principal: data.principal,
         interestRate: data.interestRate,
+        rateBasis: data.rateBasis as never,
         interestMethod: data.interestMethod as never,
         frequency: data.frequency as never,
         customIntervalDays: data.customIntervalDays,
@@ -196,7 +199,9 @@ export async function updateLoanAction(
 function loanErrorMessage(error: unknown): string {
   if (error instanceof LoanServiceError) {
     const message = t(`loans.errors.${error.code}`);
-    return message === `loans.errors.${error.code}` ? t("common.error") : message;
+    return message === `loans.errors.${error.code}`
+      ? t("common.error")
+      : message;
   }
   if (error instanceof ScheduleError) {
     const message = t(`loans.errors.${error.code}`);

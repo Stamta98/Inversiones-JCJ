@@ -6,6 +6,22 @@
  * with prisma/schema.prisma.
  */
 
+/**
+ * What the interest rate is a percentage *of*.
+ *
+ * "Le presto 100 mil al 20% a 30 días" means 20,000 of interest in total —
+ * the whole loan costs 20%. Read the same 20 as a rate per installment and a
+ * daily loan charges 20% thirty times over, which is not a rounding
+ * difference: it is 600,000 instead of 20,000.
+ */
+export type RateBasis =
+  /** The rate applies to the loan as a whole. */
+  | "TOTAL"
+  /** The rate applies to every installment, e.g. "5% mensual" over 12 months. */
+  | "PER_PERIOD";
+
+export const RATE_BASES: RateBasis[] = ["TOTAL", "PER_PERIOD"];
+
 export type InterestMethod =
   | "FLAT"
   | "FRENCH"

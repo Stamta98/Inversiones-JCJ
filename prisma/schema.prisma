@@ -399,6 +399,15 @@ model Attachment {
 // ---------------------------------------------------------------------------
 
 /// How the interest of a loan is computed.
+/// What the interest rate is a percentage of.
+///
+/// "100 mil al 20% a 30 días" is 20,000 of interest in total. Read as a rate
+/// per installment, a daily loan would charge that 20% thirty times over.
+enum RateBasis {
+  TOTAL
+  PER_PERIOD
+}
+
 enum InterestMethod {
   /// Flat percentage over the principal, split evenly across installments.
   FLAT
@@ -497,6 +506,9 @@ model Loan {
   principal          Decimal          @db.Decimal(18, 2)
   interestMethod     InterestMethod
   interestRate       Decimal          @db.Decimal(9, 4)
+  /// Stored per loan: changing the company's convention must never rewrite
+  /// what an existing borrower was told they owe.
+  rateBasis          RateBasis        @default(TOTAL)
   frequency          PaymentFrequency
   /// Days between installments when frequency is CUSTOM.
   customIntervalDays Int?

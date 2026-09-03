@@ -23,12 +23,21 @@ import {
   usesSequentialSkipping,
   type InterestMethod,
   type PaymentFrequency,
+  type RateBasis,
 } from "../types";
 
 export interface ScheduleInput {
   principalCents: Cents;
-  /** Interest rate per period as a percentage. 10 means 10% per period. */
+  /** Interest rate as a percentage. What it is a percentage of is `rateBasis`. */
   interestRate: number;
+  /**
+   * Whether the rate covers the whole loan or every installment.
+   *
+   * Defaults to "PER_PERIOD" so the meaning of an existing call never changes
+   * underneath it. Anything creating a loan should pass this explicitly: the
+   * two readings differ by a factor of the term, not by rounding.
+   */
+  rateBasis?: RateBasis;
   interestMethod: InterestMethod;
   frequency: PaymentFrequency;
   /** Number of installments. Ignored for SINGLE, which always produces one. */
@@ -149,33 +158,68 @@ function dueDates(input: ScheduleInput, count: number): Date[] {
 }
 
 /**
- * Flat rate: the interest of the whole term is computed once over the original
- * principal and then split evenly. This is the model behind "10% mensual"
- * street lending, and the reason its effective cost is far above the headline.
+ * What the whole term costs in interest, whichever way the rate was quoted.
+ *
+ * Computed as one amount and split afterwards rather than multiplied up from a
+ * per period figure, so a rate that does not divide evenly by the term cannot
+ * leave the installments adding up to a few cents beside the total.
  */
-function buildFlatSchedule(input: ScheduleInput): ScheduledInstallment[] {
-  const count = input.termCount;
-  const step = input.minorUnitStep ?? 1;
-  const interestPerPeriod = percentOf(
+function totalInterestOf(input: ScheduleInput, step: MinorUnitStep): Cents {
+  const overWholeLoan = percentOf(
     input.principalCents,
     input.interestRate,
     step,
   );
-  const totalInterest = interestPerPeriod * count;
+  return (input.rateBasis ?? "PER_PERIOD") === "TOTAL"
+    ? overWholeLoan
+    : overWholeLoan * input.termCount;
+}
 
-  const principalParts = splitEvenly(input.principalCents, count, step);
+/**
+ * The rate one installment carries, for the methods that charge interest on
+ * the outstanding balance and therefore need a per period figure.
+ */
+function ratePerPeriod(input: ScheduleInput): number {
+  return (input.rateBasis ?? "PER_PERIOD") === "TOTAL"
+    ? input.interestRate / input.termCount
+    : input.interestRate;
+}
+
+/**
+ * Flat rate: the interest of the whole term is computed once over the original
+ * principal and then split evenly. This is the model behind "le presto 100 mil
+ * al 20% a 30 días" street lending, and the reason its effective cost is far
+ * above the headline.
+ */
+function buildFlatSchedule(input: ScheduleInput): ScheduledInstallment[] {
+  const count = input.termCount;
+  const step = input.minorUnitStep ?? 1;
+  const totalInterest = totalInterestOf(input, step);
+
+  // What the borrower hands over is split first, and the principal share is
+  // whatever is left after interest. Splitting principal and interest
+  // separately makes both add up but leaves the installments a cent apart —
+  // and "cuatro mil diarios" is the number the loan was agreed on, so it is
+  // the one that has to come out even.
+  const totalParts = splitEvenly(
+    input.principalCents + totalInterest,
+    count,
+    step,
+  );
   const interestParts = splitEvenly(totalInterest, count, step);
   const dates = dueDates(input, count);
 
   let balance = input.principalCents;
-  return principalParts.map((principalCents, index) => {
+  return totalParts.map((totalCents, index) => {
+    const interestCents = interestParts[index]!;
+    const principalCents = totalCents - interestCents;
     balance -= principalCents;
     return {
       number: index + 1,
       dueDate: dates[index],
       principalCents,
-      interestCents: interestParts[index],
-      totalCents: principalCents + interestParts[index],
+      interestCents,
+      totalCents,
       balanceAfterCents: balance,
     };
   });
@@ -188,7 +232,7 @@ function buildFlatSchedule(input: ScheduleInput): ScheduledInstallment[] {
 function buildFrenchSchedule(input: ScheduleInput): ScheduledInstallment[] {
   const count = input.termCount;
   const step = input.minorUnitStep ?? 1;
-  const rate = input.interestRate / 100;
+  const rate = ratePerPeriod(input) / 100;
   const dates = dueDates(input, count);
 
   if (rate === 0) {
@@ -242,7 +286,7 @@ function buildFrenchSchedule(input: ScheduleInput): ScheduledInstallment[] {
 function buildGermanSchedule(input: ScheduleInput): ScheduledInstallment[] {
   const count = input.termCount;
   const step = input.minorUnitStep ?? 1;
-  const rate = input.interestRate / 100;
+  const rate = ratePerPeriod(input) / 100;
   const principalParts = splitEvenly(input.principalCents, count, step);
   const dates = dueDates(input, count);
 
@@ -267,16 +311,16 @@ function buildGermanSchedule(input: ScheduleInput): ScheduledInstallment[] {
  */
 function buildAmericanSchedule(input: ScheduleInput): ScheduledInstallment[] {
   const count = input.termCount;
-  const interestPerPeriod = percentOf(
-    input.principalCents,
-    input.interestRate,
-    input.minorUnitStep ?? 1,
-  );
+  const step = input.minorUnitStep ?? 1;
+  // Split rather than repeated: the term's interest has to add up exactly,
+  // even when it does not divide evenly into the installments.
+  const interestParts = splitEvenly(totalInterestOf(input, step), count, step);
   const dates = dueDates(input, count);
 
   return dates.map((dueDate, index) => {
     const isLast = index === count - 1;
     const principalCents = isLast ? input.principalCents : 0;
+    const interestPerPeriod = interestParts[index]!;
     return {
       number: index + 1,
       dueDate,
@@ -294,17 +338,18 @@ function buildAmericanSchedule(input: ScheduleInput): ScheduledInstallment[] {
  * generated rows are a rolling horizon, not a closed plan.
  */
 function buildCreditLineSchedule(input: ScheduleInput): ScheduledInstallment[] {
-  const interestPerPeriod = percentOf(
-    input.principalCents,
-    input.interestRate,
-    input.minorUnitStep ?? 1,
+  const step = input.minorUnitStep ?? 1;
+  const interestParts = splitEvenly(
+    totalInterestOf(input, step),
+    input.termCount,
+    step,
   );
   return dueDates(input, input.termCount).map((dueDate, index) => ({
     number: index + 1,
     dueDate,
     principalCents: 0,
-    interestCents: interestPerPeriod,
-    totalCents: interestPerPeriod,
+    interestCents: interestParts[index]!,
+    totalCents: interestParts[index]!,
     balanceAfterCents: input.principalCents,
   }));
 }

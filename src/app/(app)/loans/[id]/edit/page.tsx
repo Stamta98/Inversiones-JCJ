@@ -87,6 +87,7 @@ export default async function EditLoanPage({
             customerId: loan.customerId,
             principal: Number(loan.principal),
             interestRate: Number(loan.interestRate),
+            rateBasis: loan.rateBasis,
             interestMethod: loan.interestMethod,
             frequency: loan.frequency,
             customIntervalDays: loan.customIntervalDays,

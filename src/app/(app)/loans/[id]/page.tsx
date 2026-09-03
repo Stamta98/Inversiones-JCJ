@@ -152,7 +152,9 @@ export default async function LoanDetailPage({
         <StatCard
           label={t("loans.principal")}
           value={money(Number(loan.principal))}
-          hint={`${t("loans.interestRate")}: ${Number(loan.interestRate)}%`}
+          hint={`${Number(loan.interestRate)}% ${t(
+            `loans.rateBasisShort.${loan.rateBasis}`,
+          )}`}
         />
         <StatCard
           label={t("loans.totalToPay")}

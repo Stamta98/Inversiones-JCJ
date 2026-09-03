@@ -418,7 +418,20 @@ export const es = {
     product: "Tipo de préstamo",
     principal: "Monto prestado",
     interestRate: "Tasa de interés (%)",
-    interestRateHint: "Porcentaje por período, no anual.",
+    interestRateHint: "El porcentaje que le cobras al cliente.",
+    rateBasis: "¿El interés es sobre qué?",
+    rateBasisLabel: {
+      TOTAL: "Sobre el préstamo completo",
+      PER_PERIOD: "Por cada cuota",
+    },
+    rateBasisShort: {
+      TOTAL: "del préstamo",
+      PER_PERIOD: "por cuota",
+    },
+    rateBasisHint: {
+      TOTAL: "100.000 al 20% son 20.000 de interés, se cobren en 30 días o en 6 meses.",
+      PER_PERIOD: "Cada cuota cobra ese porcentaje. Es lo que se quiere decir con «5% mensual» a 12 meses.",
+    },
     interestMethod: "Modalidad de interés",
     frequency: "Frecuencia de pago",
     termCount: "Cantidad de cuotas",

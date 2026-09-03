@@ -145,12 +145,19 @@ const DEMO_CUSTOMERS = [
   },
 ];
 
-/** Loans spread across methods, frequencies and arrears so screens have data. */
+/**
+ * Loans spread across methods, frequencies and arrears so screens have data.
+ *
+ * Rates are quoted the way a lender quotes them, over the whole loan: "25 mil
+ * al 60% a seis meses". The French one keeps a rate per installment because
+ * that is what the system means — interest on the balance that is left.
+ */
 const DEMO_LOANS = [
   {
     customerIndex: 0,
     principal: 25000,
-    interestRate: 10,
+    interestRate: 60,
+    rateBasis: "TOTAL" as const,
     interestMethod: "FLAT" as const,
     frequency: "MONTHLY" as const,
     termCount: 6,
@@ -160,7 +167,8 @@ const DEMO_LOANS = [
   {
     customerIndex: 1,
     principal: 15000,
-    interestRate: 5,
+    interestRate: 60,
+    rateBasis: "TOTAL" as const,
     interestMethod: "FLAT" as const,
     frequency: "WEEKLY" as const,
     termCount: 12,
@@ -171,6 +179,7 @@ const DEMO_LOANS = [
     customerIndex: 2,
     principal: 40000,
     interestRate: 3,
+    rateBasis: "PER_PERIOD" as const,
     interestMethod: "FRENCH" as const,
     frequency: "MONTHLY" as const,
     termCount: 12,
@@ -181,7 +190,8 @@ const DEMO_LOANS = [
     // Diario pero sin domingos, que es como se cobra en la calle.
     customerIndex: 3,
     principal: 8000,
-    interestRate: 2,
+    interestRate: 20,
+    rateBasis: "TOTAL" as const,
     interestMethod: "FLAT" as const,
     frequency: "DAILY" as const,
     nonCollectionDays: [0],
@@ -192,7 +202,8 @@ const DEMO_LOANS = [
   {
     customerIndex: 4,
     principal: 60000,
-    interestRate: 4,
+    interestRate: 24,
+    rateBasis: "TOTAL" as const,
     interestMethod: "AMERICAN" as const,
     frequency: "MONTHLY" as const,
     termCount: 6,
@@ -417,6 +428,7 @@ async function main(): Promise<void> {
       const schedule = buildSchedule({
         principalCents: toCents(spec.principal),
         interestRate: spec.interestRate,
+        rateBasis: spec.rateBasis,
         interestMethod: spec.interestMethod,
         frequency: spec.frequency,
         termCount: spec.termCount,
@@ -432,6 +444,7 @@ async function main(): Promise<void> {
           principal: spec.principal,
           interestMethod: spec.interestMethod,
           interestRate: spec.interestRate,
+          rateBasis: spec.rateBasis,
           frequency: spec.frequency,
           nonCollectionDays,
           termCount: spec.termCount,

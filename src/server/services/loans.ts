@@ -8,17 +8,14 @@
 import type { Prisma } from "@prisma/client";
 
 import { summarizeArrears, type LateFeePolicy } from "@/core/loans/arrears";
-import {
-  canCancel,
-  canEditAtAll,
-  canEditTerms,
-} from "@/core/loans/editable";
+import { canCancel, canEditAtAll, canEditTerms } from "@/core/loans/editable";
 import { buildSchedule, type Schedule } from "@/core/loans/schedule";
 import { fromCents, stepForDecimals, toCents } from "@/core/money";
 import type {
   InterestMethod,
   LateFeeMode,
   PaymentFrequency,
+  RateBasis,
 } from "@/core/types";
 
 import { db } from "../db";
@@ -31,6 +28,8 @@ export interface CreateLoanInput {
   loanProductId?: string | null;
   principal: number;
   interestRate: number;
+  /** What the rate is a percentage of. Defaults to the whole loan. */
+  rateBasis?: RateBasis;
   interestMethod: InterestMethod;
   frequency: PaymentFrequency;
   /** Days between installments when the frequency is CUSTOM. */
@@ -61,6 +60,7 @@ export function previewSchedule(
     CreateLoanInput,
     | "principal"
     | "interestRate"
+    | "rateBasis"
     | "interestMethod"
     | "frequency"
     | "termCount"
@@ -73,6 +73,9 @@ export function previewSchedule(
   return buildSchedule({
     principalCents: toCents(input.principal),
     interestRate: input.interestRate,
+    // Explicit: the engine still defaults to a rate per installment, which for
+    // a daily loan would multiply the quoted rate by the term.
+    rateBasis: input.rateBasis ?? "TOTAL",
     interestMethod: input.interestMethod,
     frequency: input.frequency,
     termCount: input.termCount,
@@ -104,6 +107,7 @@ export async function createLoan(input: CreateLoanInput): Promise<string> {
           principal: input.principal,
           interestMethod: input.interestMethod,
           interestRate: input.interestRate,
+          rateBasis: input.rateBasis ?? "TOTAL",
           frequency: input.frequency,
           customIntervalDays: input.customIntervalDays ?? null,
           nonCollectionDays: input.nonCollectionDays ?? [],
@@ -181,6 +185,7 @@ export interface UpdateLoanInput {
     CreateLoanInput,
     | "principal"
     | "interestRate"
+    | "rateBasis"
     | "interestMethod"
     | "frequency"
     | "customIntervalDays"
@@ -228,6 +233,7 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
           ? {
               principal: input.terms.principal,
               interestRate: input.terms.interestRate,
+              rateBasis: input.terms.rateBasis ?? "TOTAL",
               interestMethod: input.terms.interestMethod,
               frequency: input.terms.frequency,
               customIntervalDays: input.terms.customIntervalDays ?? null,
@@ -409,7 +415,8 @@ export async function refreshLoan(
 
   for (const snapshot of snapshots) {
     const dueCents = snapshot.principalCents + snapshot.interestCents;
-    const isSettled = snapshot.status === "PAID" || snapshot.status === "WAIVED";
+    const isSettled =
+      snapshot.status === "PAID" || snapshot.status === "WAIVED";
 
     const lateFeeCents = isSettled
       ? snapshot.lateFeeCents
@@ -419,10 +426,7 @@ export async function refreshLoan(
           summarizeArrears([snapshot], policy, asOf).lateFeeCents,
         );
 
-    const owedCents = Math.max(
-      0,
-      dueCents + lateFeeCents - snapshot.paidCents,
-    );
+    const owedCents = Math.max(0, dueCents + lateFeeCents - snapshot.paidCents);
 
     let status = snapshot.status;
     if (!isSettled) {
@@ -437,10 +441,7 @@ export async function refreshLoan(
       }
     }
 
-    if (
-      lateFeeCents !== snapshot.lateFeeCents ||
-      status !== snapshot.status
-    ) {
+    if (lateFeeCents !== snapshot.lateFeeCents || status !== snapshot.status) {
       await tx.loanInstallment.update({
         where: { id: snapshot.id },
         data: {
