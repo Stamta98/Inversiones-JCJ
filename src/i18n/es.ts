@@ -405,6 +405,14 @@ export const es = {
     photoHint: "Obligatoria. Tómala de frente y con buena luz.",
     photoRequired: "La foto del cliente es obligatoria.",
     documentRequired: "El número de documento es obligatorio.",
+    delete: "Eliminar cliente",
+    deleteConfirm:
+      "Se borra el cliente con todo lo suyo y no se puede deshacer.",
+    deleteWithLoans:
+      "Se borran también sus {loans} préstamos, con sus cuotas y sus cobros. La plata vuelve a la caja como si nunca se le hubiera prestado.",
+    deleteOutstanding: "Deja de deber {amount}",
+    deletePaid: "Se pierde el historial de {amount} ya cobrados",
+    deleteNoLoans: "Este cliente no tiene préstamos.",
     loanCount: "Préstamos",
     noOpenLoans: "Sin préstamos abiertos",
     documentsSection: "Fotos del documento de identidad",

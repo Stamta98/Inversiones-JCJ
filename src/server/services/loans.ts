@@ -640,7 +640,24 @@ export async function deleteLoan(
   loanId: string,
   options: { userId?: string | null } = {},
 ): Promise<void> {
-  await db.$transaction(async (tx) => {
+  await db.$transaction((tx) =>
+    deleteLoanWithin(tx, companyId, loanId, options),
+  );
+}
+
+/**
+ * El borrado en sí, dentro de una transacción que ya existe.
+ *
+ * Aparte para que borrar un cliente pueda llevarse sus préstamos en la misma
+ * transacción: o se va todo o no se va nada.
+ */
+export async function deleteLoanWithin(
+  tx: Prisma.TransactionClient,
+  companyId: string,
+  loanId: string,
+  options: { userId?: string | null; skipRenewalCheck?: boolean } = {},
+): Promise<void> {
+  {
     const loan = await tx.loan.findFirst({
       where: { id: loanId, companyId },
       select: {
@@ -655,16 +672,19 @@ export async function deleteLoan(
     if (!loan) return;
 
     // Un préstamo que ya fue refinanciado o renovado no se puede borrar sin
-    // dejar al otro préstamo cobrando un saldo que salió de este.
-    const replacement = await tx.loan.findFirst({
-      where: { parentLoanId: loan.id, status: { not: "CANCELLED" } },
-      select: { code: true },
-    });
-    if (replacement) {
-      throw new LoanServiceError(
-        `Replaced by ${replacement.code}`,
-        "alreadyRenewed",
-      );
+    // dejar al otro préstamo cobrando un saldo que salió de este. Borrando al
+    // cliente entero se van los dos, así que ahí no aplica.
+    if (!options.skipRenewalCheck) {
+      const replacement = await tx.loan.findFirst({
+        where: { parentLoanId: loan.id, status: { not: "CANCELLED" } },
+        select: { code: true },
+      });
+      if (replacement) {
+        throw new LoanServiceError(
+          `Replaced by ${replacement.code}`,
+          "alreadyRenewed",
+        );
+      }
     }
 
     // Todo lo que este préstamo movió en caja: su desembolso, sus cargos y
@@ -727,7 +747,7 @@ export async function deleteLoan(
 
     // Las cuotas, los cobros, sus aplicaciones y los cargos se van con él.
     await tx.loan.delete({ where: { id: loan.id } });
-  });
+  }
 }
 
 export async function recordDisbursement(

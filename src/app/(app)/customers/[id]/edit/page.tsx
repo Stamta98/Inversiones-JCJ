@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 
-import { LinkButton, PageHeader } from "@/components/ui";
-import { requirePermission } from "@/server/auth/context";
+import { Card, CardHeader, LinkButton, PageHeader } from "@/components/ui";
+import { can, requirePermission } from "@/server/auth/context";
+import { customerDeletionSummary } from "@/server/services/customers";
 import { db } from "@/server/db";
 
 import { CustomerForm } from "../../new/customer-form";
+import { DeleteCustomer } from "./delete-customer";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,9 @@ export default async function EditCustomerPage({
   });
 
   if (!customer) notFound();
+
+  // Qué se llevaría por delante borrarlo, para poder decirlo antes de preguntar.
+  const summary = await customerDeletionSummary(context.companyId, customer.id);
 
   const documentUrl = (kind: "ID_FRONT" | "ID_BACK") =>
     customer.attachments.find((attachment) => attachment.kind === kind)?.url ??
@@ -96,6 +101,22 @@ export default async function EditCustomerPage({
           })),
         }}
       />
+
+      {can(context, "customers.delete") && summary ? (
+        <Card className="mt-4 max-w-2xl">
+          <CardHeader title={context.t("customers.delete")} />
+          <DeleteCustomer
+            customerId={customer.id}
+            loans={summary.loans}
+            outstanding={summary.outstanding}
+            paid={summary.paid}
+            money={{
+              outstanding: context.money(summary.outstanding),
+              paid: context.money(summary.paid),
+            }}
+          />
+        </Card>
+      ) : null}
     </>
   );
 }

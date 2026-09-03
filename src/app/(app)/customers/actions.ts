@@ -9,6 +9,7 @@ import { t } from "@/i18n";
 import { normalizePhoneNumber } from "@/modules/messaging/providers";
 import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
+import { deleteCustomer } from "@/server/services/customers";
 import {
   moveCustomer,
   resetCustomerOrder,
@@ -477,4 +478,28 @@ export async function resetCustomerOrderAction(): Promise<void> {
   const context = await requirePermission("customers.update");
   await resetCustomerOrder(context.companyId);
   revalidatePath("/customers");
+}
+
+/**
+ * Borra un cliente para siempre, con sus préstamos.
+ *
+ * La plata vuelve a la caja como si nunca se le hubiera prestado, y en la
+ * auditoría queda qué se borró. La pantalla dice antes cuántos préstamos y
+ * cuánta plata se lleva por delante.
+ */
+export async function deleteCustomerAction(formData: FormData): Promise<void> {
+  const context = await requirePermission("customers.delete");
+  const customerId = String(formData.get("customerId") ?? "");
+  if (!customerId) return;
+
+  await deleteCustomer(context.companyId, customerId, {
+    userId: context.userId,
+  });
+
+  revalidatePath("/customers");
+  revalidatePath("/loans");
+  revalidatePath("/payments");
+  revalidatePath("/cash");
+  revalidatePath("/dashboard");
+  redirect("/customers");
 }
