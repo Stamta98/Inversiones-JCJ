@@ -135,6 +135,7 @@ export default async function CallCenterPage() {
                     <InteractionForm
                       customerId={loan.customerId}
                       loanId={loan.id}
+                      decimalPlaces={context.decimalPlaces}
                     />
                   ) : null}
                 </CardBody>

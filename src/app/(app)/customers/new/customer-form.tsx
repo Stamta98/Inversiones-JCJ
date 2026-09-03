@@ -101,7 +101,14 @@ function SubmitButton({ pending }: { pending: boolean }) {
   );
 }
 
-export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
+export function CustomerForm({
+  customer,
+  decimalPlaces,
+}: {
+  customer?: CustomerDefaults;
+  /** Zero where the currency has no cents, so the income field offers none. */
+  decimalPlaces: number;
+}) {
   // Un mismo formulario sirve para crear y para editar: la única diferencia es
   // a qué acción se envía y de dónde salen los valores iniciales.
   const editando = customer !== undefined;
@@ -402,7 +409,7 @@ export function CustomerForm({ customer }: { customer?: CustomerDefaults }) {
               defaultValue={customer?.monthlyIncome ?? ""}
               inputMode="decimal"
               type="number"
-              step="0.01"
+              step={decimalPlaces === 0 ? "1" : "0.01"}
               min="0"
             />
           </Field>

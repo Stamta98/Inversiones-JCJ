@@ -87,7 +87,9 @@ export default async function CashPage() {
                       ) : null}
                     </Td>
                     <Td>
-                      <Badge tone={cashBox.kind === "BANK" ? "info" : "neutral"}>
+                      <Badge
+                        tone={cashBox.kind === "BANK" ? "info" : "neutral"}
+                      >
                         {t(`cash.kindLabel.${cashBox.kind}`)}
                       </Badge>
                     </Td>
@@ -99,7 +101,9 @@ export default async function CashPage() {
               </tbody>
             </TableWrap>
           )}
-          {canEdit ? <CashBoxForm /> : null}
+          {canEdit ? (
+            <CashBoxForm decimalPlaces={context.decimalPlaces} />
+          ) : null}
         </Card>
 
         {canEdit && cashBoxes.length > 0 ? (
@@ -110,6 +114,7 @@ export default async function CashPage() {
                 id: cashBox.id,
                 label: cashBox.name,
               }))}
+              decimalPlaces={context.decimalPlaces}
             />
           </Card>
         ) : null}
@@ -147,7 +152,9 @@ export default async function CashPage() {
                     align="right"
                     numeric
                     className={
-                      Number(movement.amount) < 0 ? "text-danger" : "text-positive"
+                      Number(movement.amount) < 0
+                        ? "text-danger"
+                        : "text-positive"
                     }
                   >
                     {money(Number(movement.amount))}

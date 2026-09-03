@@ -47,6 +47,7 @@ export default async function EditCustomerPage({
       />
 
       <CustomerForm
+        decimalPlaces={context.decimalPlaces}
         customer={{
           id: customer.id,
           firstName: customer.firstName,

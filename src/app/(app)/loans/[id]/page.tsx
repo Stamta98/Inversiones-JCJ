@@ -192,6 +192,7 @@ export default async function LoanDetailPage({
                   id: cashBox.id,
                   label: cashBox.name,
                 }))}
+                decimalPlaces={context.decimalPlaces}
               />
             </CardBody>
           </Card>

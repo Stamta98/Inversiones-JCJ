@@ -9,7 +9,7 @@ export default async function NewCustomerPage() {
   return (
     <>
       <PageHeader title={context.t("customers.new")} />
-      <CustomerForm />
+      <CustomerForm decimalPlaces={context.decimalPlaces} />
     </>
   );
 }

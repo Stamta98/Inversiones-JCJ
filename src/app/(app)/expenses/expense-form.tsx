@@ -17,11 +17,17 @@ function SubmitButton({ pending }: { pending: boolean }) {
 export function ExpenseForm({
   categories,
   cashBoxes,
+  decimalPlaces,
 }: {
   categories: Array<{ id: string; label: string }>;
   cashBoxes: Array<{ id: string; label: string }>;
+  /** Zero where the currency has no cents, so no field offers any. */
+  decimalPlaces: number;
 }) {
-  const { state, pending, onSubmit } = useFormAction<ExpenseFormState>(createExpense, {});
+  const { state, pending, onSubmit } = useFormAction<ExpenseFormState>(
+    createExpense,
+    {},
+  );
 
   return (
     <form method="post" onSubmit={onSubmit}>
@@ -44,7 +50,7 @@ export function ExpenseForm({
             name="amount"
             type="number"
             inputMode="decimal"
-            step="0.01"
+            step={decimalPlaces === 0 ? "1" : "0.01"}
             min="0.01"
             required
           />

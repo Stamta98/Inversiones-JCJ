@@ -120,6 +120,7 @@ export default async function ExpensesPage() {
                 id: cashBox.id,
                 label: cashBox.name,
               }))}
+              decimalPlaces={context.decimalPlaces}
             />
           ) : null}
         </Card>

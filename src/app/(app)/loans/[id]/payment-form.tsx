@@ -20,7 +20,12 @@ const METHODS = [
 
 function SubmitButton({ pending }: { pending: boolean }) {
   return (
-    <Button type="submit" icon="receipt" disabled={pending} className="w-full sm:w-auto">
+    <Button
+      type="submit"
+      icon="receipt"
+      disabled={pending}
+      className="w-full sm:w-auto"
+    >
       {pending ? es.common.saving : es.payments.new}
     </Button>
   );
@@ -30,12 +35,19 @@ export function PaymentForm({
   loanId,
   suggestedAmount,
   cashBoxes,
+  decimalPlaces,
 }: {
   loanId: string;
   suggestedAmount: number;
   cashBoxes: Array<{ id: string; label: string }>;
+  /** Zero where the currency has no cents, so the field never suggests any. */
+  decimalPlaces: number;
 }) {
-  const { state, pending, onSubmit } = useFormAction<PaymentFormState>(postPaymentAction, {});
+  const wholeUnits = decimalPlaces === 0;
+  const { state, pending, onSubmit } = useFormAction<PaymentFormState>(
+    postPaymentAction,
+    {},
+  );
 
   return (
     <form method="post" onSubmit={onSubmit} className="space-y-3">
@@ -49,54 +61,60 @@ export function PaymentForm({
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <Field label={es.payments.amount} htmlFor="amount" required>
-        <Input
-          id="amount"
-          name="amount"
-          type="number"
-          inputMode="decimal"
-          step="0.01"
-          min="0.01"
-          required
-          defaultValue={suggestedAmount > 0 ? suggestedAmount.toFixed(2) : ""}
-        />
-      </Field>
+        <Field label={es.payments.amount} htmlFor="amount" required>
+          <Input
+            id="amount"
+            name="amount"
+            type="number"
+            inputMode="decimal"
+            step={wholeUnits ? "1" : "0.01"}
+            min={wholeUnits ? "1" : "0.01"}
+            required
+            defaultValue={
+              suggestedAmount > 0 ? suggestedAmount.toFixed(decimalPlaces) : ""
+            }
+          />
+        </Field>
 
-      <Field label={es.payments.method} htmlFor="method">
-        <Select id="method" name="method" defaultValue="CASH">
-          {METHODS.map((method) => (
-            <option key={method} value={method}>
-              {es.payments.methodLabel[method]}
-            </option>
-          ))}
-        </Select>
-      </Field>
-
-      <Field label={es.payments.paidAt} htmlFor="paidAt">
-        <Input
-          id="paidAt"
-          name="paidAt"
-          type="date"
-          defaultValue={new Date().toISOString().slice(0, 10)}
-        />
-      </Field>
-
-      {cashBoxes.length > 0 ? (
-        <Field label={es.payments.cashBox} htmlFor="cashBoxId">
-          <Select id="cashBoxId" name="cashBoxId" defaultValue={cashBoxes[0].id}>
-            <option value="">{es.common.none}</option>
-            {cashBoxes.map((cashBox) => (
-              <option key={cashBox.id} value={cashBox.id}>
-                {cashBox.label}
+        <Field label={es.payments.method} htmlFor="method">
+          <Select id="method" name="method" defaultValue="CASH">
+            {METHODS.map((method) => (
+              <option key={method} value={method}>
+                {es.payments.methodLabel[method]}
               </option>
             ))}
           </Select>
         </Field>
-      ) : null}
 
-      <Field label={es.payments.reference} htmlFor="reference">
-        <Input id="reference" name="reference" />
-      </Field>
+        <Field label={es.payments.paidAt} htmlFor="paidAt">
+          <Input
+            id="paidAt"
+            name="paidAt"
+            type="date"
+            defaultValue={new Date().toISOString().slice(0, 10)}
+          />
+        </Field>
+
+        {cashBoxes.length > 0 ? (
+          <Field label={es.payments.cashBox} htmlFor="cashBoxId">
+            <Select
+              id="cashBoxId"
+              name="cashBoxId"
+              defaultValue={cashBoxes[0].id}
+            >
+              <option value="">{es.common.none}</option>
+              {cashBoxes.map((cashBox) => (
+                <option key={cashBox.id} value={cashBox.id}>
+                  {cashBox.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : null}
+
+        <Field label={es.payments.reference} htmlFor="reference">
+          <Input id="reference" name="reference" />
+        </Field>
       </div>
 
       <p className="text-xs text-ink-subtle">{es.payments.allocationHint}</p>

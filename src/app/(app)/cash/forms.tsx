@@ -10,13 +10,7 @@ import {
   type CashFormState,
 } from "./actions";
 
-function SubmitButton({
-  label,
-  pending,
-}: {
-  label: string;
-  pending: boolean;
-}) {
+function SubmitButton({ label, pending }: { label: string; pending: boolean }) {
   return (
     <Button type="submit" size="sm" disabled={pending}>
       {pending ? es.common.saving : label}
@@ -24,8 +18,11 @@ function SubmitButton({
   );
 }
 
-export function CashBoxForm() {
-  const { state, pending, onSubmit } = useFormAction<CashFormState>(createCashBox, {});
+export function CashBoxForm({ decimalPlaces }: { decimalPlaces: number }) {
+  const { state, pending, onSubmit } = useFormAction<CashFormState>(
+    createCashBox,
+    {},
+  );
 
   return (
     <form method="post" onSubmit={onSubmit}>
@@ -57,7 +54,7 @@ export function CashBoxForm() {
             name="openingBalance"
             type="number"
             inputMode="decimal"
-            step="0.01"
+            step={decimalPlaces === 0 ? "1" : "0.01"}
             min="0"
             defaultValue="0"
           />
@@ -73,10 +70,16 @@ export function CashBoxForm() {
 
 export function MovementForm({
   cashBoxes,
+  decimalPlaces,
 }: {
   cashBoxes: Array<{ id: string; label: string }>;
+  /** Zero where the currency has no cents, so no field offers any. */
+  decimalPlaces: number;
 }) {
-  const { state, pending, onSubmit } = useFormAction<CashFormState>(createCashMovement, {});
+  const { state, pending, onSubmit } = useFormAction<CashFormState>(
+    createCashMovement,
+    {},
+  );
 
   return (
     <form method="post" onSubmit={onSubmit}>
@@ -113,7 +116,7 @@ export function MovementForm({
             name="amount"
             type="number"
             inputMode="decimal"
-            step="0.01"
+            step={decimalPlaces === 0 ? "1" : "0.01"}
             min="0.01"
             required
           />

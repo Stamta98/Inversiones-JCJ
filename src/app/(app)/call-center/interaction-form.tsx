@@ -31,11 +31,17 @@ function SubmitButton({ pending }: { pending: boolean }) {
 export function InteractionForm({
   customerId,
   loanId,
+  decimalPlaces,
 }: {
   customerId: string;
   loanId?: string;
+  /** Zero where the currency has no cents, so no field offers any. */
+  decimalPlaces: number;
 }) {
-  const { state, pending, onSubmit } = useFormAction<InteractionFormState>(logInteraction, {});
+  const { state, pending, onSubmit } = useFormAction<InteractionFormState>(
+    logInteraction,
+    {},
+  );
   const [outcome, setOutcome] = useState<string>("CONTACTED");
   const showsPromise = outcome === "PAYMENT_PROMISED";
 
@@ -52,11 +58,7 @@ export function InteractionForm({
       ) : null}
 
       <Field label={es.callCenter.channel} htmlFor={`channel-${customerId}`}>
-        <Select
-          id={`channel-${customerId}`}
-          name="channel"
-          defaultValue="CALL"
-        >
+        <Select id={`channel-${customerId}`} name="channel" defaultValue="CALL">
           {CHANNELS.map((channel) => (
             <option key={channel} value={channel}>
               {es.callCenter.channelLabel[channel]}
@@ -91,7 +93,7 @@ export function InteractionForm({
               name="promisedAmount"
               type="number"
               inputMode="decimal"
-              step="0.01"
+              step={decimalPlaces === 0 ? "1" : "0.01"}
               min="0"
             />
           </Field>

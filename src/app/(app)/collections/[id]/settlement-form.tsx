@@ -74,7 +74,7 @@ export function SettlementForm({
             id={`delivered-${routeId}`}
             name="deliveredAmount"
             type="number"
-            step="0.01"
+            step={decimalPlaces === 0 ? "1" : "0.01"}
             min="0"
             inputMode="decimal"
             value={delivered}
