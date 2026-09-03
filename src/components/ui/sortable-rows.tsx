@@ -1,12 +1,11 @@
 "use client";
 
 import {
-  cloneElement,
   useEffect,
   useRef,
   useState,
   useTransition,
-  type ReactElement,
+  type ReactNode,
 } from "react";
 
 import { cn } from "@/lib/cn";
@@ -24,10 +23,16 @@ import { cn } from "@/lib/cn";
  * - Con el mouse basta con apretar y mover; un clic sin moverse sigue siendo
  *   un clic, así que el enlace de la fila funciona igual.
  *
- * Las filas llegan ya armadas desde el servidor. Aquí solo se cambian de sitio
- * y, al soltar, se le dice al servidor junto a cuál quedó: nunca una posición,
- * porque la lista puede venir filtrada y la fila de arriba en la pantalla no
- * es siempre la de arriba en la lista completa.
+ * Las filas llegan ya armadas desde el servidor, cada una con su
+ * `data-sortable-id`. Aquí solo se cambian de sitio y, al soltar, se le dice al
+ * servidor junto a cuál quedó: nunca una posición, porque la lista puede venir
+ * filtrada y la fila de arriba en la pantalla no es siempre la de arriba en la
+ * lista completa.
+ *
+ * Las filas se colocan tal cual llegan, sin tocarlas. Clonarlas para añadirles
+ * una clase rompía la página entera en producción: lo que manda el servidor no
+ * siempre es un elemento con `props` que se pueda leer aquí. Por eso la fila
+ * levantada se marca sobre el nodo del DOM, que sí es nuestro.
  */
 
 /** Cuánto hay que mantener pulsado con el dedo antes de levantar la fila. */
@@ -56,7 +61,7 @@ export function SortableRows({
 }: {
   /** Las filas, en el orden en que las mandó el servidor. */
   ids: string[];
-  children: ReactElement<{ className?: string }>[];
+  children: ReactNode[];
   action: (formData: FormData) => Promise<void>;
   enabled?: boolean;
 }) {
@@ -95,6 +100,7 @@ export function SortableRows({
     const cancel = () => {
       const current = gesture.current;
       if (current?.timer) clearTimeout(current.timer);
+      if (current?.started) mark(current.id, false);
       gesture.current = null;
       stopScrolling();
       setDragging(null);
@@ -130,10 +136,23 @@ export function SortableRows({
     };
 
     // --- El arrastre ------------------------------------------------------
+    const rowFor = (id: string) =>
+      body.querySelector<HTMLElement>(`[data-sortable-id="${CSS.escape(id)}"]`);
+
+    // Sobre el nodo, no sobre el elemento de React: las filas vienen del
+    // servidor y no se tocan.
+    const mark = (id: string, lifted: boolean) => {
+      const row = rowFor(id);
+      if (!row) return;
+      row.style.background = lifted ? "var(--color-surface-muted)" : "";
+      row.style.cursor = lifted ? "grabbing" : "";
+    };
+
     const pickUp = () => {
       const current = gesture.current;
       if (!current) return;
       current.started = true;
+      mark(current.id, true);
       setDragging(current.id);
     };
 
@@ -247,25 +266,17 @@ export function SortableRows({
     };
   }, [action, enabled]);
 
-  const byId = new Map(ids.map((id, index) => [id, children[index]!]));
+  const byId = new Map(ids.map((id, index) => [id, children[index]]));
 
   return (
     <tbody
       ref={bodyRef}
-      className={cn(dragging !== null && "select-none")}
+      className={cn(
+        enabled && "[&_tr]:cursor-grab",
+        dragging !== null && "select-none",
+      )}
     >
-      {order.map((id) => {
-        const child = byId.get(id);
-        if (!child) return null;
-        return cloneElement(child, {
-          "data-sortable-id": id,
-          className: cn(
-            child.props.className,
-            enabled && "cursor-grab touch-pan-y",
-            dragging === id && "cursor-grabbing bg-surface-muted opacity-95",
-          ),
-        } as Partial<{ className: string }>);
-      })}
+      {order.map((id) => byId.get(id) ?? null)}
     </tbody>
   );
 }

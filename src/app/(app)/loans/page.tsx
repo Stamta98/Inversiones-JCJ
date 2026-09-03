@@ -147,7 +147,8 @@ export default async function LoansPage({
               enabled={canOrder}
             >
               {loans.map((loan) => (
-                <tr key={loan.id}>
+                // Lo lee SortableRows para saber qué fila se está moviendo.
+                <tr key={loan.id} data-sortable-id={loan.id}>
                   <Td numeric>
                     <Link
                       href={`/loans/${loan.id}`}

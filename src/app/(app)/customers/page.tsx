@@ -161,7 +161,8 @@ export default async function CustomersPage({
                 );
 
                 return (
-                  <tr key={customer.id}>
+                  // Lo lee SortableRows para saber qué fila se está moviendo.
+                  <tr key={customer.id} data-sortable-id={customer.id}>
                     {/* El código ocupaba una columna entera para decir algo
                         que el nombre ya dice mejor. Buscar por código sigue
                         funcionando, y la ficha del cliente lo muestra. */}
