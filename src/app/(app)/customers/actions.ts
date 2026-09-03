@@ -125,7 +125,12 @@ const customerSchema = z.object({
   firstName: z.string().trim().min(1),
   lastName: z.string().trim().min(1),
   documentType: optionalText,
-  documentNumber: optionalText,
+  // Obligatorio: es con lo que se identifica a quien recibe la plata, y sin
+  // él dos clientes con el mismo nombre son la misma persona para el sistema.
+  documentNumber: z
+    .string()
+    .trim()
+    .min(1, { message: t("customers.documentRequired") }),
   birthDate: optionalBirthDate,
   gender: z.enum(GENDERS).nullable().catch(null),
   nationality: optionalText,

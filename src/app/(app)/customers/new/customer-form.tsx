@@ -236,12 +236,17 @@ export function CustomerForm({
               placeholder="Cédula"
             />
           </Field>
-          <Field label={es.customers.documentNumber} htmlFor="documentNumber">
+          <Field
+            label={es.customers.documentNumber}
+            htmlFor="documentNumber"
+            required
+          >
             <Input
               id="documentNumber"
               name="documentNumber"
               defaultValue={v(customer?.documentNumber)}
               inputMode="numeric"
+              required
             />
           </Field>
           <Field

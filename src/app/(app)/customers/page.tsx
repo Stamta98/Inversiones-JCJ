@@ -63,14 +63,16 @@ export default async function CustomersPage({
     orderBy: CUSTOMER_ORDER,
     take: PAGE_SIZE,
     include: {
+      // Los préstamos que tiene abiertos: cuántos son, y el peor atraso para
+      // la marca roja junto al nombre.
       loans: {
         where: { status: { in: ["ACTIVE", "IN_ARREARS"] } },
-        select: { outstanding: true, daysInArrears: true },
+        select: { daysInArrears: true },
       },
     },
   });
 
-  const { t, money } = context;
+  const { t } = context;
   const canOrder = can(context, "customers.update");
   const handOrdered = isManuallyOrdered(customers);
 
@@ -127,8 +129,8 @@ export default async function CustomersPage({
             <thead>
               <tr>
                 <Th>{t("customers.fullName")}</Th>
-                <Th>{t("customers.mobilePhone")}</Th>
-                <Th align="right">{t("loans.outstanding")}</Th>
+                <Th>{t("customers.documentNumber")}</Th>
+                <Th align="center">{t("customers.loanCount")}</Th>
                 <Th align="center">{t("common.status")}</Th>
               </tr>
             </thead>
@@ -138,10 +140,6 @@ export default async function CustomersPage({
               enabled={canOrder}
             >
               {customers.map((customer) => {
-                const outstanding = customer.loans.reduce(
-                  (total, loan) => total + Number(loan.outstanding),
-                  0,
-                );
                 const worstArrears = customer.loans.reduce(
                   (worst, loan) => Math.max(worst, loan.daysInArrears),
                   0,
@@ -180,9 +178,22 @@ export default async function CustomersPage({
                         </span>
                       </Link>
                     </Td>
-                    <Td numeric>{customer.mobilePhone ?? "—"}</Td>
-                    <Td align="right" numeric>
-                      {money(outstanding)}
+                    <Td numeric>{customer.documentNumber ?? "—"}</Td>
+                    <Td align="center">
+                      {customer.loans.length > 0 ? (
+                        <span className="inline-flex items-center gap-1.5 text-ink">
+                          <Icon
+                            name="hand-coins"
+                            size={15}
+                            className="text-ink-subtle"
+                          />
+                          <span className="numeric font-medium">
+                            {customer.loans.length}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-ink-subtle">—</span>
+                      )}
                     </Td>
                     <Td align="center">
                       <Badge tone={STATUS_TONES[customer.status] ?? "neutral"}>
