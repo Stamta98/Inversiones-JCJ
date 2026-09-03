@@ -3,7 +3,6 @@ import type { Prisma } from "@prisma/client";
 
 import {
   Badge,
-  Button,
   Card,
   EmptyState,
   LinkButton,
@@ -21,7 +20,7 @@ import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import { LOAN_ORDER } from "@/server/services/ordering";
 
-import { moveLoanAction, resetLoanOrderAction } from "./actions";
+import { moveLoanAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -98,20 +97,8 @@ export default async function LoansPage({
         </noscript>
       </form>
 
-      {canOrder ? (
-        <form
-          action={resetLoanOrderAction}
-          className="mb-3 flex flex-wrap items-center gap-3"
-        >
-          <span className="text-xs text-ink-subtle">
-            {handOrdered ? t("common.orderedByHand") : t("common.dragHint")}
-          </span>
-          {handOrdered ? (
-            <Button type="submit" size="sm" variant="ghost" icon="refresh">
-              {t("common.resetOrder")}
-            </Button>
-          ) : null}
-        </form>
+      {canOrder && !handOrdered ? (
+        <p className="mb-3 text-xs text-ink-subtle">{t("common.dragHint")}</p>
       ) : null}
 
       <Card>
