@@ -139,7 +139,6 @@ export default async function CustomersPage({
           <TableWrap>
             <thead>
               <tr>
-                <Th>{t("customers.code")}</Th>
                 <Th>{t("customers.fullName")}</Th>
                 <Th>{t("customers.mobilePhone")}</Th>
                 <Th align="right">{t("loans.outstanding")}</Th>
@@ -163,16 +162,14 @@ export default async function CustomersPage({
 
                 return (
                   <tr key={customer.id}>
-                    <Td numeric>
+                    {/* El código ocupaba una columna entera para decir algo
+                        que el nombre ya dice mejor. Buscar por código sigue
+                        funcionando, y la ficha del cliente lo muestra. */}
+                    <Td>
                       <Link
                         href={`/customers/${customer.id}`}
-                        className="text-brand-strong hover:underline"
+                        className="flex items-center gap-2.5 text-ink hover:text-brand-strong"
                       >
-                        {customer.code}
-                      </Link>
-                    </Td>
-                    <Td>
-                      <span className="flex items-center gap-2.5">
                         {customer.photoUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -185,7 +182,7 @@ export default async function CustomersPage({
                             {initials(`${customer.firstName} ${customer.lastName}`)}
                           </span>
                         )}
-                        <span className="min-w-0">
+                        <span className="min-w-0 font-medium">
                           {customer.firstName} {customer.lastName}
                           {worstArrears > 0 ? (
                             <Badge tone="danger" className="ml-2">
@@ -193,7 +190,7 @@ export default async function CustomersPage({
                             </Badge>
                           ) : null}
                         </span>
-                      </span>
+                      </Link>
                     </Td>
                     <Td numeric>{customer.mobilePhone ?? "—"}</Td>
                     <Td align="right" numeric>
