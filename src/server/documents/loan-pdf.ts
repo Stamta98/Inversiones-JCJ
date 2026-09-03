@@ -47,6 +47,7 @@ export interface LoanDocumentData {
     dueDate: Date;
     principal: number;
     interest: number;
+    charge: number;
     lateFee: number;
     total: number;
     balanceAfter: number;
@@ -282,31 +283,97 @@ export async function buildLoanPdf(data: LoanDocumentData): Promise<Uint8Array> 
   cursor.y -= 20;
 
   // --- The installments ---------------------------------------------------
-  // The late fee only gets a column when there is one to show: a loan with no
-  // arrears deserves a clean plan, and one with arrears cannot have a "cuota"
-  // that is more than capital plus interest with nothing explaining why.
+  // El cargo y la mora solo se llevan una columna cuando los hay. Un préstamo
+  // limpio merece un plan limpio, y uno con cargo o con mora no puede enseñar
+  // una cuota que valga más que capital más interés sin decir por qué: se
+  // leería como una cuenta mal hecha en un papel que el cliente firma.
+  const hasCharges = data.installments.some(
+    (installment) => installment.charge > 0,
+  );
   const hasLateFees = data.installments.some(
     (installment) => installment.lateFee > 0,
   );
 
-  const columns = hasLateFees
-    ? [
-        { label: data.labels.number, x: MARGIN, align: "left" as const },
-        { label: data.labels.dueDate, x: MARGIN + 42, align: "left" as const },
-        { label: data.labels.capital, x: MARGIN + 218, align: "right" as const },
-        { label: data.labels.interestShort, x: MARGIN + 292, align: "right" as const },
-        { label: data.labels.lateFee, x: MARGIN + 366, align: "right" as const },
-        { label: data.labels.total, x: MARGIN + 440, align: "right" as const },
-        { label: data.labels.balance, x: MARGIN + width, align: "right" as const },
-      ]
-    : [
-        { label: data.labels.number, x: MARGIN, align: "left" as const },
-        { label: data.labels.dueDate, x: MARGIN + 46, align: "left" as const },
-        { label: data.labels.capital, x: MARGIN + 250, align: "right" as const },
-        { label: data.labels.interestShort, x: MARGIN + 340, align: "right" as const },
-        { label: data.labels.total, x: MARGIN + 430, align: "right" as const },
-        { label: data.labels.balance, x: MARGIN + width, align: "right" as const },
-      ];
+  interface Column {
+    label: string;
+    /** El valor de esa columna para una cuota. */
+    value: (installment: LoanDocumentData["installments"][number]) => string;
+    align: "left" | "right";
+    x: number;
+    /** La cuota va en negrita; el cargo y la mora, en rojo cuando pesan. */
+    emphasis?: "bold" | "charge" | "lateFee";
+  }
+
+  const moneyColumns: Omit<Column, "x">[] = [
+    {
+      label: data.labels.capital,
+      value: (i) => data.money(i.principal),
+      align: "right",
+    },
+    {
+      label: data.labels.interestShort,
+      value: (i) => data.money(i.interest),
+      align: "right",
+    },
+    ...(hasCharges
+      ? [
+          {
+            label: data.labels.charge,
+            value: (i: LoanDocumentData["installments"][number]) =>
+              i.charge > 0 ? data.money(i.charge) : "-",
+            align: "right" as const,
+            emphasis: "charge" as const,
+          },
+        ]
+      : []),
+    ...(hasLateFees
+      ? [
+          {
+            label: data.labels.lateFee,
+            value: (i: LoanDocumentData["installments"][number]) =>
+              i.lateFee > 0 ? data.money(i.lateFee) : "-",
+            align: "right" as const,
+            emphasis: "lateFee" as const,
+          },
+        ]
+      : []),
+    {
+      label: data.labels.total,
+      value: (i) => data.money(i.total),
+      align: "right",
+      emphasis: "bold",
+    },
+    {
+      label: data.labels.balance,
+      value: (i) => data.money(i.balanceAfter),
+      align: "right",
+    },
+  ];
+
+  // Las columnas de plata se reparten lo que queda después del número y la
+  // fecha, así que la tabla cuadra con cuatro columnas o con seis.
+  const moneyStart = MARGIN + 104;
+  const slot = (MARGIN + width - moneyStart) / moneyColumns.length;
+  const columns: Column[] = [
+    {
+      label: data.labels.number,
+      value: (i) => String(i.number),
+      align: "left",
+      x: MARGIN,
+    },
+    {
+      label: data.labels.dueDate,
+      value: (i) => data.day(i.dueDate),
+      align: "left",
+      x: MARGIN + 38,
+    },
+    ...moneyColumns.map((column, index) => ({
+      ...column,
+      x: moneyStart + slot * (index + 1),
+    })),
+  ];
+
+  const size = moneyColumns.length > 4 ? 8 : 8.5;
 
   const header = () => {
     columns.forEach((column) => {
@@ -331,34 +398,15 @@ export async function buildLoanPdf(data: LoanDocumentData): Promise<Uint8Array> 
       header();
     }
 
-    const values = hasLateFees
-      ? [
-          String(installment.number),
-          data.day(installment.dueDate),
-          data.money(installment.principal),
-          data.money(installment.interest),
-          installment.lateFee > 0 ? data.money(installment.lateFee) : "-",
-          data.money(installment.total),
-          data.money(installment.balanceAfter),
-        ]
-      : [
-          String(installment.number),
-          data.day(installment.dueDate),
-          data.money(installment.principal),
-          data.money(installment.interest),
-          data.money(installment.total),
-          data.money(installment.balanceAfter),
-        ];
-
-    const totalIndex = hasLateFees ? 5 : 4;
-    columns.forEach((column, index) => {
-      text(values[index]!, column.x, cursor.y, {
-        size: hasLateFees ? 8.5 : 9,
+    columns.forEach((column) => {
+      const owed =
+        (column.emphasis === "charge" && installment.charge > 0) ||
+        (column.emphasis === "lateFee" && installment.lateFee > 0);
+      text(column.value(installment), column.x, cursor.y, {
+        size,
         align: column.align,
-        font: index === totalIndex ? bold : regular,
-        color: index === totalIndex - 1 && hasLateFees && installment.lateFee > 0
-          ? rgb(0.72, 0.11, 0.11)
-          : INK,
+        font: column.emphasis === "bold" ? bold : regular,
+        color: owed ? rgb(0.72, 0.11, 0.11) : INK,
       });
     });
 

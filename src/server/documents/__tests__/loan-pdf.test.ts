@@ -26,6 +26,7 @@ const labels: Record<string, string> = {
   dueDate: "Vencimiento",
   capital: "Capital",
   interestShort: "Interés",
+  charge: "Cargo",
   lateFee: "Mora",
   total: "Cuota",
   balance: "Saldo",
@@ -36,14 +37,15 @@ const labels: Record<string, string> = {
   of: "de",
 };
 
-function installment(number: number, lateFee = 0) {
+function installment(number: number, lateFee = 0, charge = 0) {
   return {
     number,
     dueDate: new Date(2026, 8, number),
     principal: 125_000,
     interest: 25_000,
+    charge,
     lateFee,
-    total: 150_000 + lateFee,
+    total: 150_000 + lateFee + charge,
     balanceAfter: 600_000 - number * 150_000,
   };
 }
@@ -146,6 +148,24 @@ describe("buildLoanPdf", () => {
     );
 
     expect(refinanced.byteLength).toBeGreaterThan(plain.byteLength);
+  });
+
+  // Igual que la mora: un cargo repartido entre las cuotas tiene que verse, o
+  // la cuota parece más cara de lo que capital más interés explica.
+  it("only spends a column on the charge when there is one", async () => {
+    const clean = await buildLoanPdf(data());
+    const withCharge = await buildLoanPdf(
+      data({
+        installments: [
+          installment(1, 0, 1_250),
+          installment(2, 0, 1_250),
+          installment(3, 0, 1_250),
+          installment(4, 0, 1_250),
+        ],
+      }),
+    );
+
+    expect(withCharge.byteLength).toBeGreaterThan(clean.byteLength);
   });
 
   // A "cuota" larger than capital plus interest with nothing explaining why

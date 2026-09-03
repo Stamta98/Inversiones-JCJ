@@ -566,6 +566,7 @@ model Loan {
   interactions     Interaction[]
   outboundMessages OutboundMessage[]
   paymentPromises  PaymentPromise[]
+  charges          LoanCharge[]
 
   @@unique([companyId, code])
   @@index([companyId, status])
@@ -591,6 +592,8 @@ model LoanInstallment {
   dueDate         DateTime
   principalAmount Decimal           @db.Decimal(18, 2)
   interestAmount  Decimal           @db.Decimal(18, 2)
+  /// Parte del cargo adicional financiado que se cobra en esta cuota.
+  chargeAmount    Decimal           @default(0) @db.Decimal(18, 2)
   lateFeeAmount   Decimal           @default(0) @db.Decimal(18, 2)
   totalAmount     Decimal           @db.Decimal(18, 2)
   paidAmount      Decimal           @default(0) @db.Decimal(18, 2)
@@ -659,6 +662,28 @@ model Payment {
 }
 
 /// Explains how a single payment was distributed across installments.
+/// Cómo se cobra un cargo adicional.
+enum ChargeMode {
+  /// Se descuenta de lo que se entrega: el cliente recibe menos y no lo debe.
+  DEDUCTED
+  /// Se suma a lo que el cliente debe y se cobra repartido entre las cuotas.
+  FINANCED
+}
+
+/// Lo que se cobra aparte del interés, con el nombre que le pone la empresa:
+/// papelería, estudio, renovación.
+model LoanCharge {
+  id        String     @id @default(cuid())
+  loanId    String
+  loan      Loan       @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  name      String
+  amount    Decimal    @db.Decimal(18, 2)
+  mode      ChargeMode
+  createdAt DateTime   @default(now())
+
+  @@index([loanId])
+}
+
 model PaymentAllocation {
   id              String          @id @default(cuid())
   paymentId       String
@@ -667,6 +692,7 @@ model PaymentAllocation {
   installment     LoanInstallment @relation(fields: [installmentId], references: [id], onDelete: Cascade)
   principalAmount Decimal         @default(0) @db.Decimal(18, 2)
   interestAmount  Decimal         @default(0) @db.Decimal(18, 2)
+  chargeAmount    Decimal         @default(0) @db.Decimal(18, 2)
   lateFeeAmount   Decimal         @default(0) @db.Decimal(18, 2)
 
   @@index([paymentId])
@@ -706,6 +732,9 @@ model CashBox {
 
 enum CashMovementKind {
   DEPOSIT
+  /// Cargo adicional descontado al entregar el préstamo: nunca salió de la
+  /// caja, pero es ingreso y tiene que verse como tal en los reportes.
+  CHARGE_COLLECTED
   WITHDRAWAL
   LOAN_DISBURSEMENT
   PAYMENT_RECEIVED

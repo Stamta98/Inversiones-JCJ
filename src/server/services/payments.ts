@@ -88,6 +88,7 @@ export async function postPayment(
         dueDate: installment.dueDate,
         principalCents: toCents(Number(installment.principalAmount)),
         interestCents: toCents(Number(installment.interestAmount)),
+        chargeCents: toCents(Number(installment.chargeAmount)),
         lateFeeCents: toCents(Number(installment.lateFeeAmount)),
         paidCents: toCents(Number(installment.paidAmount)),
         status: installment.status,
@@ -122,6 +123,7 @@ export async function postPayment(
               installmentId: allocation.installmentId,
               principalAmount: fromCents(allocation.principalCents),
               interestAmount: fromCents(allocation.interestCents),
+              chargeAmount: fromCents(allocation.chargeCents),
               lateFeeAmount: fromCents(allocation.lateFeeCents),
             })),
           },
@@ -250,6 +252,7 @@ export async function reversePayment(
       const returnedCents =
         toCents(Number(allocation.principalAmount)) +
         toCents(Number(allocation.interestAmount)) +
+        toCents(Number(allocation.chargeAmount)) +
         toCents(Number(allocation.lateFeeAmount));
 
       const remainingPaidCents = Math.max(

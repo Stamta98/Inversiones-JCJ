@@ -15,6 +15,7 @@ function installment(
     dueDate: new Date(Date.UTC(2026, 0, overrides.number)),
     principalCents: toCents(1000),
     interestCents: toCents(100),
+    chargeCents: 0,
     lateFeeCents: 0,
     paidCents: 0,
     status: "PENDING",
@@ -114,5 +115,47 @@ describe("outstandingBalance", () => {
     ]);
 
     expect(fromCents(balance)).toBe(1175 + 700);
+  });
+});
+
+// El cargo adicional se cobra antes que el interés y el capital, igual que la
+// mora: lo que el préstamo cuesta encima sale primero.
+describe("el cargo adicional dentro de una cuota", () => {
+  it("se cobra después de la mora y antes del interés", () => {
+    const result = allocatePayment(toCents(250), [
+      installment({
+        number: 1,
+        principalCents: toCents(1000),
+        interestCents: toCents(100),
+        chargeCents: toCents(50),
+        lateFeeCents: toCents(150),
+      }),
+    ]);
+
+    const [allocation] = result.allocations;
+    expect(fromCents(allocation!.lateFeeCents)).toBe(150);
+    expect(fromCents(allocation!.chargeCents)).toBe(50);
+    expect(fromCents(allocation!.interestCents)).toBe(50);
+    expect(fromCents(allocation!.principalCents)).toBe(0);
+  });
+
+  it("no da la cuota por pagada hasta cubrir también el cargo", () => {
+    const partial = allocatePayment(toCents(1100), [
+      installment({ number: 1, chargeCents: toCents(50) }),
+    ]);
+    expect(partial.allocations[0]!.resultingStatus).toBe("PARTIALLY_PAID");
+
+    const full = allocatePayment(toCents(1150), [
+      installment({ number: 1, chargeCents: toCents(50) }),
+    ]);
+    expect(full.allocations[0]!.resultingStatus).toBe("PAID");
+  });
+
+  it("cuenta el cargo en lo que falta por cobrar", () => {
+    expect(
+      fromCents(
+        outstandingBalance([installment({ number: 1, chargeCents: toCents(50) })]),
+      ),
+    ).toBe(1150);
   });
 });

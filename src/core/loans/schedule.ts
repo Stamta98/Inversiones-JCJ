@@ -53,6 +53,12 @@ export interface ScheduleInput {
    * lands on a whole unit and the plan still adds up to the principal.
    */
   minorUnitStep?: MinorUnitStep;
+  /**
+   * Cargos que se cobran con las cuotas en vez de descontarse al entregar la
+   * plata. Se reparten entre todas las cuotas, no ganan interés: 100.000 al
+   * 20% con un cargo de 5.000 son 125.000, no 126.000.
+   */
+  financedChargeCents?: Cents;
 }
 
 export interface ScheduledInstallment {
@@ -60,6 +66,8 @@ export interface ScheduledInstallment {
   dueDate: Date;
   principalCents: Cents;
   interestCents: Cents;
+  /** Parte del cargo adicional que se cobra en esta cuota. */
+  chargeCents: Cents;
   totalCents: Cents;
   /** Outstanding principal once this installment is paid. */
   balanceAfterCents: Cents;
@@ -69,10 +77,17 @@ export interface Schedule {
   installments: ScheduledInstallment[];
   totalPrincipalCents: Cents;
   totalInterestCents: Cents;
+  totalChargeCents: Cents;
   totalToPayCents: Cents;
   /** True when the loan has no fixed end date (revolving credit line). */
   isOpenEnded: boolean;
 }
+
+/**
+ * Lo que arma cada método antes de repartir los cargos. El cargo se añade
+ * después, igual para los cinco métodos, porque no gana interés.
+ */
+type BareInstallment = Omit<ScheduledInstallment, "chargeCents">;
 
 export class ScheduleError extends Error {
   constructor(
@@ -191,7 +206,7 @@ function ratePerPeriod(input: ScheduleInput): number {
  * al 20% a 30 días" street lending, and the reason its effective cost is far
  * above the headline.
  */
-function buildFlatSchedule(input: ScheduleInput): ScheduledInstallment[] {
+function buildFlatSchedule(input: ScheduleInput): BareInstallment[] {
   const count = input.termCount;
   const step = input.minorUnitStep ?? 1;
   const totalInterest = totalInterestOf(input, step);
@@ -229,7 +244,7 @@ function buildFlatSchedule(input: ScheduleInput): ScheduledInstallment[] {
  * French system: a constant installment, with interest charged on the
  * outstanding balance so the principal share grows every period.
  */
-function buildFrenchSchedule(input: ScheduleInput): ScheduledInstallment[] {
+function buildFrenchSchedule(input: ScheduleInput): BareInstallment[] {
   const count = input.termCount;
   const step = input.minorUnitStep ?? 1;
   const rate = ratePerPeriod(input) / 100;
@@ -253,7 +268,7 @@ function buildFrenchSchedule(input: ScheduleInput): ScheduledInstallment[] {
     );
   }
 
-  const installments: ScheduledInstallment[] = [];
+  const installments: BareInstallment[] = [];
   let balance = input.principalCents;
 
   for (let index = 0; index < count; index += 1) {
@@ -283,7 +298,7 @@ function buildFrenchSchedule(input: ScheduleInput): ScheduledInstallment[] {
  * German system: a constant principal share, so the installment decreases as
  * the balance goes down.
  */
-function buildGermanSchedule(input: ScheduleInput): ScheduledInstallment[] {
+function buildGermanSchedule(input: ScheduleInput): BareInstallment[] {
   const count = input.termCount;
   const step = input.minorUnitStep ?? 1;
   const rate = ratePerPeriod(input) / 100;
@@ -309,7 +324,7 @@ function buildGermanSchedule(input: ScheduleInput): ScheduledInstallment[] {
  * American system: interest only every period, the whole principal falls due
  * with the last installment.
  */
-function buildAmericanSchedule(input: ScheduleInput): ScheduledInstallment[] {
+function buildAmericanSchedule(input: ScheduleInput): BareInstallment[] {
   const count = input.termCount;
   const step = input.minorUnitStep ?? 1;
   // Split rather than repeated: the term's interest has to add up exactly,
@@ -337,7 +352,7 @@ function buildAmericanSchedule(input: ScheduleInput): ScheduledInstallment[] {
  * principal stays outstanding until the customer decides to repay it. The
  * generated rows are a rolling horizon, not a closed plan.
  */
-function buildCreditLineSchedule(input: ScheduleInput): ScheduledInstallment[] {
+function buildCreditLineSchedule(input: ScheduleInput): BareInstallment[] {
   const step = input.minorUnitStep ?? 1;
   const interestParts = splitEvenly(
     totalInterestOf(input, step),
@@ -356,7 +371,7 @@ function buildCreditLineSchedule(input: ScheduleInput): ScheduledInstallment[] {
 
 const BUILDERS: Record<
   InterestMethod,
-  (input: ScheduleInput) => ScheduledInstallment[]
+  (input: ScheduleInput) => BareInstallment[]
 > = {
   FLAT: buildFlatSchedule,
   FRENCH: buildFrenchSchedule,
@@ -386,19 +401,55 @@ export function buildSchedule(input: ScheduleInput): Schedule {
     );
   }
 
-  const installments = builder(normalized);
+  const installments = withFinancedCharges(builder(normalized), step, input);
   const totalPrincipalCents = addCents(
     ...installments.map((installment) => installment.principalCents),
   );
   const totalInterestCents = addCents(
     ...installments.map((installment) => installment.interestCents),
   );
+  const totalChargeCents = addCents(
+    ...installments.map((installment) => installment.chargeCents),
+  );
 
   return {
     installments,
     totalPrincipalCents,
     totalInterestCents,
-    totalToPayCents: totalPrincipalCents + totalInterestCents,
+    totalChargeCents,
+    totalToPayCents:
+      totalPrincipalCents + totalInterestCents + totalChargeCents,
     isOpenEnded: normalized.interestMethod === "CREDIT_LINE",
   };
+}
+
+/**
+ * Reparte el cargo financiado entre las cuotas.
+ *
+ * Va después de armar el plan y no dentro de cada método, porque un cargo no
+ * gana interés: se cobra tal cual, repartido parejo para que las cuotas sigan
+ * saliendo iguales, que es como se acuerda un préstamo de calle.
+ */
+function withFinancedCharges(
+  installments: BareInstallment[],
+  step: MinorUnitStep,
+  input: ScheduleInput,
+): ScheduledInstallment[] {
+  const financed = roundToStep(input.financedChargeCents ?? 0, step);
+  if (financed <= 0) {
+    return installments.map((installment) => ({
+      ...installment,
+      chargeCents: 0,
+    }));
+  }
+
+  const parts = splitEvenly(financed, installments.length, step);
+  return installments.map((installment, index) => {
+    const chargeCents = parts[index]!;
+    return {
+      ...installment,
+      chargeCents,
+      totalCents: installment.totalCents + chargeCents,
+    };
+  });
 }

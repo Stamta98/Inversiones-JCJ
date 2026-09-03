@@ -93,6 +93,7 @@ export async function GET(
       dueDate: t("loans.dueDate"),
       capital: t("loans.principalShare"),
       interestShort: t("loans.interestShare"),
+      charge: t("loans.charges.installmentPart"),
       lateFee: t("loans.lateFee"),
       total: t("loans.installment"),
       balance: t("loans.columnBalance"),

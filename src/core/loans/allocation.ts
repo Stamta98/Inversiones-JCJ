@@ -2,8 +2,9 @@
  * Payment allocation.
  *
  * A payment is applied to the oldest open installment first and, within an
- * installment, in this order: late fees, then interest, then principal. This
- * matches how a collector settles a receipt in the field.
+ * installment, in this order: late fees, then the additional charge, then
+ * interest, then principal. This matches how a collector settles a receipt in
+ * the field: what the loan costs on top comes off before the loan itself.
  */
 
 import { clampToZero, type Cents } from "../money";
@@ -15,6 +16,8 @@ export interface AllocatableInstallment {
   dueDate: Date;
   principalCents: Cents;
   interestCents: Cents;
+  /** Parte del cargo adicional que se cobra en esta cuota. */
+  chargeCents: Cents;
   lateFeeCents: Cents;
   paidCents: Cents;
   status: InstallmentStatus;
@@ -24,6 +27,7 @@ export interface Allocation {
   installmentId: string;
   installmentNumber: number;
   lateFeeCents: Cents;
+  chargeCents: Cents;
   interestCents: Cents;
   principalCents: Cents;
   totalCents: Cents;
@@ -41,10 +45,12 @@ export interface AllocationResult {
 
 /**
  * Splits an already recorded `paidCents` amount back into its late fee,
- * interest and principal components, so we know what is still owed on each.
+ * charge, interest and principal components, so we know what is still owed on
+ * each. The order here is the order money is applied in.
  */
 function outstandingParts(installment: AllocatableInstallment): {
   lateFee: Cents;
+  charge: Cents;
   interest: Cents;
   principal: Cents;
 } {
@@ -58,6 +64,7 @@ function outstandingParts(installment: AllocatableInstallment): {
 
   return {
     lateFee: takeFrom(installment.lateFeeCents),
+    charge: takeFrom(installment.chargeCents),
     interest: takeFrom(installment.interestCents),
     principal: takeFrom(installment.principalCents),
   };
@@ -91,25 +98,31 @@ export function allocatePayment(
     const lateFeeCents = Math.min(remaining, owed.lateFee);
     remaining -= lateFeeCents;
 
+    const chargeCents = Math.min(remaining, owed.charge);
+    remaining -= chargeCents;
+
     const interestCents = Math.min(remaining, owed.interest);
     remaining -= interestCents;
 
     const principalCents = Math.min(remaining, owed.principal);
     remaining -= principalCents;
 
-    const totalCents = lateFeeCents + interestCents + principalCents;
+    const totalCents =
+      lateFeeCents + chargeCents + interestCents + principalCents;
     if (totalCents <= 0) continue;
 
     const resultingPaidCents = installment.paidCents + totalCents;
     const installmentTotal =
       installment.principalCents +
       installment.interestCents +
+      installment.chargeCents +
       installment.lateFeeCents;
 
     allocations.push({
       installmentId: installment.id,
       installmentNumber: installment.number,
       lateFeeCents,
+      chargeCents,
       interestCents,
       principalCents,
       totalCents,
@@ -137,6 +150,7 @@ export function outstandingBalance(
     const owed =
       installment.principalCents +
       installment.interestCents +
+      installment.chargeCents +
       installment.lateFeeCents -
       installment.paidCents;
     return total + clampToZero(owed);

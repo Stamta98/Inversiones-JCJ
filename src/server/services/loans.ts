@@ -8,6 +8,12 @@
 import type { Prisma } from "@prisma/client";
 
 import { summarizeArrears, type LateFeePolicy } from "@/core/loans/arrears";
+import {
+  cashHandedOver,
+  normalizeCharge,
+  summarizeCharges,
+  type Charge,
+} from "@/core/loans/charges";
 import { canCancel, canEditAtAll, canEditTerms } from "@/core/loans/editable";
 import { buildSchedule, type Schedule } from "@/core/loans/schedule";
 import { fromCents, stepForDecimals, toCents } from "@/core/money";
@@ -44,6 +50,11 @@ export interface CreateLoanInput {
   gracePeriodDays?: number;
   notes?: string | null;
   /**
+   * Lo que se cobra aparte del interés. Un cargo descontado sale de lo que se
+   * entrega; uno financiado se suma a lo que el cliente debe.
+   */
+  charges?: Array<{ name: string; amount: number; mode: Charge["mode"] }>;
+  /**
    * Decimals the company writes amounts with. Zero makes every installment
    * land on a whole unit, so a plan in Colombian pesos adds up to the
    * principal instead of drifting by a few pesos.
@@ -69,8 +80,11 @@ export function previewSchedule(
     | "customIntervalDays"
     | "nonCollectionDays"
     | "decimalPlaces"
+    | "charges"
   >,
 ): Schedule {
+  const step = stepForDecimals(input.decimalPlaces ?? 2);
+
   return buildSchedule({
     principalCents: toCents(input.principal),
     interestRate: input.interestRate,
@@ -83,11 +97,35 @@ export function previewSchedule(
     firstDueDate: input.firstDueDate,
     customIntervalDays: input.customIntervalDays ?? undefined,
     nonCollectionDays: input.nonCollectionDays,
-    minorUnitStep: stepForDecimals(input.decimalPlaces ?? 2),
+    minorUnitStep: step,
+    financedChargeCents: summarizeCharges(normalizedCharges(input.charges, step), step)
+      .financedCents,
   });
 }
 
+/** Los cargos ya listos para guardar, o un error diciendo cuál no sirve. */
+export function normalizedCharges(
+  charges: CreateLoanInput["charges"],
+  step: ReturnType<typeof stepForDecimals>,
+): Charge[] {
+  return (charges ?? []).map((charge) =>
+    normalizeCharge(
+      { name: charge.name, amountCents: toCents(charge.amount), mode: charge.mode },
+      step,
+    ),
+  );
+}
+
 export async function createLoan(input: CreateLoanInput): Promise<string> {
+  const step = stepForDecimals(input.decimalPlaces ?? 2);
+  const charges = normalizedCharges(input.charges, step);
+  const chargeSummary = summarizeCharges(charges, step);
+  // Se comprueba antes de escribir nada: un cargo que se come el préstamo
+  // entero dejaría al cliente sin plata y debiendo.
+  const handedOver = fromCents(
+    cashHandedOver(toCents(input.principal), chargeSummary.deductedCents),
+  );
+
   const schedule = previewSchedule(input);
   const lateFeeMode = input.lateFeeMode ?? "NONE";
   const lateFeeValue = input.lateFeeValue ?? 0;
@@ -123,12 +161,20 @@ export async function createLoan(input: CreateLoanInput): Promise<string> {
           totalPrincipal: fromCents(schedule.totalPrincipalCents),
           totalInterest: fromCents(schedule.totalInterestCents),
           outstanding: fromCents(schedule.totalToPayCents),
+          charges: {
+            create: charges.map((charge) => ({
+              name: charge.name,
+              amount: fromCents(charge.amountCents),
+              mode: charge.mode,
+            })),
+          },
           installments: {
             create: schedule.installments.map((installment) => ({
               number: installment.number,
               dueDate: installment.dueDate,
               principalAmount: fromCents(installment.principalCents),
               interestAmount: fromCents(installment.interestCents),
+              chargeAmount: fromCents(installment.chargeCents),
               totalAmount: fromCents(installment.totalCents),
               balanceAfter: fromCents(installment.balanceAfterCents),
             })),
@@ -137,9 +183,19 @@ export async function createLoan(input: CreateLoanInput): Promise<string> {
       });
 
       if (input.disburseNow && input.cashBoxId) {
+        // Sale el préstamo completo y vuelve a entrar el cargo. El neto es
+        // exactamente lo que salió del cajón — 100.000 menos 5.000 son los
+        // 95.000 que se entregaron — y el cargo queda a la vista como ingreso
+        // en vez de desaparecer dentro de un desembolso más pequeño.
         await recordDisbursement(tx, {
           cashBoxId: input.cashBoxId,
           amount: input.principal,
+          loanCode: code,
+          createdById: input.createdById ?? null,
+        });
+        await recordDeductedCharges(tx, {
+          cashBoxId: input.cashBoxId,
+          amount: fromCents(chargeSummary.deductedCents),
           loanCode: code,
           createdById: input.createdById ?? null,
         });
@@ -157,6 +213,9 @@ export async function createLoan(input: CreateLoanInput): Promise<string> {
             principal: input.principal,
             interestMethod: input.interestMethod,
             termCount: schedule.installments.length,
+            handedOver,
+            deductedCharges: fromCents(chargeSummary.deductedCents),
+            financedCharges: fromCents(chargeSummary.financedCents),
           },
         },
       });
@@ -384,6 +443,47 @@ export async function recordDisbursement(
   });
 }
 
+/**
+ * Anota el cargo descontado como ingreso.
+ *
+ * Esa plata nunca salió de la caja — sencillamente no se entregó — así que el
+ * saldo sube, y queda escrita como movimiento propio para que los reportes la
+ * cuenten sin confundirla con un cobro.
+ */
+export async function recordDeductedCharges(
+  tx: Prisma.TransactionClient,
+  input: {
+    cashBoxId: string;
+    amount: number;
+    loanCode: string;
+    createdById: string | null;
+  },
+): Promise<void> {
+  if (input.amount <= 0) return;
+
+  const cashBox = await tx.cashBox.findUniqueOrThrow({
+    where: { id: input.cashBoxId },
+    select: { balance: true },
+  });
+  const balanceAfter = Number(cashBox.balance) + input.amount;
+
+  await tx.cashBox.update({
+    where: { id: input.cashBoxId },
+    data: { balance: balanceAfter },
+  });
+
+  await tx.cashMovement.create({
+    data: {
+      cashBoxId: input.cashBoxId,
+      kind: "CHARGE_COLLECTED",
+      amount: input.amount,
+      balanceAfter,
+      description: `Cargos ${input.loanCode}`,
+      createdById: input.createdById,
+    },
+  });
+}
+
 export function lateFeePolicyOf(
   loan: {
     lateFeeMode: string;
@@ -435,6 +535,7 @@ export async function refreshLoan(
     dueDate: installment.dueDate,
     principalCents: toCents(Number(installment.principalAmount)),
     interestCents: toCents(Number(installment.interestAmount)),
+    chargeCents: toCents(Number(installment.chargeAmount)),
     lateFeeCents: toCents(Number(installment.lateFeeAmount)),
     paidCents: toCents(Number(installment.paidAmount)),
     status: installment.status,
@@ -448,7 +549,8 @@ export async function refreshLoan(
   let outstandingCents = 0;
 
   for (const snapshot of snapshots) {
-    const dueCents = snapshot.principalCents + snapshot.interestCents;
+    const dueCents =
+      snapshot.principalCents + snapshot.interestCents + snapshot.chargeCents;
     const isSettled =
       snapshot.status === "PAID" || snapshot.status === "WAIVED";
 

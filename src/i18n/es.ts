@@ -593,6 +593,37 @@ export const es = {
         "Solo se refinancian o renuevan préstamos que estén activos o en mora.",
       alreadyRenewed:
         "Este préstamo ya fue refinanciado o renovado con otro préstamo.",
+      name: "A cada cargo adicional ponle un nombre.",
+      overPrincipal:
+        "Los cargos que le descuentas se llevarían todo lo que le vas a entregar. Bájalos o cóbralos en las cuotas.",
+    },
+    // --- Cargos adicionales ---
+    charges: {
+      title: "Cargos adicionales",
+      hint: "Lo que le cobras aparte del interés: papelería, estudio, renovación. Le pones el nombre que quieras.",
+      add: "Agregar un cargo",
+      remove: "Quitar",
+      name: "Nombre del cargo",
+      namePlaceholder: "Papelería",
+      amount: "Valor",
+      mode: "¿Cómo lo cobras?",
+      modeLabel: {
+        DEDUCTED: "Se lo descuento al entregar",
+        FINANCED: "Se lo sumo a las cuotas",
+      },
+      modeHint: {
+        DEDUCTED:
+          "Si prestas 100.000 y el cargo es 5.000, le entregas 95.000. Debe los 120.000 de siempre y el cargo ya quedó cobrado.",
+        FINANCED:
+          "Le entregas los 100.000 completos y el cargo se reparte entre las cuotas: debe 125.000 en vez de 120.000.",
+      },
+      empty: "Sin cargos adicionales.",
+      handedOver: "Le entregas en efectivo",
+      handedOverHint: "El monto prestado menos los cargos que le descuentas.",
+      deductedTotal: "Cargos descontados",
+      financedTotal: "Cargos en las cuotas",
+      installmentPart: "Cargo",
+      collected: "Cargos cobrados",
     },
     cancelReason: "Motivo de la anulación",
     cancelled: "Préstamo anulado.",
@@ -653,7 +684,7 @@ export const es = {
     collectedBy: "Cobrado por",
     allocation: "Aplicación del pago",
     allocationHint:
-      "El pago se aplica a la cuota más antigua: primero mora, luego interés y por último capital.",
+      "El pago se aplica a la cuota más antigua: primero mora, luego el cargo adicional, después el interés y por último el capital.",
     unapplied: "Sobrante a favor",
     // --- Comprobante ---
     receiptTitle: "Comprobante de abono",
@@ -892,6 +923,7 @@ export const es = {
       DEPOSIT: "Depósito",
       WITHDRAWAL: "Retiro",
       LOAN_DISBURSEMENT: "Desembolso de préstamo",
+      CHARGE_COLLECTED: "Cargos del préstamo",
       PAYMENT_RECEIVED: "Cobro recibido",
       EXPENSE: "Gasto",
       TRANSFER_IN: "Transferencia recibida",

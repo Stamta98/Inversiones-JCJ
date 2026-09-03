@@ -2,6 +2,11 @@
 
 import { useMemo, useState } from "react";
 
+import {
+  ChargesField,
+  summarizeRows,
+  type ChargeRow,
+} from "@/components/loans/charges-field";
 import { SchedulePreview } from "@/components/loans/schedule-preview";
 import {
   Alert,
@@ -101,6 +106,8 @@ export function RenewForm({
   const [customIntervalDays, setCustomIntervalDays] = useState(
     loan.customIntervalDays ? String(loan.customIntervalDays) : "10",
   );
+  const [charges, setCharges] = useState<ChargeRow[]>([]);
+  const chargeTotals = summarizeRows(charges);
 
   const money = (value: number) =>
     formatCurrency(value, currencyCode, locale, decimalPlaces);
@@ -145,6 +152,7 @@ export function RenewForm({
           customIntervalDays: Number(customIntervalDays) || 0,
           nonCollectionDays: loan.nonCollectionDays,
           minorUnitStep: step,
+          financedChargeCents: toCents(chargeTotals.financed),
         }),
         error: null as string | null,
       };
@@ -167,6 +175,7 @@ export function RenewForm({
     customIntervalDays,
     loan.nonCollectionDays,
     step,
+    chargeTotals.financed,
   ]);
 
   const renewing = kind === "RENEWAL";
@@ -248,7 +257,15 @@ export function RenewForm({
                     {es.loans.renewal.cashOut}
                   </dt>
                   <dd className="text-lg font-bold tabular-nums text-brand">
-                    {plan.value ? money(fromCents(plan.value.cashOutCents)) : "—"}
+                    {plan.value
+                      ? money(
+                          Math.max(
+                            0,
+                            fromCents(plan.value.cashOutCents) -
+                              chargeTotals.deducted,
+                          ),
+                        )
+                      : "—"}
                   </dd>
                 </div>
               </dl>
@@ -435,6 +452,17 @@ export function RenewForm({
                   <Textarea id="notes" name="notes" />
                 </Field>
               </div>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title={es.loans.charges.title} />
+            <CardBody>
+              <ChargesField
+                rows={charges}
+                onChange={setCharges}
+                decimalPlaces={decimalPlaces}
+              />
             </CardBody>
           </Card>
         </div>

@@ -20,6 +20,11 @@
  */
 
 import { allocatePayment } from "@/core/loans/allocation";
+import {
+  cashHandedOver,
+  summarizeCharges,
+  type Charge,
+} from "@/core/loans/charges";
 import { planRenewal, type RenewalKind } from "@/core/loans/renewal";
 import { buildSchedule } from "@/core/loans/schedule";
 import { fromCents, stepForDecimals, toCents } from "@/core/money";
@@ -32,7 +37,12 @@ import type {
 } from "@/core/types";
 
 import { db } from "../db";
-import { recordDisbursement, refreshLoan } from "./loans";
+import {
+  normalizedCharges,
+  recordDeductedCharges,
+  recordDisbursement,
+  refreshLoan,
+} from "./loans";
 import { refreshPromisesForCustomer } from "./promises";
 import { nextLoanCode, nextReceiptNumber, withCodeRetry } from "./sequences";
 
@@ -55,6 +65,8 @@ export interface RenewLoanInput {
   lateFeeValue?: number;
   gracePeriodDays?: number;
   notes?: string | null;
+  /** Lo que se cobra aparte del interés; ver `core/loans/charges`. */
+  charges?: Array<{ name: string; amount: number; mode: Charge["mode"] }>;
   decimalPlaces?: number;
   /** Where the net cash comes out of. Unused by a refinance: nothing moves. */
   cashBoxId?: string | null;
@@ -201,6 +213,7 @@ export async function renewLoan(
         dueDate: installment.dueDate,
         principalCents: toCents(Number(installment.principalAmount)),
         interestCents: toCents(Number(installment.interestAmount)),
+        chargeCents: toCents(Number(installment.chargeAmount)),
         lateFeeCents: toCents(Number(installment.lateFeeAmount)),
         paidCents: toCents(Number(installment.paidAmount)),
         status: installment.status,
@@ -226,6 +239,7 @@ export async function renewLoan(
               installmentId: entry.installmentId,
               principalAmount: fromCents(entry.principalCents),
               interestAmount: fromCents(entry.interestCents),
+              chargeAmount: fromCents(entry.chargeCents),
               lateFeeAmount: fromCents(entry.lateFeeCents),
             })),
           },
@@ -244,6 +258,19 @@ export async function renewLoan(
       }
 
       // --- The new loan ---------------------------------------------------
+      const charges = normalizedCharges(input.charges, step);
+      const chargeSummary = summarizeCharges(charges, step);
+      // Un cargo descontado sale de lo que se entrega. En una refinanciación
+      // no se entrega nada, así que se comprueba contra el préstamo nuevo:
+      // un cargo que se lo coma entero no es un préstamo.
+      // Se mide contra lo que de verdad se va a entregar, no contra el
+      // préstamo: en una refinanciación no se entrega nada, así que un cargo
+      // descontado ahí no tiene de dónde salir y hay que cobrarlo en cuotas.
+      const handedOverCents = cashHandedOver(
+        plan.cashOutCents,
+        chargeSummary.deductedCents,
+      );
+
       const schedule = buildSchedule({
         principalCents: plan.newPrincipalCents,
         interestRate: input.interestRate,
@@ -255,6 +282,7 @@ export async function renewLoan(
         customIntervalDays: input.customIntervalDays ?? undefined,
         nonCollectionDays: input.nonCollectionDays,
         minorUnitStep: step,
+        financedChargeCents: chargeSummary.financedCents,
       });
 
       const code = await nextLoanCode(tx, input.companyId);
@@ -289,12 +317,20 @@ export async function renewLoan(
           totalPrincipal: fromCents(schedule.totalPrincipalCents),
           totalInterest: fromCents(schedule.totalInterestCents),
           outstanding: fromCents(schedule.totalToPayCents),
+          charges: {
+            create: charges.map((charge) => ({
+              name: charge.name,
+              amount: fromCents(charge.amountCents),
+              mode: charge.mode,
+            })),
+          },
           installments: {
             create: schedule.installments.map((installment) => ({
               number: installment.number,
               dueDate: installment.dueDate,
               principalAmount: fromCents(installment.principalCents),
               interestAmount: fromCents(installment.interestCents),
+              chargeAmount: fromCents(installment.chargeCents),
               totalAmount: fromCents(installment.totalCents),
               balanceAfter: fromCents(installment.balanceAfterCents),
             })),
@@ -302,12 +338,20 @@ export async function renewLoan(
         },
       });
 
-      // Only what actually leaves the drawer. On a refinance that is nothing.
-      if (plan.cashOutCents > 0 && input.cashBoxId) {
+      // Sale la diferencia completa y vuelve a entrar el cargo, así el saldo
+      // de la caja queda en lo que de verdad se entregó y el cargo se ve.
+      // En una refinanciación no sale nada y no hay cargo que descontar.
+      if (input.cashBoxId && plan.cashOutCents > 0) {
         await recordDisbursement(tx, {
           cashBoxId: input.cashBoxId,
           amount: fromCents(plan.cashOutCents),
           loanCode: `${code} (${refreshed.code})`,
+          createdById: input.createdById ?? null,
+        });
+        await recordDeductedCharges(tx, {
+          cashBoxId: input.cashBoxId,
+          amount: fromCents(chargeSummary.deductedCents),
+          loanCode: code,
           createdById: input.createdById ?? null,
         });
       }
@@ -335,7 +379,9 @@ export async function renewLoan(
             previousLoanId: refreshed.id,
             settledAmount: fromCents(plan.settledCents),
             principal,
-            cashOut: fromCents(plan.cashOutCents),
+            cashOut: fromCents(handedOverCents),
+            deductedCharges: fromCents(chargeSummary.deductedCents),
+            financedCharges: fromCents(chargeSummary.financedCents),
             receiptNumber,
           },
         },
@@ -346,7 +392,7 @@ export async function renewLoan(
         code,
         settledAmount: fromCents(plan.settledCents),
         principal,
-        cashOut: fromCents(plan.cashOutCents),
+        cashOut: fromCents(handedOverCents),
         customerId: refreshed.customerId,
       };
     }),

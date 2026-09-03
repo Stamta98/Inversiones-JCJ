@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { ChargeError } from "@/core/loans/charges";
 import { RenewalError } from "@/core/loans/renewal";
 import { ScheduleError } from "@/core/loans/schedule";
 import {
@@ -54,6 +55,34 @@ export interface LoanFormState {
   error?: string;
 }
 
+/**
+ * Lee los cargos adicionales del formulario.
+ *
+ * Llegan como tres listas paralelas — nombre, valor y forma de cobro — porque
+ * es lo que un formulario sabe mandar. Se juntan por posición y se descartan
+ * las filas que quedaron vacías, que es lo que pasa cuando alguien agrega un
+ * cargo y se arrepiente.
+ */
+function readCharges(formData: FormData) {
+  const names = formData.getAll("chargeName").map(String);
+  const amounts = formData.getAll("chargeAmount").map(String);
+  const modes = formData.getAll("chargeMode").map(String);
+
+  return names.flatMap((name, index) => {
+    const amount = Number(amounts[index] ?? 0);
+    if (name.trim().length === 0 && !(amount > 0)) return [];
+    return [
+      {
+        name,
+        amount,
+        mode: (modes[index] === "FINANCED" ? "FINANCED" : "DEDUCTED") as
+          | "DEDUCTED"
+          | "FINANCED",
+      },
+    ];
+  });
+}
+
 export async function createLoanAction(
   _previous: LoanFormState,
   formData: FormData,
@@ -102,13 +131,14 @@ export async function createLoanAction(
       lateFeeValue: data.lateFeeValue,
       gracePeriodDays: data.gracePeriodDays,
       decimalPlaces: context.decimalPlaces,
+      charges: readCharges(formData),
       notes: data.notes || null,
       disburseNow: data.disburseNow === "on",
       cashBoxId: data.cashBoxId || null,
       createdById: context.userId,
     });
   } catch (error) {
-    if (error instanceof ScheduleError) {
+    if (error instanceof ChargeError || error instanceof ScheduleError) {
       const message = t(`loans.errors.${error.code}`);
       return {
         error:
@@ -119,6 +149,7 @@ export async function createLoanAction(
   }
 
   revalidatePath("/loans");
+  revalidatePath("/cash");
   redirect(`/loans/${loanId}`);
 }
 
@@ -302,11 +333,19 @@ export async function renewLoanAction(
       lateFeeValue: data.lateFeeValue,
       gracePeriodDays: data.gracePeriodDays,
       decimalPlaces: context.decimalPlaces,
+      charges: readCharges(formData),
       notes: data.notes || null,
       cashBoxId: data.cashBoxId || null,
       createdById: context.userId,
     });
   } catch (error) {
+    if (error instanceof ChargeError) {
+      const message = t(`loans.errors.${error.code}`);
+      return {
+        error:
+          message === `loans.errors.${error.code}` ? t("common.error") : message,
+      };
+    }
     if (error instanceof RenewLoanError || error instanceof RenewalError) {
       const message = t(`loans.errors.${error.code}`);
       return {

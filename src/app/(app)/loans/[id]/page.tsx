@@ -70,6 +70,7 @@ export default async function LoanDetailPage({
         },
         // A refinance splits one debt across two loans; each has to say so or
         // the money looks like it came from nowhere and went nowhere.
+        charges: { orderBy: { createdAt: "asc" } },
         parentLoan: { select: { id: true, code: true } },
         renewals: {
           where: { status: { not: "CANCELLED" } },
@@ -112,6 +113,15 @@ export default async function LoanDetailPage({
     can(context, "payments.create") &&
     ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status);
   const canReverse = can(context, "payments.delete");
+
+  // Una cuota que valga más que capital más interés sin decir por qué se lee
+  // como una cuenta mal hecha, así que el cargo solo sale cuando lo hay.
+  const hasFinancedCharge = loan.installments.some(
+    (installment) => Number(installment.chargeAmount) > 0,
+  );
+  const deductedCharges = loan.charges
+    .filter((charge) => charge.mode === "DEDUCTED")
+    .reduce((total, charge) => total + Number(charge.amount), 0);
 
   // Only an open loan with a balance can be carried onto another, and only
   // once: a second refinance would leave the customer owing the same money
@@ -294,6 +304,43 @@ export default async function LoanDetailPage({
         </Card>
       </div>
 
+      {loan.charges.length > 0 ? (
+        <div className="mt-4">
+          <Card>
+            <CardHeader
+              title={t("loans.charges.title")}
+              description={
+                deductedCharges > 0
+                  ? `${t("loans.charges.handedOver")}: ${money(
+                      Number(loan.principal) - deductedCharges,
+                    )}`
+                  : undefined
+              }
+            />
+            <TableWrap dense>
+              <thead>
+                <tr>
+                  <Th>{t("loans.charges.name")}</Th>
+                  <Th>{t("loans.charges.mode")}</Th>
+                  <Th align="right">{t("loans.charges.amount")}</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {loan.charges.map((charge) => (
+                  <tr key={charge.id}>
+                    <Td>{charge.name}</Td>
+                    <Td>{t(`loans.charges.modeLabel.${charge.mode}`)}</Td>
+                    <Td align="right" numeric className="font-medium">
+                      {money(Number(charge.amount))}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </TableWrap>
+          </Card>
+        </div>
+      ) : null}
+
       <div className="mt-4">
         <Card>
           <CardHeader
@@ -349,6 +396,9 @@ export default async function LoanDetailPage({
                 <Th>{t("loans.dueDate")}</Th>
                 <Th align="right">{t("loans.principalPart")}</Th>
                 <Th align="right">{t("loans.interestPart")}</Th>
+                {hasFinancedCharge ? (
+                  <Th align="right">{t("loans.charges.installmentPart")}</Th>
+                ) : null}
                 <Th align="right">{t("loans.lateFeePart")}</Th>
                 <Th align="right">{t("loans.installmentTotal")}</Th>
                 <Th align="right">{t("loans.paidAmount")}</Th>
@@ -366,6 +416,13 @@ export default async function LoanDetailPage({
                   <Td align="right" numeric>
                     {money(Number(installment.interestAmount))}
                   </Td>
+                  {hasFinancedCharge ? (
+                    <Td align="right" numeric>
+                      {Number(installment.chargeAmount) > 0
+                        ? money(Number(installment.chargeAmount))
+                        : "—"}
+                    </Td>
+                  ) : null}
                   <Td align="right" numeric>
                     {Number(installment.lateFeeAmount) > 0
                       ? money(Number(installment.lateFeeAmount))

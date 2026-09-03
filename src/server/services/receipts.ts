@@ -160,6 +160,7 @@ export interface LoanPaperwork {
     dueDate: Date;
     principal: number;
     interest: number;
+    charge: number;
     lateFee: number;
     total: number;
     balanceAfter: number;
@@ -193,6 +194,7 @@ export async function loadLoanPaperwork(
       dueDate: installment.dueDate,
       principal: Number(installment.principalAmount),
       interest: Number(installment.interestAmount),
+      charge: Number(installment.chargeAmount),
       lateFee: Number(installment.lateFeeAmount),
       total,
       // What is left to hand over after this one, which is the number a

@@ -32,6 +32,12 @@ export function SchedulePreview({
   money: (amount: number) => string;
   title?: string;
 }) {
+  // Sin esta columna la cuota valdría más que capital más interés y nadie
+  // podría explicar por qué: se leería como una cuenta mal hecha.
+  const hasCharge =
+    schedule?.installments.some((installment) => installment.chargeCents > 0) ??
+    false;
+
   return (
     <Card>
       <CardHeader
@@ -63,6 +69,9 @@ export function SchedulePreview({
                   <Th>{es.loans.dueDate}</Th>
                   <Th align="right">{es.loans.principalPart}</Th>
                   <Th align="right">{es.loans.interestPart}</Th>
+                  {hasCharge ? (
+                    <Th align="right">{es.loans.charges.installmentPart}</Th>
+                  ) : null}
                   <Th align="right">{es.loans.installmentTotal}</Th>
                   <Th align="right">{es.loans.balanceAfter}</Th>
                 </tr>
@@ -78,6 +87,11 @@ export function SchedulePreview({
                     <Td align="right" numeric>
                       {money(fromCents(installment.interestCents))}
                     </Td>
+                    {hasCharge ? (
+                      <Td align="right" numeric>
+                        {money(fromCents(installment.chargeCents))}
+                      </Td>
+                    ) : null}
                     <Td align="right" numeric className="font-medium">
                       {money(fromCents(installment.totalCents))}
                     </Td>
