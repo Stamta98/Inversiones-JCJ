@@ -21,8 +21,12 @@ type Shape = "avatar" | "card";
  * Single photo field.
  *
  * Uploads as soon as a photo is picked and keeps only the resulting URL in a
- * hidden input, so the form submission stays small. On a phone `capture` opens
- * the camera directly, which is how a collector actually takes these.
+ * hidden input, so the form submission stays small.
+ *
+ * Two ways in, on purpose. `capture` sends a phone straight to the camera,
+ * which is how a collector takes these at the door — but it also removes the
+ * gallery, so a photo already on the phone, or scanned on a computer, could
+ * not be used at all. One input per route, one button each.
  */
 export function PhotoUpload({
   name,
@@ -41,7 +45,8 @@ export function PhotoUpload({
   defaultValue?: UploadedFile | null;
   onChange?: (file: UploadedFile | null) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<string | null>(null);
 
   const [file, setFile] = useState<UploadedFile | null>(defaultValue ?? null);
@@ -116,7 +121,9 @@ export function PhotoUpload({
     setFile(null);
     setError(null);
     onChange?.(null);
-    if (inputRef.current) inputRef.current.value = "";
+    // Both, or picking the same file again would not fire a change event.
+    if (cameraRef.current) cameraRef.current.value = "";
+    if (galleryRef.current) galleryRef.current.value = "";
   };
 
   const isAvatar = shape === "avatar";
@@ -156,18 +163,17 @@ export function PhotoUpload({
         {preview ? (
           // A blob/API URL of unknown dimensions; next/image adds nothing here.
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={preview}
-            alt={label}
-            className="size-full object-cover"
-          />
+          <img src={preview} alt={label} className="size-full object-cover" />
         ) : (
           <button
             type="button"
-            onClick={() => inputRef.current?.click()}
+            onClick={() => galleryRef.current?.click()}
             className="flex size-full flex-col items-center justify-center gap-1 text-ink-subtle transition-colors hover:text-brand-strong"
           >
-            <Icon name={isAvatar ? "users" : "camera"} size={isAvatar ? 22 : 26} />
+            <Icon
+              name={isAvatar ? "users" : "camera"}
+              size={isAvatar ? 22 : 26}
+            />
             {!isAvatar ? (
               <span className="text-xs">{es.common.addPhoto}</span>
             ) : null}
@@ -181,22 +187,42 @@ export function PhotoUpload({
         ) : null}
       </div>
 
+      {/* Straight to the camera. */}
       <input
-        ref={inputRef}
+        ref={cameraRef}
         type="file"
         accept="image/*"
         capture="environment"
         className="hidden"
         onChange={(event) => handleSelection(event.target.files?.[0])}
       />
+      {/* No `capture`, so the phone offers the gallery and a computer offers
+          its files. Without this one there is no way to use a photo that was
+          already taken. */}
+      <input
+        ref={galleryRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => handleSelection(event.target.files?.[0])}
+      />
 
-      <div className="mt-2 flex items-center justify-center gap-3">
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
-          className="text-xs font-medium text-brand-strong hover:underline"
+          onClick={() => cameraRef.current?.click()}
+          className="inline-flex items-center gap-1 text-xs font-medium text-brand-strong hover:underline"
         >
-          {preview ? es.common.changePhoto : es.common.addPhoto}
+          <Icon name="camera" size={13} />
+          {es.common.takePhoto}
+        </button>
+        <button
+          type="button"
+          onClick={() => galleryRef.current?.click()}
+          className="inline-flex items-center gap-1 text-xs font-medium text-brand-strong hover:underline"
+        >
+          <Icon name="image" size={13} />
+          {es.common.uploadImage}
         </button>
         {preview ? (
           <button

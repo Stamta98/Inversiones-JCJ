@@ -67,6 +67,8 @@ export const es = {
     copy: "Copiar",
     copied: "Copiado",
     addPhoto: "Tomar o subir foto",
+    takePhoto: "Tomar foto",
+    uploadImage: "Subir imagen",
     changePhoto: "Cambiar foto",
     uploading: "Subiendo…",
     enabled: "Activo",
