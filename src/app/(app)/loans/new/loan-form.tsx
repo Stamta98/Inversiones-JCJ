@@ -18,6 +18,7 @@ import {
   summarizeRows,
   type ChargeRow,
 } from "@/components/loans/charges-field";
+import type { ChargeMode } from "@/core/loans/charges";
 import { SchedulePreview } from "@/components/loans/schedule-preview";
 import { suggestFirstDueDate, type Payday } from "@/core/customers/payday";
 import { ScheduleError, buildSchedule } from "@/core/loans/schedule";
@@ -71,6 +72,7 @@ export interface LoanDefaults {
   lateFeeValue: number;
   gracePeriodDays: number;
   notes: string | null;
+  charges: Array<{ name: string; amount: number; mode: ChargeMode }>;
 }
 
 export interface CashBoxOption {
@@ -148,7 +150,14 @@ export function LoanForm({
   const [lateFeeMode, setLateFeeMode] = useState<LateFeeMode>(
     loan?.lateFeeMode ?? "NONE",
   );
-  const [charges, setCharges] = useState<ChargeRow[]>([]);
+  const [charges, setCharges] = useState<ChargeRow[]>(
+    (loan?.charges ?? []).map((charge, index) => ({
+      key: index + 1,
+      name: charge.name,
+      amount: String(charge.amount),
+      mode: charge.mode,
+    })),
+  );
 
   const money = (value: number) =>
     formatCurrency(value, currencyCode, locale, decimalPlaces);
@@ -546,64 +555,58 @@ export function LoanForm({
             </CardBody>
           </Card>
 
-          {/* Al editar no se tocan: el préstamo ya se entregó con ellos. */}
-          {!editando ? (
-            <Card>
-              <CardHeader
-                title={es.loans.charges.title}
-                description={
-                  chargeTotals.deducted > 0
-                    ? `${es.loans.charges.handedOver}: ${money(
-                        Math.max(0, Number(principal) - chargeTotals.deducted),
-                      )}`
-                    : undefined
-                }
+          <Card>
+            <CardHeader
+              title={es.loans.charges.title}
+              description={
+                chargeTotals.deducted > 0
+                  ? `${es.loans.charges.handedOver}: ${money(
+                      Math.max(0, Number(principal) - chargeTotals.deducted),
+                    )}`
+                  : undefined
+              }
+            />
+            <CardBody>
+              <ChargesField
+                rows={charges}
+                onChange={setCharges}
+                decimalPlaces={decimalPlaces}
               />
-              <CardBody>
-                <ChargesField
-                  rows={charges}
-                  onChange={setCharges}
-                  decimalPlaces={decimalPlaces}
-                />
-                {charges.length === 0 ? null : (
-                  <div className="mt-4 space-y-1 border-t border-border pt-3 text-sm">
-                    <div className="flex justify-between gap-3">
-                      <span className="text-ink-muted">
-                        {es.loans.charges.deductedTotal}
-                      </span>
-                      <span className="tabular-nums">
-                        {money(chargeTotals.deducted)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-ink-muted">
-                        {es.loans.charges.financedTotal}
-                      </span>
-                      <span className="tabular-nums">
-                        {money(chargeTotals.financed)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3 border-t border-border pt-2">
-                      <span className="font-medium text-ink">
-                        {es.loans.charges.handedOver}
-                      </span>
-                      <span className="text-base font-bold tabular-nums text-brand">
-                        {money(
-                          Math.max(
-                            0,
-                            Number(principal) - chargeTotals.deducted,
-                          ),
-                        )}
-                      </span>
-                    </div>
-                    <p className="text-xs text-ink-subtle">
-                      {es.loans.charges.handedOverHint}
-                    </p>
+              {charges.length === 0 ? null : (
+                <div className="mt-4 space-y-1 border-t border-border pt-3 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-ink-muted">
+                      {es.loans.charges.deductedTotal}
+                    </span>
+                    <span className="tabular-nums">
+                      {money(chargeTotals.deducted)}
+                    </span>
                   </div>
-                )}
-              </CardBody>
-            </Card>
-          ) : null}
+                  <div className="flex justify-between gap-3">
+                    <span className="text-ink-muted">
+                      {es.loans.charges.financedTotal}
+                    </span>
+                    <span className="tabular-nums">
+                      {money(chargeTotals.financed)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3 border-t border-border pt-2">
+                    <span className="font-medium text-ink">
+                      {es.loans.charges.handedOver}
+                    </span>
+                    <span className="text-base font-bold tabular-nums text-brand">
+                      {money(
+                        Math.max(0, Number(principal) - chargeTotals.deducted),
+                      )}
+                    </span>
+                  </div>
+                  <p className="text-xs text-ink-subtle">
+                    {es.loans.charges.handedOverHint}
+                  </p>
+                </div>
+              )}
+            </CardBody>
+          </Card>
         </div>
 
         <SchedulePreview

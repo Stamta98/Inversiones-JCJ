@@ -219,6 +219,8 @@ export async function updateLoanAction(
         gracePeriodDays: data.gracePeriodDays,
         decimalPlaces: context.decimalPlaces,
       },
+      charges: readCharges(formData),
+      decimalPlaces: context.decimalPlaces,
       updatedById: context.userId,
     });
   } catch (error) {
@@ -227,11 +229,18 @@ export async function updateLoanAction(
 
   revalidatePath(`/loans/${data.loanId}`);
   revalidatePath("/loans");
+  revalidatePath("/cash");
   redirect(`/loans/${data.loanId}`);
 }
 
 /** Turns a service or schedule failure into a message the user can read. */
 function loanErrorMessage(error: unknown): string {
+  if (error instanceof ChargeError) {
+    const message = t(`loans.errors.${error.code}`);
+    return message === `loans.errors.${error.code}`
+      ? t("common.error")
+      : message;
+  }
   if (error instanceof LoanServiceError) {
     const message = t(`loans.errors.${error.code}`);
     return message === `loans.errors.${error.code}`

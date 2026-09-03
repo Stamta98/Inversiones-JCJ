@@ -266,6 +266,13 @@ export interface UpdateLoanInput {
     | "gracePeriodDays"
     | "decimalPlaces"
   >;
+  /**
+   * Los cargos que quedan. Sin pasarlos no se tocan; una lista vacía los
+   * quita todos, que es lo que significa borrarlos en la pantalla.
+   */
+  charges?: CreateLoanInput["charges"];
+  /** Decimales de la moneda, para redondear los cargos como se cobran. */
+  decimalPlaces?: number;
   updatedById?: string | null;
 }
 
@@ -292,8 +299,28 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
     // presta se equivoca tecleando y lo que hace falta es arreglarlo, no
     // anularlo y volver a empezar. Lo que ya se cobró no se pierde — se vuelve
     // a aplicar contra el plan nuevo más abajo.
+    const step = stepForDecimals(
+      input.terms?.decimalPlaces ?? input.decimalPlaces ?? 2,
+    );
+    const charges = normalizedCharges(
+      input.charges ?? chargesOf(loan),
+      step,
+    );
+    const chargeSummary = summarizeCharges(charges, step);
+    const previousDeducted = summarizeCharges(
+      normalizedCharges(chargesOf(loan), step),
+      step,
+    ).deductedCents;
+
+    // Se comprueba antes de escribir: un cargo descontado no puede llevarse
+    // todo lo que se le entregó al cliente.
+    cashHandedOver(
+      toCents(input.terms?.principal ?? Number(loan.principal)),
+      chargeSummary.deductedCents,
+    );
+
     const schedule = input.terms
-      ? previewSchedule({ ...input.terms, charges: chargesOf(loan) })
+      ? previewSchedule({ ...input.terms, charges: input.charges ?? chargesOf(loan) })
       : null;
 
     await tx.loan.update({
@@ -323,6 +350,18 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
       },
     });
 
+    if (input.charges !== undefined) {
+      await tx.loanCharge.deleteMany({ where: { loanId: loan.id } });
+      await tx.loanCharge.createMany({
+        data: charges.map((charge) => ({
+          loanId: loan.id,
+          name: charge.name,
+          amount: fromCents(charge.amountCents),
+          mode: charge.mode,
+        })),
+      });
+    }
+
     if (schedule) {
       // Las aplicaciones viejas apuntan a cuotas que dejan de existir, así que
       // se van primero y los cobros se vuelven a repartir sobre el plan nuevo.
@@ -348,19 +387,24 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
       });
 
       await reapplyPayments(tx, loan.id);
-
-      // El monto cambió y la plata ya había salido: la caja tiene que reflejar
-      // la diferencia o diría que se entregó lo que no se entregó.
-      if (input.terms) {
-        await adjustDisbursement(tx, {
-          loanId: loan.id,
-          loanCode: loan.code,
-          difference: input.terms.principal - Number(loan.principal),
-          createdById: input.updatedById ?? null,
-        });
-      }
-
       await refreshLoan(tx, loan.id);
+    }
+
+    // La plata ya había salido: si cambió el monto o lo que se le descontó, la
+    // caja tiene que moverse por la diferencia o diría que se entregó lo que
+    // no se entregó. Un préstamo más grande saca más; un cargo más alto deja
+    // más adentro.
+    const principalDelta = input.terms
+      ? input.terms.principal - Number(loan.principal)
+      : 0;
+    const chargeDelta = fromCents(chargeSummary.deductedCents - previousDeducted);
+    if (principalDelta !== 0 || chargeDelta !== 0) {
+      await adjustLoanCash(tx, {
+        loanId: loan.id,
+        loanCode: loan.code,
+        cashDelta: chargeDelta - principalDelta,
+        createdById: input.updatedById ?? null,
+      });
     }
 
     await tx.auditLog.create({
@@ -370,7 +414,11 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
         action: "loan.updated",
         entityType: "Loan",
         entityId: loan.id,
-        metadata: { code: loan.code, termsChanged: schedule !== null },
+        metadata: {
+          code: loan.code,
+          termsChanged: schedule !== null,
+          chargesChanged: input.charges !== undefined,
+        },
       },
     });
   });
@@ -458,21 +506,22 @@ async function reapplyPayments(
 }
 
 /**
- * Corrige la caja cuando el monto de un préstamo ya desembolsado cambia.
+ * Corrige la caja cuando cambia lo que un préstamo ya desembolsado movió.
  *
  * Se busca de qué caja salió por sus propios movimientos, así que un préstamo
- * que nunca se desembolsó no toca nada.
+ * que nunca se desembolsó no toca nada. `cashDelta` es lo que le sobra o le
+ * falta al saldo: positivo entra, negativo sale.
  */
-async function adjustDisbursement(
+async function adjustLoanCash(
   tx: Prisma.TransactionClient,
   input: {
     loanId: string;
     loanCode: string;
-    difference: number;
+    cashDelta: number;
     createdById: string | null;
   },
 ): Promise<void> {
-  if (input.difference === 0) return;
+  if (input.cashDelta === 0) return;
 
   const disbursement = await tx.cashMovement.findFirst({
     where: { loanId: input.loanId, kind: "LOAN_DISBURSEMENT" },
@@ -485,7 +534,7 @@ async function adjustDisbursement(
     where: { id: disbursement.cashBoxId },
     select: { balance: true },
   });
-  const balanceAfter = Number(cashBox.balance) - input.difference;
+  const balanceAfter = Number(cashBox.balance) + input.cashDelta;
 
   await tx.cashBox.update({
     where: { id: disbursement.cashBoxId },
@@ -495,7 +544,7 @@ async function adjustDisbursement(
     data: {
       cashBoxId: disbursement.cashBoxId,
       kind: "ADJUSTMENT",
-      amount: -input.difference,
+      amount: input.cashDelta,
       balanceAfter,
       description: `Corrección ${input.loanCode}`,
       loanId: input.loanId,

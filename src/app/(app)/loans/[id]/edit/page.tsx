@@ -35,7 +35,7 @@ export default async function EditLoanPage({
 
   const loan = await db.loan.findFirst({
     where: { id, companyId: context.companyId },
-    include: { customer: true },
+    include: { customer: true, charges: { orderBy: { createdAt: "asc" } } },
   });
 
   if (!loan) notFound();
@@ -110,6 +110,11 @@ export default async function EditLoanPage({
             lateFeeValue: Number(loan.lateFeeValue),
             gracePeriodDays: loan.gracePeriodDays,
             notes: loan.notes,
+            charges: loan.charges.map((charge) => ({
+              name: charge.name,
+              amount: Number(charge.amount),
+              mode: charge.mode,
+            })),
           }}
           customers={[
             {
