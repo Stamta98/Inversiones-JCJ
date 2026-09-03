@@ -58,12 +58,17 @@ export function SortableRows({
   children,
   action,
   enabled = true,
+  as = "tbody",
+  className,
 }: {
   /** Las filas, en el orden en que las mandó el servidor. */
   ids: string[];
   children: ReactNode[];
   action: (formData: FormData) => Promise<void>;
   enabled?: boolean;
+  /** El envoltorio: `tbody` para una tabla, `div` para una lista de tarjetas. */
+  as?: "tbody" | "div" | "ul";
+  className?: string;
 }) {
   const signature = ids.join("|");
   const [order, setOrder] = useState(ids);
@@ -79,7 +84,7 @@ export function SortableRows({
     setDragging(null);
   }
 
-  const bodyRef = useRef<HTMLTableSectionElement>(null);
+  const bodyRef = useRef<HTMLElement>(null);
   const gesture = useRef<Gesture | null>(null);
   const orderRef = useRef(order);
   orderRef.current = order;
@@ -92,10 +97,11 @@ export function SortableRows({
 
     const rowsOf = () => [...body.children] as HTMLElement[];
 
-    const idAt = (element: EventTarget | null): string | null => {
-      const row = (element as HTMLElement | null)?.closest?.("tr");
-      return row?.getAttribute("data-sortable-id") ?? null;
-    };
+    // Por el atributo, no por la etiqueta: la lista de clientes son tarjetas
+    // y la de préstamos sigue siendo una tabla.
+    const idAt = (element: EventTarget | null): string | null =>
+      (element as HTMLElement | null)?.closest?.("[data-sortable-id]")
+        ?.getAttribute("data-sortable-id") ?? null;
 
     const cancel = () => {
       const current = gesture.current;
@@ -268,15 +274,18 @@ export function SortableRows({
 
   const byId = new Map(ids.map((id, index) => [id, children[index]]));
 
+  const Wrapper = as;
+
   return (
-    <tbody
-      ref={bodyRef}
+    <Wrapper
+      ref={bodyRef as never}
       className={cn(
-        enabled && "[&_tr]:cursor-grab",
+        enabled && "[&>*]:cursor-grab",
         dragging !== null && "select-none",
+        className,
       )}
     >
       {order.map((id) => byId.get(id) ?? null)}
-    </tbody>
+    </Wrapper>
   );
 }

@@ -417,6 +417,9 @@ export const es = {
     deletePaid: "Se pierde el historial de {amount} ya cobrados",
     deleteNoLoans: "Este cliente no tiene préstamos.",
     loanCount: "Préstamos",
+    statActive: "Con préstamo",
+    statIdle: "Sin préstamo",
+    statContact: "Con contacto",
     noOpenLoans: "Sin préstamos abiertos",
     documentsSection: "Fotos del documento de identidad",
     documentsHint:

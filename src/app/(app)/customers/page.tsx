@@ -9,9 +9,7 @@ import {
   Input,
   LinkButton,
   PageHeader,
-  TableWrap,
-  Td,
-  Th,
+  type IconName,
   type Tone,
 } from "@/components/ui";
 import { SortableRows } from "@/components/ui/sortable-rows";
@@ -26,12 +24,14 @@ import { moveCustomerAction } from "./actions";
 export const dynamic = "force-dynamic";
 
 const STATUS_TONES: Record<string, Tone> = {
-  ACTIVE: "positive",
   INACTIVE: "neutral",
   BLACKLISTED: "danger",
 };
 
 const PAGE_SIZE = 25;
+
+/** Los préstamos que están afuera, que es lo que decide si se le presta más. */
+const OPEN_STATUSES = ["ACTIVE", "IN_ARREARS", "APPROVED"] as const;
 
 export default async function CustomersPage({
   searchParams,
@@ -57,24 +57,62 @@ export default async function CustomersPage({
       : {}),
   };
 
-  const customers = await db.customer.findMany({
-    where,
-    // Primero lo que la persona puso a mano, después el orden de siempre.
-    orderBy: CUSTOMER_ORDER,
-    take: PAGE_SIZE,
-    include: {
-      // Los préstamos que tiene abiertos: cuántos son, y el peor atraso para
-      // la marca roja junto al nombre.
-      loans: {
-        where: { status: { in: ["ACTIVE", "IN_ARREARS"] } },
-        select: { daysInArrears: true },
+  // Los totales cuentan todo lo que cumple el filtro, no solo la primera
+  // página: "2 clientes" con veinticinco en pantalla no sería un total.
+  const [customers, total, withOpenLoans, withContact] = await Promise.all([
+    db.customer.findMany({
+      where,
+      // Primero lo que la persona puso a mano, después el orden de siempre.
+      orderBy: CUSTOMER_ORDER,
+      take: PAGE_SIZE,
+      include: {
+        loans: {
+          select: { status: true, daysInArrears: true },
+        },
       },
-    },
-  });
+    }),
+    db.customer.count({ where }),
+    db.customer.count({
+      where: { ...where, loans: { some: { status: { in: [...OPEN_STATUSES] } } } },
+    }),
+    db.customer.count({
+      where: {
+        ...where,
+        OR: [{ mobilePhone: { not: null } }, { phone: { not: null } }],
+      },
+    }),
+  ]);
 
   const { t } = context;
   const canOrder = can(context, "customers.update");
   const handOrdered = isManuallyOrdered(customers);
+
+  const stats: Array<{
+    label: string;
+    value: number;
+    icon: IconName;
+    tone: Tone;
+  }> = [
+    { label: t("customers.title"), value: total, icon: "users", tone: "info" },
+    {
+      label: t("customers.statActive"),
+      value: withOpenLoans,
+      icon: "check",
+      tone: "positive",
+    },
+    {
+      label: t("customers.statIdle"),
+      value: total - withOpenLoans,
+      icon: "clock",
+      tone: "warning",
+    },
+    {
+      label: t("customers.statContact"),
+      value: withContact,
+      icon: "phone",
+      tone: "brand",
+    },
+  ];
 
   return (
     <>
@@ -89,7 +127,7 @@ export default async function CustomersPage({
         }
       />
 
-      <form className="mb-4 flex gap-2" action="/customers">
+      <form className="mb-3 flex gap-2" action="/customers">
         <div className="relative flex-1">
           <Icon
             name="search"
@@ -106,12 +144,35 @@ export default async function CustomersPage({
         </div>
       </form>
 
+      {/* De un vistazo: cuántos son, a cuántos les está prestando y a cuántos
+          podría llamar. Es lo que se mira antes de bajar por la lista. */}
+      <Card className="mb-3">
+        <div className="grid grid-cols-4 divide-x divide-border">
+          {stats.map((stat) => (
+            <div
+              key={stat.label}
+              className="flex flex-col items-center gap-1.5 px-1 py-3"
+            >
+              <Badge tone={stat.tone} className="size-8 justify-center p-0">
+                <Icon name={stat.icon} size={16} />
+              </Badge>
+              <span className="numeric text-lg font-semibold text-ink">
+                {stat.value}
+              </span>
+              <span className="text-center text-[0.625rem] leading-tight font-medium tracking-wide text-ink-muted uppercase">
+                {stat.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       {canOrder && !handOrdered ? (
         <p className="mb-3 text-xs text-ink-subtle">{t("common.dragHint")}</p>
       ) : null}
 
-      <Card>
-        {customers.length === 0 ? (
+      {customers.length === 0 ? (
+        <Card>
           <EmptyState
             icon="users"
             title={term ? t("common.empty") : t("customers.emptyTitle")}
@@ -124,89 +185,105 @@ export default async function CustomersPage({
               ) : null
             }
           />
-        ) : (
-          <TableWrap roomy>
-            <thead>
-              <tr>
-                <Th>{t("customers.fullName")}</Th>
-                <Th>{t("customers.documentNumber")}</Th>
-                <Th align="center">{t("customers.loanCount")}</Th>
-                <Th align="center">{t("common.status")}</Th>
-              </tr>
-            </thead>
-            <SortableRows
-              ids={customers.map((customer) => customer.id)}
-              action={moveCustomerAction}
-              enabled={canOrder}
-            >
-              {customers.map((customer) => {
-                const worstArrears = customer.loans.reduce(
-                  (worst, loan) => Math.max(worst, loan.daysInArrears),
-                  0,
-                );
+        </Card>
+      ) : (
+        <SortableRows
+          as="div"
+          className="space-y-2"
+          ids={customers.map((customer) => customer.id)}
+          action={moveCustomerAction}
+          enabled={canOrder}
+        >
+          {customers.map((customer) => {
+            const openLoans = customer.loans.filter((loan) =>
+              (OPEN_STATUSES as readonly string[]).includes(loan.status),
+            );
+            const worstArrears = openLoans.reduce(
+              (worst, loan) => Math.max(worst, loan.daysInArrears),
+              0,
+            );
+            const tone = STATUS_TONES[customer.status];
 
-                return (
-                  // Lo lee SortableRows para saber qué fila se está moviendo.
-                  <tr key={customer.id} data-sortable-id={customer.id}>
-                    {/* El código ocupaba una columna entera para decir algo
-                        que el nombre ya dice mejor. Buscar por código sigue
-                        funcionando, y la ficha del cliente lo muestra. */}
-                    <Td>
-                      <Link
-                        href={`/customers/${customer.id}`}
-                        className="flex items-center gap-2.5 text-ink hover:text-brand-strong"
-                      >
-                        {customer.photoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={customer.photoUrl}
-                            alt=""
-                            className="size-8 shrink-0 rounded-full object-cover"
-                          />
-                        ) : (
-                          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[0.625rem] font-medium text-ink-subtle">
-                            {initials(`${customer.firstName} ${customer.lastName}`)}
-                          </span>
-                        )}
-                        <span className="min-w-0 font-medium">
-                          {customer.firstName} {customer.lastName}
-                          {worstArrears > 0 ? (
-                            <Badge tone="danger" className="ml-2">
-                              {worstArrears} d
-                            </Badge>
-                          ) : null}
-                        </span>
-                      </Link>
-                    </Td>
-                    <Td numeric>{customer.documentNumber ?? "—"}</Td>
-                    <Td align="center">
-                      {customer.loans.length > 0 ? (
-                        <span className="inline-flex items-center gap-1.5 text-ink">
-                          <Icon
-                            name="hand-coins"
-                            size={15}
-                            className="text-ink-subtle"
-                          />
-                          <span className="numeric font-medium">
-                            {customer.loans.length}
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="text-ink-subtle">—</span>
-                      )}
-                    </Td>
-                    <Td align="center">
-                      <Badge tone={STATUS_TONES[customer.status] ?? "neutral"}>
-                        {t(`customers.status.${customer.status}`)}
-                      </Badge>
-                    </Td>
-                  </tr>
-                );
-              })}
-            </SortableRows>
-          </TableWrap>
-        )}
-      </Card>
+            return (
+              <Card
+                key={customer.id}
+                sortableId={customer.id}
+                className="overflow-hidden"
+              >
+                <Link
+                  href={`/customers/${customer.id}`}
+                  className="flex items-center gap-3 p-3 transition-colors hover:bg-surface-muted"
+                >
+                  {customer.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={customer.photoUrl}
+                      alt=""
+                      className="size-11 shrink-0 rounded-full object-cover ring-2 ring-brand-soft"
+                    />
+                  ) : (
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-muted text-xs font-semibold text-ink-subtle ring-2 ring-border">
+                      {initials(`${customer.firstName} ${customer.lastName}`)}
+                    </span>
+                  )}
+
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate text-sm font-bold text-ink uppercase">
+                        {customer.firstName} {customer.lastName}
+                      </span>
+                      {worstArrears > 0 ? (
+                        <Badge tone="danger">{worstArrears} d</Badge>
+                      ) : null}
+                      {tone ? (
+                        <Badge tone={tone}>
+                          {t(`customers.status.${customer.status}`)}
+                        </Badge>
+                      ) : null}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs text-ink-muted">
+                      <span className="numeric font-semibold text-brand-strong">
+                        #{customer.code.replace(/^\D+0*/, "")}
+                      </span>
+                      {customer.documentNumber ? (
+                        <span className="numeric"> · {customer.documentNumber}</span>
+                      ) : null}
+                    </span>
+                    {/* El barrio, que es por donde el cobrador la ubica. */}
+                    <span className="mt-0.5 flex items-center gap-1 truncate text-xs text-ink-subtle">
+                      <Icon name="map-pin" size={12} />
+                      {customer.neighborhood ?? customer.city ?? "—"}
+                    </span>
+                  </span>
+
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    <Icon
+                      name="hand-coins"
+                      size={16}
+                      className={
+                        openLoans.length > 0 ? "text-positive" : "text-ink-subtle"
+                      }
+                    />
+                    <span
+                      className={
+                        "numeric text-sm font-semibold " +
+                        (openLoans.length > 0 ? "text-positive" : "text-ink-subtle")
+                      }
+                    >
+                      {openLoans.length}/{customer.loans.length}
+                    </span>
+                    <Icon
+                      name="chevron-right"
+                      size={16}
+                      className="text-ink-subtle"
+                    />
+                  </span>
+                </Link>
+              </Card>
+            );
+          })}
+        </SortableRows>
+      )}
     </>
   );
 }

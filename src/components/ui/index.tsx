@@ -24,12 +24,20 @@ import { Icon, type IconName } from "./icon";
 export function Card({
   children,
   className,
+  sortableId,
 }: {
   children: ReactNode;
   className?: string;
+  /**
+   * Marca la tarjeta como una fila que se puede arrastrar. Va por props y no
+   * como `data-` suelto porque un componente no reenvía lo que no declara, y
+   * el arrastre fallaría en silencio.
+   */
+  sortableId?: string;
 }) {
   return (
     <section
+      data-sortable-id={sortableId}
       className={cn(
         "rounded-[--radius-card] border border-border bg-surface",
         className,
