@@ -221,129 +221,136 @@ export default async function LoanDetailPage({
       </div>
 
       <div className="mt-4 space-y-4">
-          <Card>
-            <CardHeader
-              title={t("loans.schedule")}
-              description={[
-                t(`loans.method.${loan.interestMethod}`),
-                loan.frequency === "CUSTOM" && loan.customIntervalDays
-                  ? `${t("loans.frequencyLabel.CUSTOM")} (${loan.customIntervalDays} días)`
-                  : t(`loans.frequencyLabel.${loan.frequency}`),
-                loan.nonCollectionDays.length > 0
-                  ? `${t("loans.nonCollectionDays")}: ${loan.nonCollectionDays
-                      .map((day) => t(`loans.weekday.${day}`))
-                      .join(", ")}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            />
-            {loan.interestMethod === "CREDIT_LINE" ? (
-              <CardBody className="pb-0">
-                <Alert tone="info" icon="clock">
-                  {t("loans.openEndedNotice")}
-                </Alert>
-              </CardBody>
-            ) : null}
+        <Card>
+          <CardHeader
+            title={t("loans.schedule")}
+            description={[
+              t(`loans.method.${loan.interestMethod}`),
+              loan.frequency === "CUSTOM" && loan.customIntervalDays
+                ? `${t("loans.frequencyLabel.CUSTOM")} (${loan.customIntervalDays} días)`
+                : t(`loans.frequencyLabel.${loan.frequency}`),
+              loan.nonCollectionDays.length > 0
+                ? `${t("loans.nonCollectionDays")}: ${loan.nonCollectionDays
+                    .map((day) => t(`loans.weekday.${day}`))
+                    .join(", ")}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          />
+          {loan.interestMethod === "CREDIT_LINE" ? (
+            <CardBody className="pb-0">
+              <Alert tone="info" icon="clock">
+                {t("loans.openEndedNotice")}
+              </Alert>
+            </CardBody>
+          ) : null}
+          <TableWrap>
+            <thead>
+              <tr>
+                <Th>{t("loans.installment")}</Th>
+                <Th>{t("loans.dueDate")}</Th>
+                <Th align="right">{t("loans.principalPart")}</Th>
+                <Th align="right">{t("loans.interestPart")}</Th>
+                <Th align="right">{t("loans.lateFeePart")}</Th>
+                <Th align="right">{t("loans.installmentTotal")}</Th>
+                <Th align="right">{t("loans.paidAmount")}</Th>
+                <Th align="center">{t("common.status")}</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {loan.installments.map((installment) => (
+                <tr key={installment.id}>
+                  <Td numeric>{installment.number}</Td>
+                  <Td numeric>{formatDate(installment.dueDate)}</Td>
+                  <Td align="right" numeric>
+                    {money(Number(installment.principalAmount))}
+                  </Td>
+                  <Td align="right" numeric>
+                    {money(Number(installment.interestAmount))}
+                  </Td>
+                  <Td align="right" numeric>
+                    {Number(installment.lateFeeAmount) > 0
+                      ? money(Number(installment.lateFeeAmount))
+                      : "—"}
+                  </Td>
+                  <Td align="right" numeric className="font-medium">
+                    {money(Number(installment.totalAmount))}
+                  </Td>
+                  <Td align="right" numeric>
+                    {money(Number(installment.paidAmount))}
+                  </Td>
+                  <Td align="center">
+                    <Badge
+                      tone={INSTALLMENT_TONES[installment.status] ?? "neutral"}
+                    >
+                      {t(`loans.installmentStatus.${installment.status}`)}
+                    </Badge>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </TableWrap>
+        </Card>
+
+        <Card>
+          <CardHeader title={t("payments.title")} />
+          {loan.payments.length === 0 ? (
+            <CardBody>
+              <p className="text-sm text-ink-muted">
+                {t("payments.emptyHint")}
+              </p>
+            </CardBody>
+          ) : (
             <TableWrap>
               <thead>
                 <tr>
-                  <Th>{t("loans.installment")}</Th>
-                  <Th>{t("loans.dueDate")}</Th>
-                  <Th align="right">{t("loans.principalPart")}</Th>
-                  <Th align="right">{t("loans.interestPart")}</Th>
-                  <Th align="right">{t("loans.lateFeePart")}</Th>
-                  <Th align="right">{t("loans.installmentTotal")}</Th>
-                  <Th align="right">{t("loans.paidAmount")}</Th>
+                  <Th>{t("payments.receiptNumber")}</Th>
+                  <Th>{t("payments.paidAt")}</Th>
+                  <Th>{t("payments.method")}</Th>
+                  <Th align="right">{t("common.amount")}</Th>
                   <Th align="center">{t("common.status")}</Th>
+                  {canReverse ? <Th align="right">{""}</Th> : null}
                 </tr>
               </thead>
               <tbody>
-                {loan.installments.map((installment) => (
-                  <tr key={installment.id}>
-                    <Td numeric>{installment.number}</Td>
-                    <Td numeric>{formatDate(installment.dueDate)}</Td>
-                    <Td align="right" numeric>
-                      {money(Number(installment.principalAmount))}
+                {loan.payments.map((payment) => (
+                  <tr key={payment.id}>
+                    <Td numeric>
+                      <Link
+                        href={`/payments/${payment.id}`}
+                        className="text-brand-strong hover:underline"
+                      >
+                        {payment.receiptNumber}
+                      </Link>
                     </Td>
+                    <Td numeric>{formatDate(payment.paidAt)}</Td>
+                    <Td>{t(`payments.methodLabel.${payment.method}`)}</Td>
                     <Td align="right" numeric>
-                      {money(Number(installment.interestAmount))}
-                    </Td>
-                    <Td align="right" numeric>
-                      {Number(installment.lateFeeAmount) > 0
-                        ? money(Number(installment.lateFeeAmount))
-                        : "—"}
-                    </Td>
-                    <Td align="right" numeric className="font-medium">
-                      {money(Number(installment.totalAmount))}
-                    </Td>
-                    <Td align="right" numeric>
-                      {money(Number(installment.paidAmount))}
+                      {money(Number(payment.amount))}
                     </Td>
                     <Td align="center">
                       <Badge
-                        tone={INSTALLMENT_TONES[installment.status] ?? "neutral"}
+                        tone={
+                          payment.status === "REVERSED" ? "danger" : "positive"
+                        }
                       >
-                        {t(`loans.installmentStatus.${installment.status}`)}
+                        {t(`payments.statusLabel.${payment.status}`)}
                       </Badge>
                     </Td>
+                    {canReverse ? (
+                      <Td align="right">
+                        {payment.status === "REVERSED" ? null : (
+                          <ReversePaymentButton paymentId={payment.id} />
+                        )}
+                      </Td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
             </TableWrap>
-          </Card>
-
-          <Card>
-            <CardHeader title={t("payments.title")} />
-            {loan.payments.length === 0 ? (
-              <CardBody>
-                <p className="text-sm text-ink-muted">
-                  {t("payments.emptyHint")}
-                </p>
-              </CardBody>
-            ) : (
-              <TableWrap>
-                <thead>
-                  <tr>
-                    <Th>{t("payments.receiptNumber")}</Th>
-                    <Th>{t("payments.paidAt")}</Th>
-                    <Th>{t("payments.method")}</Th>
-                    <Th align="right">{t("common.amount")}</Th>
-                    <Th align="center">{t("common.status")}</Th>
-                    {canReverse ? <Th align="right">{""}</Th> : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {loan.payments.map((payment) => (
-                    <tr key={payment.id}>
-                      <Td numeric>{payment.receiptNumber}</Td>
-                      <Td numeric>{formatDate(payment.paidAt)}</Td>
-                      <Td>{t(`payments.methodLabel.${payment.method}`)}</Td>
-                      <Td align="right" numeric>
-                        {money(Number(payment.amount))}
-                      </Td>
-                      <Td align="center">
-                        <Badge
-                          tone={
-                            payment.status === "REVERSED" ? "danger" : "positive"
-                          }
-                        >
-                          {t(`payments.statusLabel.${payment.status}`)}
-                        </Badge>
-                      </Td>
-                      {canReverse ? (
-                        <Td align="right">
-                          {payment.status === "REVERSED" ? null : (
-                            <ReversePaymentButton paymentId={payment.id} />
-                          )}
-                        </Td>
-                      ) : null}
-                    </tr>
-                  ))}
-                </tbody>
-              </TableWrap>
-            )}
-          </Card>
+          )}
+        </Card>
       </div>
     </>
   );

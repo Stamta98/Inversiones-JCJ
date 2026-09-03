@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { t } from "@/i18n";
@@ -8,6 +9,7 @@ import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import {
   PaymentError,
+  deletePayment,
   postPayment,
   reversePayment,
   type PaymentMethod,
@@ -54,7 +56,9 @@ export async function postPaymentAction(
       loanId: data.loanId,
       amount: data.amount,
       method: data.method as PaymentMethod,
-      paidAt: data.paidAt ? new Date(`${data.paidAt}T12:00:00.000Z`) : undefined,
+      paidAt: data.paidAt
+        ? new Date(`${data.paidAt}T12:00:00.000Z`)
+        : undefined,
       cashBoxId: data.cashBoxId || null,
       reference: data.reference || null,
       notes: data.notes || null,
@@ -94,4 +98,32 @@ export async function reversePaymentAction(formData: FormData): Promise<void> {
   revalidatePath(`/loans/${payment.loanId}`);
   revalidatePath("/payments");
   revalidatePath("/dashboard");
+}
+
+/**
+ * Borra un cobro.
+ *
+ * Anular deja el recibo marcado y a la vista, que es lo correcto casi siempre.
+ * Esto es para el cobro que nunca debió existir — el monto mal tecleado, el
+ * cliente equivocado — y por eso deja rastro en la auditoría.
+ */
+export async function deletePaymentAction(formData: FormData): Promise<void> {
+  const context = await requirePermission("payments.delete");
+  const paymentId = String(formData.get("paymentId") ?? "");
+
+  const payment = await db.payment.findFirst({
+    where: { id: paymentId, companyId: context.companyId },
+    select: { id: true, loanId: true },
+  });
+  if (!payment) return;
+
+  await deletePayment(context.companyId, payment.id, {
+    userId: context.userId,
+  });
+
+  revalidatePath(`/loans/${payment.loanId}`);
+  revalidatePath("/payments");
+  revalidatePath("/dashboard");
+  revalidatePath("/cash");
+  redirect(`/loans/${payment.loanId}`);
 }

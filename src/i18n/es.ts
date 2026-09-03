@@ -589,6 +589,30 @@ export const es = {
     allocationHint:
       "El pago se aplica a la cuota más antigua: primero mora, luego interés y por último capital.",
     unapplied: "Sobrante a favor",
+    // --- Comprobante ---
+    receiptTitle: "Comprobante de abono",
+    receiptVoided: "Comprobante anulado",
+    receiptApplied: "Abonado a capital e interés",
+    receiptLate: "Atrasado {days} días",
+    receiptInstallments: "Cuotas pagadas",
+    receiptNextDue: "Próxima cuota",
+    receiptLastDue: "Fecha de vencimiento",
+    receiptFooter: "¡De la puntualidad depende su siguiente préstamo!",
+    receiptKeep: "*** Conserve este comprobante ***",
+    receiptOf: "Comprobante de {receipt}",
+    share: "Compartir por WhatsApp",
+    sharing: "Preparando…",
+    shareFallback:
+      "Tu navegador no puede compartir archivos. Descarga la imagen y adjúntala en WhatsApp.",
+    download: "Descargar imagen",
+    history: "Historial de pagos",
+    historyHint: "Todo lo que ha abonado este cliente, en todos sus préstamos.",
+    collectedByLabel: "Recibido por",
+    delete: "Eliminar el cobro",
+    deleteConfirm:
+      "Se borra el recibo y el dinero vuelve a las cuotas y a la caja. No queda a la vista, solo en la auditoría. Para dejar constancia, mejor anúlalo.",
+    deleted: "Cobro eliminado.",
+
     reverse: "Anular cobro",
     reverseConfirm:
       "Se devuelve el monto a las cuotas y se descuenta de la caja. El recibo queda marcado como anulado.",

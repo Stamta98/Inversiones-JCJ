@@ -276,3 +276,65 @@ export async function reversePayment(
     await refreshLoan(tx, payment.loanId);
   });
 }
+
+/**
+ * Removes a payment for good.
+ *
+ * Deleting money is not the same as forgetting it happened. A payment that is
+ * still posted is reversed first — the installments go back to what they were
+ * and the cash box gives the money back — and only then does the row go. Doing
+ * it the other way round would leave a cash box claiming money it never had.
+ *
+ * The audit log keeps what was deleted, which is the whole point of being
+ * allowed to delete at all.
+ */
+export async function deletePayment(
+  companyId: string,
+  paymentId: string,
+  options: { userId?: string | null } = {},
+): Promise<void> {
+  const payment = await db.payment.findFirst({
+    where: { id: paymentId, companyId },
+    select: {
+      id: true,
+      status: true,
+      receiptNumber: true,
+      amount: true,
+      loanId: true,
+      paidAt: true,
+    },
+  });
+  if (!payment) return;
+
+  if (payment.status !== "REVERSED") {
+    await reversePayment(payment.id, {
+      reason: "Eliminado",
+      userId: options.userId ?? null,
+    });
+  }
+
+  await db.$transaction(async (tx) => {
+    // The movement points at the payment; it has to go first or the row cannot.
+    await tx.cashMovement.deleteMany({ where: { paymentId: payment.id } });
+    await tx.paymentAllocation.deleteMany({ where: { paymentId: payment.id } });
+    await tx.payment.delete({ where: { id: payment.id } });
+
+    await tx.auditLog.create({
+      data: {
+        companyId,
+        userId: options.userId ?? null,
+        action: "payment.deleted",
+        entityType: "Payment",
+        entityId: payment.id,
+        metadata: {
+          receiptNumber: payment.receiptNumber,
+          amount: Number(payment.amount),
+          paidAt: payment.paidAt.toISOString(),
+          loanId: payment.loanId,
+        },
+      },
+    });
+  });
+
+  await db.$transaction((tx) => refreshLoan(tx, payment.loanId));
+}

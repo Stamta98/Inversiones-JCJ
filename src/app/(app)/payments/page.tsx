@@ -86,7 +86,14 @@ export default async function PaymentsPage() {
             <tbody>
               {payments.map((payment) => (
                 <tr key={payment.id}>
-                  <Td numeric>{payment.receiptNumber}</Td>
+                  <Td numeric>
+                    <Link
+                      href={`/payments/${payment.id}`}
+                      className="text-brand-strong hover:underline"
+                    >
+                      {payment.receiptNumber}
+                    </Link>
+                  </Td>
                   <Td>
                     {payment.loan.customer.firstName}{" "}
                     {payment.loan.customer.lastName}
@@ -106,7 +113,9 @@ export default async function PaymentsPage() {
                   </Td>
                   <Td align="center">
                     <Badge
-                      tone={payment.status === "REVERSED" ? "danger" : "positive"}
+                      tone={
+                        payment.status === "REVERSED" ? "danger" : "positive"
+                      }
                     >
                       {t(`payments.statusLabel.${payment.status}`)}
                     </Badge>

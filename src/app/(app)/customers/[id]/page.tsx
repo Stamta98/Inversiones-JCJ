@@ -75,6 +75,13 @@ export default async function CustomerDetailPage({
 
   if (!customer) notFound();
 
+  const payments = await db.payment.findMany({
+    where: { companyId: context.companyId, loan: { customerId: customer.id } },
+    include: { loan: { select: { id: true, code: true } } },
+    orderBy: { paidAt: "desc" },
+    take: 30,
+  });
+
   const promises = await db.paymentPromise.findMany({
     where: { customerId: customer.id, companyId: context.companyId },
     select: { status: true },
@@ -446,6 +453,67 @@ export default async function CustomerDetailPage({
                   </figure>
                 ))}
               </CardBody>
+            )}
+          </Card>
+
+          <Card>
+            <CardHeader
+              title={t("payments.history")}
+              description={t("payments.historyHint")}
+            />
+            {payments.length === 0 ? (
+              <EmptyState icon="receipt" title={t("payments.emptyTitle")} />
+            ) : (
+              <TableWrap>
+                <thead>
+                  <tr>
+                    <Th>{t("payments.receipt")}</Th>
+                    <Th>{t("payments.paidAt")}</Th>
+                    <Th>{t("loans.code")}</Th>
+                    <Th align="right">{t("common.amount")}</Th>
+                    <Th align="center">{t("common.status")}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((payment) => (
+                    <tr key={payment.id}>
+                      <Td numeric>
+                        <Link
+                          href={`/payments/${payment.id}`}
+                          className="text-brand-strong hover:underline"
+                        >
+                          {payment.receiptNumber}
+                        </Link>
+                      </Td>
+                      <Td numeric>
+                        {formatDate(payment.paidAt, context.locale)}
+                      </Td>
+                      <Td>
+                        <Link
+                          href={`/loans/${payment.loan.id}`}
+                          className="text-ink-muted hover:underline"
+                        >
+                          {payment.loan.code}
+                        </Link>
+                      </Td>
+                      <Td align="right" numeric>
+                        {money(Number(payment.amount))}
+                      </Td>
+                      <Td align="center">
+                        <Badge
+                          tone={
+                            payment.status === "REVERSED"
+                              ? "danger"
+                              : "positive"
+                          }
+                        >
+                          {t(`payments.statusLabel.${payment.status}`)}
+                        </Badge>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </TableWrap>
             )}
           </Card>
 
