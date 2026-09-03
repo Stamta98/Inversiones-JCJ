@@ -346,12 +346,14 @@ export async function renewLoan(
           cashBoxId: input.cashBoxId,
           amount: fromCents(plan.cashOutCents),
           loanCode: `${code} (${refreshed.code})`,
+          loanId: loan.id,
           createdById: input.createdById ?? null,
         });
         await recordDeductedCharges(tx, {
           cashBoxId: input.cashBoxId,
           amount: fromCents(chargeSummary.deductedCents),
           loanCode: code,
+          loanId: loan.id,
           createdById: input.createdById ?? null,
         });
       }

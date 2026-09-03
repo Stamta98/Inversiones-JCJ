@@ -19,6 +19,7 @@ export interface Receipt {
   method: string;
   status: string;
   reference: string | null;
+  notes: string | null;
   company: {
     name: string;
     phone: string | null;
@@ -92,6 +93,7 @@ export async function loadReceipt(
     method: payment.method,
     status: payment.status,
     reference: payment.reference,
+    notes: payment.notes,
     company: {
       name: payment.company.name,
       phone: payment.company.phone,

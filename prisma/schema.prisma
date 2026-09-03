@@ -567,6 +567,7 @@ model Loan {
   outboundMessages OutboundMessage[]
   paymentPromises  PaymentPromise[]
   charges          LoanCharge[]
+  cashMovements    CashMovement[]
 
   @@unique([companyId, code])
   @@index([companyId, status])
@@ -753,6 +754,10 @@ model CashMovement {
   amount       Decimal          @db.Decimal(18, 2)
   balanceAfter Decimal          @db.Decimal(18, 2)
   description  String?
+  /// El préstamo que movió esta plata, cuando lo hubo. Sin esto, borrar un
+  /// préstamo dejaría su desembolso suelto en la caja y el saldo mintiendo.
+  loanId       String?
+  loan         Loan?            @relation(fields: [loanId], references: [id], onDelete: SetNull)
   paymentId    String?
   payment      Payment?         @relation(fields: [paymentId], references: [id], onDelete: SetNull)
   expenseId    String?
@@ -762,6 +767,7 @@ model CashMovement {
   createdAt    DateTime         @default(now())
 
   @@index([cashBoxId, createdAt])
+  @@index([loanId])
 }
 
 model ExpenseCategory {

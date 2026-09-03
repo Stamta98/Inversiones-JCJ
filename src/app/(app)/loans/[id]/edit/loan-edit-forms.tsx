@@ -6,6 +6,7 @@ import { useFormAction } from "@/lib/use-form-action";
 
 import {
   cancelLoanAction,
+  deleteLoanAction,
   updateLoanAction,
   type LoanFormState,
 } from "../../actions";
@@ -81,6 +82,43 @@ export function CancelLoanForm({ loanId }: { loanId: string }) {
         <div className="flex justify-end">
           <Button type="submit" variant="danger" disabled={pending}>
             {pending ? es.common.saving : es.loans.cancel}
+          </Button>
+        </div>
+      </CardBody>
+    </form>
+  );
+}
+
+/**
+ * Borra el préstamo para siempre.
+ *
+ * Anular es lo correcto casi siempre, así que esto va aparte y se pregunta
+ * antes: devuelve la plata a la caja y no se puede deshacer.
+ */
+export function DeleteLoanForm({ loanId }: { loanId: string }) {
+  const { state, pending, onSubmit } = useFormAction<LoanFormState>(
+    deleteLoanAction,
+    {},
+  );
+
+  return (
+    <form
+      method="post"
+      onSubmit={(event) => {
+        if (!window.confirm(es.loans.deleteConfirm)) {
+          event.preventDefault();
+          return;
+        }
+        onSubmit(event);
+      }}
+    >
+      <input type="hidden" name="loanId" value={loanId} />
+      <CardBody className="space-y-4">
+        {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
+        <Alert tone="danger">{es.loans.deleteConfirm}</Alert>
+        <div className="flex justify-end">
+          <Button type="submit" variant="danger" icon="trash" disabled={pending}>
+            {pending ? es.common.saving : es.loans.delete}
           </Button>
         </div>
       </CardBody>

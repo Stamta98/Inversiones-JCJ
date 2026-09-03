@@ -6,9 +6,13 @@
  * the arrears were computed from those due dates. Editing the principal or the
  * rate at that point would silently rewrite what the customer already paid.
  *
- * So the terms are only editable while the loan is still a draft. After that
- * the correct move is to cancel the loan and issue a new one, which leaves a
- * trail instead of quietly changing the past.
+ * Aun así hay que poder corregirlos: quien presta se equivoca tecleando, y
+ * anular el préstamo y volver a empezar no arregla nada, solo lo ensucia. Así
+ * que las condiciones se pueden cambiar mientras el préstamo siga vivo, y el
+ * servicio rehace el plan y vuelve a repartir sobre él lo que ya se cobró.
+ *
+ * Un préstamo cerrado sí queda quieto: saldado, anulado o incobrable es
+ * historia, y reescribirla cambiaría lo que ya pasó.
  */
 
 import type { LoanStatus } from "../types";
@@ -34,9 +38,9 @@ export const DESCRIPTIVE_FIELDS = ["notes", "branchId"] as const;
 export type FinancialField = (typeof FINANCIAL_FIELDS)[number];
 export type DescriptiveField = (typeof DESCRIPTIVE_FIELDS)[number];
 
-/** A loan whose schedule has not been committed to yet. */
+/** Un préstamo que todavía está vivo: se puede corregir. */
 export function canEditTerms(status: LoanStatus): boolean {
-  return status === "DRAFT" || status === "PENDING_APPROVAL";
+  return canEditAtAll(status) && status !== "PAID";
 }
 
 /** A closed loan is a record; not even the notes should move. */
@@ -66,6 +70,6 @@ export function isEditable(status: LoanStatus, field: EditableField): boolean {
  */
 export function lockedReasonKey(status: LoanStatus): string | null {
   if (!canEditAtAll(status)) return "loans.editLockedClosed";
-  if (!canEditTerms(status)) return "loans.editLockedDisbursed";
+  if (!canEditTerms(status)) return "loans.editLockedPaid";
   return null;
 }

@@ -12,6 +12,7 @@ import {
   deletePayment,
   postPayment,
   reversePayment,
+  updatePayment,
   type PaymentMethod,
 } from "@/server/services/payments";
 
@@ -126,4 +127,61 @@ export async function deletePaymentAction(formData: FormData): Promise<void> {
   revalidatePath("/dashboard");
   revalidatePath("/cash");
   redirect(`/loans/${payment.loanId}`);
+}
+
+/**
+ * Corrige un cobro ya registrado.
+ *
+ * Reusa la forma del cobro nuevo, menos el préstamo: un cobro no cambia de
+ * préstamo — para eso se elimina y se registra donde iba.
+ */
+const updateSchema = paymentSchema
+  .omit({ loanId: true, cashBoxId: true })
+  .extend({ paymentId: z.string().min(1) });
+
+export async function updatePaymentAction(
+  _previous: PaymentFormState,
+  formData: FormData,
+): Promise<PaymentFormState> {
+  const context = await requirePermission("payments.update");
+
+  const parsed = updateSchema.safeParse(
+    Object.fromEntries(
+      [...formData.entries()].map(([key, value]) => [key, String(value)]),
+    ),
+  );
+  if (!parsed.success) return { error: t("payments.errors.amountPositive") };
+  const data = parsed.data;
+
+  const payment = await db.payment.findFirst({
+    where: { id: data.paymentId, companyId: context.companyId },
+    select: { id: true, loanId: true },
+  });
+  if (!payment) return { error: t("common.error") };
+
+  try {
+    await updatePayment({
+      companyId: context.companyId,
+      paymentId: payment.id,
+      amount: data.amount,
+      method: data.method as PaymentMethod,
+      paidAt: data.paidAt ? new Date(`${data.paidAt}T12:00:00.000Z`) : undefined,
+      reference: data.reference || null,
+      notes: data.notes || null,
+      userId: context.userId,
+    });
+  } catch (error) {
+    if (error instanceof PaymentError) {
+      return { error: t(`payments.errors.${error.code}`) };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/loans/${payment.loanId}`);
+  revalidatePath(`/payments/${payment.id}`);
+  revalidatePath("/payments");
+  revalidatePath("/cash");
+  revalidatePath("/dashboard");
+
+  return { success: t("payments.updated") };
 }

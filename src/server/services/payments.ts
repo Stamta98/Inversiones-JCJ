@@ -44,7 +44,8 @@ export class PaymentError extends Error {
       | "amount"
       | "loanNotActive"
       | "nothingToApply"
-      | "settlesRefinance",
+      | "settlesRefinance"
+      | "reversed",
   ) {
     super(message);
     this.name = "PaymentError";
@@ -319,6 +320,169 @@ export async function reversePayment(
 
     await refreshLoan(tx, payment.loanId);
   });
+}
+
+export interface UpdatePaymentInput {
+  companyId: string;
+  paymentId: string;
+  amount: number;
+  method?: PaymentMethod;
+  paidAt?: Date;
+  reference?: string | null;
+  notes?: string | null;
+  userId?: string | null;
+}
+
+/**
+ * Corrige un cobro ya registrado.
+ *
+ * Un monto mal tecleado no se arregla anulando y volviendo a cobrar: eso deja
+ * dos recibos donde hubo un pago. Aquí se devuelve lo que se había aplicado,
+ * se aplica el monto nuevo y la caja se mueve solo por la diferencia, así que
+ * el recibo sigue siendo el mismo y el saldo queda donde debe.
+ */
+export async function updatePayment(input: UpdatePaymentInput): Promise<void> {
+  if (!(input.amount > 0)) {
+    throw new PaymentError("Amount must be greater than zero", "amount");
+  }
+
+  const loanId = await db.$transaction(async (tx) => {
+    const payment = await tx.payment.findFirst({
+      where: { id: input.paymentId, companyId: input.companyId },
+      include: { allocations: true },
+    });
+    if (!payment) return null;
+
+    await guardRefinanceSettlement(tx, payment);
+    if (payment.status === "REVERSED") {
+      throw new PaymentError("Payment is reversed", "reversed");
+    }
+
+    // Se devuelve lo aplicado antes de repartir el monto nuevo, o el cobro
+    // corregido se sumaría encima del viejo.
+    for (const allocation of payment.allocations) {
+      const installment = await tx.loanInstallment.findUniqueOrThrow({
+        where: { id: allocation.installmentId },
+      });
+      const returnedCents =
+        toCents(Number(allocation.principalAmount)) +
+        toCents(Number(allocation.interestAmount)) +
+        toCents(Number(allocation.chargeAmount)) +
+        toCents(Number(allocation.lateFeeAmount));
+      const remainingPaidCents = Math.max(
+        0,
+        toCents(Number(installment.paidAmount)) - returnedCents,
+      );
+      await tx.loanInstallment.update({
+        where: { id: installment.id },
+        data: {
+          paidAmount: fromCents(remainingPaidCents),
+          status: remainingPaidCents > 0 ? "PARTIALLY_PAID" : "PENDING",
+          paidAt: null,
+        },
+      });
+    }
+    await tx.paymentAllocation.deleteMany({ where: { paymentId: payment.id } });
+
+    const loan = await tx.loan.findUniqueOrThrow({
+      where: { id: payment.loanId },
+      include: { installments: { orderBy: { number: "asc" } } },
+    });
+
+    const paidAt = input.paidAt ?? payment.paidAt;
+    const result = allocatePayment(
+      toCents(input.amount),
+      loan.installments.map((installment) => ({
+        id: installment.id,
+        number: installment.number,
+        dueDate: installment.dueDate,
+        principalCents: toCents(Number(installment.principalAmount)),
+        interestCents: toCents(Number(installment.interestAmount)),
+        chargeCents: toCents(Number(installment.chargeAmount)),
+        lateFeeCents: toCents(Number(installment.lateFeeAmount)),
+        paidCents: toCents(Number(installment.paidAmount)),
+        status: installment.status,
+      })),
+    );
+
+    await tx.paymentAllocation.createMany({
+      data: result.allocations.map((allocation) => ({
+        paymentId: payment.id,
+        installmentId: allocation.installmentId,
+        principalAmount: fromCents(allocation.principalCents),
+        interestAmount: fromCents(allocation.interestCents),
+        chargeAmount: fromCents(allocation.chargeCents),
+        lateFeeAmount: fromCents(allocation.lateFeeCents),
+      })),
+    });
+
+    for (const allocation of result.allocations) {
+      await tx.loanInstallment.update({
+        where: { id: allocation.installmentId },
+        data: {
+          paidAmount: fromCents(allocation.resultingPaidCents),
+          status: allocation.resultingStatus,
+          paidAt: allocation.resultingStatus === "PAID" ? paidAt : null,
+        },
+      });
+    }
+
+    // La caja se mueve solo por lo que cambió el monto.
+    const difference = input.amount - Number(payment.amount);
+    if (payment.cashBoxId && difference !== 0) {
+      const cashBox = await tx.cashBox.findUniqueOrThrow({
+        where: { id: payment.cashBoxId },
+        select: { balance: true },
+      });
+      const balanceAfter = Number(cashBox.balance) + difference;
+      await tx.cashBox.update({
+        where: { id: payment.cashBoxId },
+        data: { balance: balanceAfter },
+      });
+      await tx.cashMovement.create({
+        data: {
+          cashBoxId: payment.cashBoxId,
+          kind: "ADJUSTMENT",
+          amount: difference,
+          balanceAfter,
+          description: `Corrección recibo ${payment.receiptNumber}`,
+          paymentId: payment.id,
+          createdById: input.userId ?? null,
+        },
+      });
+    }
+
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: {
+        amount: input.amount,
+        method: input.method ?? payment.method,
+        paidAt,
+        reference: input.reference ?? payment.reference,
+        notes: input.notes ?? payment.notes,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        companyId: input.companyId,
+        userId: input.userId ?? null,
+        action: "payment.updated",
+        entityType: "Payment",
+        entityId: payment.id,
+        metadata: {
+          receiptNumber: payment.receiptNumber,
+          from: Number(payment.amount),
+          to: input.amount,
+        },
+      },
+    });
+
+    await refreshLoan(tx, payment.loanId, paidAt);
+    return payment.loanId;
+  });
+
+  if (loanId === null) return;
 }
 
 /**

@@ -564,8 +564,14 @@ export const es = {
       OVERDUE: "Vencida",
       WAIVED: "Condonada",
     },
-    editLockedDisbursed:
-      "Este préstamo ya fue desembolsado: el monto, la tasa y las cuotas no se pueden cambiar porque los cobros ya se aplicaron contra ellas. Si hay un error, anula el préstamo y crea uno nuevo.",
+    editLockedPaid:
+      "Este préstamo ya está saldado: sus condiciones son historia y no se cambian. Solo se pueden editar las notas.",
+    editTermsWarning:
+      "Si cambias el monto, la tasa o las cuotas, el plan se vuelve a calcular y los cobros ya registrados se aplican otra vez sobre el plan nuevo.",
+    delete: "Eliminar préstamo",
+    deleteConfirm:
+      "Se borra el préstamo con sus cuotas y sus cobros, y la plata vuelve a la caja como si nunca se hubiera prestado. Esto no se puede deshacer.",
+    deleted: "Préstamo eliminado.",
     editLockedClosed: "Este préstamo está cerrado y no se puede modificar.",
     cancelConfirm:
       "Al anular el préstamo se cierra y deja de cobrarse. Los cobros ya registrados quedan como están.",
@@ -583,11 +589,11 @@ export const es = {
       firstDueDate: "La fecha de la primera cuota no es válida.",
       customerRequired: "Debes seleccionar un cliente.",
       notFound: "No se encontró el préstamo.",
-      termsLocked:
-        "Este préstamo ya no está en borrador: solo se pueden cambiar las notas.",
       closed: "Este préstamo está cerrado y no se puede modificar.",
       cannotCancel:
         "Este préstamo no se puede anular: ya está saldado, anulado o dado por incobrable.",
+      termsLocked:
+        "Este préstamo está saldado: solo se pueden cambiar las notas.",
       noBalance:
         "Este préstamo no debe nada. Si el cliente quiere plata otra vez, hazle un préstamo nuevo.",
       notNewMoney:
@@ -718,6 +724,10 @@ export const es = {
       "Se devuelve el monto a las cuotas y se descuenta de la caja. El recibo queda marcado como anulado.",
     reversed2: "Cobro anulado.",
     reverseReason: "Motivo de la anulación",
+    edit: "Editar cobro",
+    editHint:
+      "Se vuelve a aplicar sobre las cuotas y la caja se mueve solo por la diferencia. El recibo sigue siendo el mismo.",
+    updated: "Cobro actualizado.",
     reversed: "Anulado",
     methodLabel: {
       CASH: "Efectivo",
@@ -740,6 +750,7 @@ export const es = {
       settlesRefinance:
         "Este cobro es el saldo que se pasó a otro préstamo, no plata que entró. Para deshacerlo, anula el préstamo con el que se refinanció.",
       nothingToApply: "Este préstamo no tiene cuotas pendientes.",
+      reversed: "Este cobro está anulado. Elimínalo y registra uno nuevo.",
     },
   },
 

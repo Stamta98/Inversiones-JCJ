@@ -14,10 +14,12 @@ import {
   summarizeCharges,
   type Charge,
 } from "@/core/loans/charges";
-import { canCancel, canEditAtAll, canEditTerms } from "@/core/loans/editable";
+import { allocatePayment } from "@/core/loans/allocation";
+import { canCancel, canEditAtAll } from "@/core/loans/editable";
 import { buildSchedule, type Schedule } from "@/core/loans/schedule";
 import { fromCents, stepForDecimals, toCents } from "@/core/money";
 import type {
+  InstallmentStatus,
   InterestMethod,
   LateFeeMode,
   PaymentFrequency,
@@ -191,12 +193,14 @@ export async function createLoan(input: CreateLoanInput): Promise<string> {
           cashBoxId: input.cashBoxId,
           amount: input.principal,
           loanCode: code,
+          loanId: loan.id,
           createdById: input.createdById ?? null,
         });
         await recordDeductedCharges(tx, {
           cashBoxId: input.cashBoxId,
           amount: fromCents(chargeSummary.deductedCents),
           loanCode: code,
+          loanId: loan.id,
           createdById: input.createdById ?? null,
         });
       }
@@ -228,7 +232,12 @@ export async function createLoan(input: CreateLoanInput): Promise<string> {
 export class LoanServiceError extends Error {
   constructor(
     message: string,
-    readonly code: "notFound" | "termsLocked" | "closed" | "cannotCancel",
+    readonly code:
+      | "notFound"
+      | "termsLocked"
+      | "closed"
+      | "cannotCancel"
+      | "alreadyRenewed",
   ) {
     super(message);
     this.name = "LoanServiceError";
@@ -272,17 +281,20 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
   await db.$transaction(async (tx) => {
     const loan = await tx.loan.findFirst({
       where: { id: input.loanId, companyId: input.companyId },
+      include: { charges: true },
     });
     if (!loan) throw new LoanServiceError("Loan not found", "notFound");
     if (!canEditAtAll(loan.status)) {
       throw new LoanServiceError("Loan is closed", "closed");
     }
 
-    if (input.terms && !canEditTerms(loan.status)) {
-      throw new LoanServiceError("Terms are locked", "termsLocked");
-    }
-
-    const schedule = input.terms ? previewSchedule(input.terms) : null;
+    // Las condiciones se pueden corregir después de creado el préstamo: quien
+    // presta se equivoca tecleando y lo que hace falta es arreglarlo, no
+    // anularlo y volver a empezar. Lo que ya se cobró no se pierde — se vuelve
+    // a aplicar contra el plan nuevo más abajo.
+    const schedule = input.terms
+      ? previewSchedule({ ...input.terms, charges: chargesOf(loan) })
+      : null;
 
     await tx.loan.update({
       where: { id: loan.id },
@@ -312,7 +324,15 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
     });
 
     if (schedule) {
-      // A draft has no payments allocated, so the old schedule can simply go.
+      // Las aplicaciones viejas apuntan a cuotas que dejan de existir, así que
+      // se van primero y los cobros se vuelven a repartir sobre el plan nuevo.
+      const payments = await tx.payment.findMany({
+        where: { loanId: loan.id },
+        select: { id: true },
+      });
+      await tx.paymentAllocation.deleteMany({
+        where: { paymentId: { in: payments.map((payment) => payment.id) } },
+      });
       await tx.loanInstallment.deleteMany({ where: { loanId: loan.id } });
       await tx.loanInstallment.createMany({
         data: schedule.installments.map((installment) => ({
@@ -321,10 +341,26 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
           dueDate: installment.dueDate,
           principalAmount: fromCents(installment.principalCents),
           interestAmount: fromCents(installment.interestCents),
+          chargeAmount: fromCents(installment.chargeCents),
           totalAmount: fromCents(installment.totalCents),
           balanceAfter: fromCents(installment.balanceAfterCents),
         })),
       });
+
+      await reapplyPayments(tx, loan.id);
+
+      // El monto cambió y la plata ya había salido: la caja tiene que reflejar
+      // la diferencia o diría que se entregó lo que no se entregó.
+      if (input.terms) {
+        await adjustDisbursement(tx, {
+          loanId: loan.id,
+          loanCode: loan.code,
+          difference: input.terms.principal - Number(loan.principal),
+          createdById: input.updatedById ?? null,
+        });
+      }
+
+      await refreshLoan(tx, loan.id);
     }
 
     await tx.auditLog.create({
@@ -337,6 +373,134 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
         metadata: { code: loan.code, termsChanged: schedule !== null },
       },
     });
+  });
+}
+
+/** Los cargos guardados del préstamo, en la forma que espera el motor. */
+function chargesOf(loan: {
+  charges?: Array<{ name: string; amount: Prisma.Decimal | number; mode: string }>;
+}): CreateLoanInput["charges"] {
+  return (loan.charges ?? []).map((charge) => ({
+    name: charge.name,
+    amount: Number(charge.amount),
+    mode: charge.mode as "DEDUCTED" | "FINANCED",
+  }));
+}
+
+/**
+ * Vuelve a repartir lo ya cobrado sobre el plan nuevo.
+ *
+ * Se aplican en el orden en que se cobraron, que es el único orden que da el
+ * mismo resultado que si el plan hubiera sido este desde el principio.
+ */
+async function reapplyPayments(
+  tx: Prisma.TransactionClient,
+  loanId: string,
+): Promise<void> {
+  const payments = await tx.payment.findMany({
+    where: { loanId, status: "POSTED" },
+    orderBy: [{ paidAt: "asc" }, { receiptNumber: "asc" }],
+    select: { id: true, amount: true, paidAt: true },
+  });
+  if (payments.length === 0) return;
+
+  const installments = await tx.loanInstallment.findMany({
+    where: { loanId },
+    orderBy: { number: "asc" },
+  });
+
+  // El estado de las cuotas se lleva en memoria mientras se reparte cobro a
+  // cobro; se escribe una sola vez al final.
+  const state = installments.map((installment) => ({
+    id: installment.id,
+    number: installment.number,
+    dueDate: installment.dueDate,
+    principalCents: toCents(Number(installment.principalAmount)),
+    interestCents: toCents(Number(installment.interestAmount)),
+    chargeCents: toCents(Number(installment.chargeAmount)),
+    lateFeeCents: 0,
+    paidCents: 0,
+    status: "PENDING" as InstallmentStatus,
+  }));
+
+  for (const payment of payments) {
+    const result = allocatePayment(toCents(Number(payment.amount)), state);
+
+    for (const allocation of result.allocations) {
+      const target = state.find((item) => item.id === allocation.installmentId);
+      if (!target) continue;
+      target.paidCents = allocation.resultingPaidCents;
+      target.status = allocation.resultingStatus;
+    }
+
+    await tx.paymentAllocation.createMany({
+      data: result.allocations.map((allocation) => ({
+        paymentId: payment.id,
+        installmentId: allocation.installmentId,
+        principalAmount: fromCents(allocation.principalCents),
+        interestAmount: fromCents(allocation.interestCents),
+        chargeAmount: fromCents(allocation.chargeCents),
+        lateFeeAmount: fromCents(allocation.lateFeeCents),
+      })),
+    });
+  }
+
+  for (const item of state) {
+    await tx.loanInstallment.update({
+      where: { id: item.id },
+      data: {
+        paidAmount: fromCents(item.paidCents),
+        status: item.status,
+        paidAt: null,
+      },
+    });
+  }
+}
+
+/**
+ * Corrige la caja cuando el monto de un préstamo ya desembolsado cambia.
+ *
+ * Se busca de qué caja salió por sus propios movimientos, así que un préstamo
+ * que nunca se desembolsó no toca nada.
+ */
+async function adjustDisbursement(
+  tx: Prisma.TransactionClient,
+  input: {
+    loanId: string;
+    loanCode: string;
+    difference: number;
+    createdById: string | null;
+  },
+): Promise<void> {
+  if (input.difference === 0) return;
+
+  const disbursement = await tx.cashMovement.findFirst({
+    where: { loanId: input.loanId, kind: "LOAN_DISBURSEMENT" },
+    orderBy: { createdAt: "asc" },
+    select: { cashBoxId: true },
+  });
+  if (!disbursement) return;
+
+  const cashBox = await tx.cashBox.findUniqueOrThrow({
+    where: { id: disbursement.cashBoxId },
+    select: { balance: true },
+  });
+  const balanceAfter = Number(cashBox.balance) - input.difference;
+
+  await tx.cashBox.update({
+    where: { id: disbursement.cashBoxId },
+    data: { balance: balanceAfter },
+  });
+  await tx.cashMovement.create({
+    data: {
+      cashBoxId: disbursement.cashBoxId,
+      kind: "ADJUSTMENT",
+      amount: -input.difference,
+      balanceAfter,
+      description: `Corrección ${input.loanCode}`,
+      loanId: input.loanId,
+      createdById: input.createdById,
+    },
   });
 }
 
@@ -410,12 +574,121 @@ export async function cancelLoan(input: {
  * Shared with the refinance service, where the amount handed over is the net
  * of a renewal rather than the loan's principal.
  */
+/**
+ * Borra un préstamo para siempre.
+ *
+ * Anular deja el préstamo cerrado y a la vista, que es lo correcto casi
+ * siempre. Esto es para el préstamo que nunca debió existir — el monto mal
+ * tecleado, el cliente equivocado — y por eso lo deja como si nunca hubiera
+ * pasado, empezando por la caja: vuelve el desembolso, se van los cobros y el
+ * saldo queda exactamente donde estaba antes de crearlo.
+ *
+ * Lo único que sobrevive es la auditoría, que es la razón por la que se puede
+ * borrar del todo sin perder el rastro de que se borró.
+ */
+export async function deleteLoan(
+  companyId: string,
+  loanId: string,
+  options: { userId?: string | null } = {},
+): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const loan = await tx.loan.findFirst({
+      where: { id: loanId, companyId },
+      select: {
+        id: true,
+        code: true,
+        principal: true,
+        totalPaid: true,
+        customerId: true,
+        payments: { select: { id: true } },
+      },
+    });
+    if (!loan) return;
+
+    // Un préstamo que ya fue refinanciado o renovado no se puede borrar sin
+    // dejar al otro préstamo cobrando un saldo que salió de este.
+    const replacement = await tx.loan.findFirst({
+      where: { parentLoanId: loan.id, status: { not: "CANCELLED" } },
+      select: { code: true },
+    });
+    if (replacement) {
+      throw new LoanServiceError(
+        `Replaced by ${replacement.code}`,
+        "alreadyRenewed",
+      );
+    }
+
+    // Todo lo que este préstamo movió en caja: su desembolso, sus cargos y
+    // cada cobro que se le hizo.
+    const paymentIds = loan.payments.map((payment) => payment.id);
+    const movements = await tx.cashMovement.findMany({
+      where: {
+        OR: [
+          { loanId: loan.id },
+          ...(paymentIds.length > 0 ? [{ paymentId: { in: paymentIds } }] : []),
+        ],
+      },
+      select: { id: true, cashBoxId: true, amount: true },
+    });
+
+    // Se deshace por caja, porque un préstamo pudo desembolsarse de una y
+    // cobrarse en otra.
+    const perBox = new Map<string, number>();
+    for (const movement of movements) {
+      perBox.set(
+        movement.cashBoxId,
+        (perBox.get(movement.cashBoxId) ?? 0) + Number(movement.amount),
+      );
+    }
+
+    for (const [cashBoxId, net] of perBox) {
+      if (net === 0) continue;
+      const cashBox = await tx.cashBox.findUnique({
+        where: { id: cashBoxId },
+        select: { balance: true },
+      });
+      if (!cashBox) continue;
+      await tx.cashBox.update({
+        where: { id: cashBoxId },
+        data: { balance: Number(cashBox.balance) - net },
+      });
+    }
+
+    await tx.cashMovement.deleteMany({
+      where: { id: { in: movements.map((movement) => movement.id) } },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        companyId,
+        userId: options.userId ?? null,
+        action: "loan.deleted",
+        entityType: "Loan",
+        entityId: loan.id,
+        metadata: {
+          code: loan.code,
+          principal: Number(loan.principal),
+          totalPaid: Number(loan.totalPaid),
+          customerId: loan.customerId,
+          payments: paymentIds.length,
+          cashMovements: movements.length,
+        },
+      },
+    });
+
+    // Las cuotas, los cobros, sus aplicaciones y los cargos se van con él.
+    await tx.loan.delete({ where: { id: loan.id } });
+  });
+}
+
 export async function recordDisbursement(
   tx: Prisma.TransactionClient,
   input: {
     cashBoxId: string;
     amount: number;
     loanCode: string;
+    /** Para poder deshacerlo si el préstamo se borra. */
+    loanId: string;
     createdById: string | null;
   },
 ): Promise<void> {
@@ -438,6 +711,7 @@ export async function recordDisbursement(
       amount: -input.amount,
       balanceAfter,
       description: `Desembolso ${input.loanCode}`,
+      loanId: input.loanId,
       createdById: input.createdById,
     },
   });
@@ -456,6 +730,8 @@ export async function recordDeductedCharges(
     cashBoxId: string;
     amount: number;
     loanCode: string;
+    /** Para poder deshacerlo si el préstamo se borra. */
+    loanId: string;
     createdById: string | null;
   },
 ): Promise<void> {
@@ -479,6 +755,7 @@ export async function recordDeductedCharges(
       amount: input.amount,
       balanceAfter,
       description: `Cargos ${input.loanCode}`,
+      loanId: input.loanId,
       createdById: input.createdById,
     },
   });
@@ -635,6 +912,7 @@ export async function disburseLoan(
         cashBoxId: options.cashBoxId,
         amount: Number(loan.principal),
         loanCode: loan.code,
+        loanId: loan.id,
         createdById: options.userId ?? null,
       });
     }

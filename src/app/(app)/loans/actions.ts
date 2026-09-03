@@ -19,6 +19,7 @@ import {
   LoanServiceError,
   cancelLoan,
   createLoan,
+  deleteLoan,
   disburseLoan,
   updateLoan,
 } from "@/server/services/loans";
@@ -406,4 +407,39 @@ export async function resetLoanOrderAction(): Promise<void> {
   const context = await requirePermission("loans.update");
   await resetLoanOrder(context.companyId);
   revalidatePath("/loans");
+}
+
+/**
+ * Borra un préstamo para siempre.
+ *
+ * Anular deja el préstamo cerrado y a la vista, que es lo correcto casi
+ * siempre. Esto es para el que nunca debió existir, y por eso devuelve la
+ * plata a la caja y deja el rastro en la auditoría.
+ */
+export async function deleteLoanAction(
+  _previous: LoanFormState,
+  formData: FormData,
+): Promise<LoanFormState> {
+  const context = await requirePermission("loans.delete");
+  const loanId = String(formData.get("loanId") ?? "");
+  if (!loanId) return { error: t("common.error") };
+
+  try {
+    await deleteLoan(context.companyId, loanId, { userId: context.userId });
+  } catch (error) {
+    if (error instanceof LoanServiceError) {
+      const message = t(`loans.errors.${error.code}`);
+      return {
+        error:
+          message === `loans.errors.${error.code}` ? t("common.error") : message,
+      };
+    }
+    throw error;
+  }
+
+  revalidatePath("/loans");
+  revalidatePath("/payments");
+  revalidatePath("/cash");
+  revalidatePath("/dashboard");
+  redirect("/loans");
 }

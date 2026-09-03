@@ -13,11 +13,15 @@ import {
   lockedReasonKey,
 } from "@/core/loans/editable";
 import type { LoanStatus } from "@/core/types";
-import { requirePermission } from "@/server/auth/context";
+import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
 import { LoanForm } from "../../new/loan-form";
-import { CancelLoanForm, LoanNotesForm } from "./loan-edit-forms";
+import {
+  CancelLoanForm,
+  DeleteLoanForm,
+  LoanNotesForm,
+} from "./loan-edit-forms";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +81,14 @@ export default async function EditLoanPage({
         </div>
       ) : null}
 
+      {/* Cambiar las condiciones de un préstamo que ya se está cobrando
+          rehace el plan: conviene decirlo antes, no después. */}
+      {editableTerms && status !== "DRAFT" ? (
+        <div className="mb-4">
+          <Alert tone="info">{t("loans.editTermsWarning")}</Alert>
+        </div>
+      ) : null}
+
       {editableTerms ? (
         <LoanForm
           currencyCode={context.currencyCode}
@@ -126,6 +138,13 @@ export default async function EditLoanPage({
         <Card className="mt-4 max-w-2xl">
           <CardHeader title={t("loans.cancel")} />
           <CancelLoanForm loanId={loan.id} />
+        </Card>
+      ) : null}
+
+      {can(context, "loans.delete") ? (
+        <Card className="mt-4 max-w-2xl">
+          <CardHeader title={t("loans.delete")} />
+          <DeleteLoanForm loanId={loan.id} />
         </Card>
       ) : null}
     </>

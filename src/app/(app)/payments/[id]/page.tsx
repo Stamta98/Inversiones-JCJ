@@ -20,6 +20,7 @@ import { ShareDocument } from "@/components/ui/share-document";
 
 import { ReversePaymentButton } from "../reverse-payment-button";
 import { DeleteReceipt } from "./delete-receipt";
+import { EditPaymentForm } from "./edit-payment-form";
 
 export const dynamic = "force-dynamic";
 
@@ -233,6 +234,23 @@ export default async function ReceiptPage({
               />
             </CardBody>
           </Card>
+
+          {/* Corregir un monto mal tecleado sin dejar dos recibos donde hubo
+              un pago. Un cobro anulado ya no se corrige: se elimina. */}
+          {can(context, "payments.update") && !voided && !settlesRefinance ? (
+            <Card>
+              <CardHeader title={t("payments.edit")} />
+              <EditPaymentForm
+                paymentId={receipt.paymentId}
+                amount={receipt.amount}
+                method={receipt.method}
+                paidAt={receipt.paidAt.toISOString().slice(0, 10)}
+                reference={receipt.reference}
+                notes={receipt.notes}
+                decimalPlaces={context.decimalPlaces}
+              />
+            </Card>
+          ) : null}
 
           {canDelete ? (
             <Card>

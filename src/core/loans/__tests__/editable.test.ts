@@ -24,13 +24,23 @@ const ALL_STATUSES: LoanStatus[] = [
 ];
 
 describe("canEditTerms", () => {
-  it("allows the terms only before the loan is committed", () => {
-    expect(canEditTerms("DRAFT")).toBe(true);
-    expect(canEditTerms("PENDING_APPROVAL")).toBe(true);
+  // Quien presta se equivoca tecleando, y anular el préstamo para volver a
+  // empezar no arregla nada: mientras el préstamo siga vivo se corrige, y el
+  // servicio rehace el plan y vuelve a repartir sobre él lo ya cobrado.
+  it("lets a live loan be corrected", () => {
+    for (const status of [
+      "DRAFT",
+      "PENDING_APPROVAL",
+      "APPROVED",
+      "ACTIVE",
+      "IN_ARREARS",
+    ] as const) {
+      expect(canEditTerms(status), status).toBe(true);
+    }
   });
 
-  it("locks the terms once the money is out", () => {
-    for (const status of ["APPROVED", "ACTIVE", "IN_ARREARS", "PAID"] as const) {
+  it("leaves a closed loan alone", () => {
+    for (const status of ["PAID", "CANCELLED", "WRITTEN_OFF"] as const) {
       expect(canEditTerms(status), status).toBe(false);
     }
   });
@@ -44,8 +54,16 @@ describe("editableFields", () => {
     }
   });
 
-  it("leaves only the descriptive fields on a live loan", () => {
+  it("gives everything on a live loan too", () => {
     const fields = editableFields("ACTIVE");
+    for (const field of [...FINANCIAL_FIELDS, ...DESCRIPTIVE_FIELDS]) {
+      expect(fields, field).toContain(field);
+    }
+  });
+
+  // Un préstamo saldado es historia: reescribirlo cambiaría lo que ya pasó.
+  it("leaves only the descriptive fields on a settled loan", () => {
+    const fields = editableFields("PAID");
     expect(fields).toEqual([...DESCRIPTIVE_FIELDS]);
     for (const field of FINANCIAL_FIELDS) {
       expect(fields, field).not.toContain(field);
@@ -57,10 +75,9 @@ describe("editableFields", () => {
     expect(editableFields("WRITTEN_OFF")).toEqual([]);
   });
 
-  it("never lets the principal change on a loan with payments", () => {
-    // The regression that matters: a live loan must never expose the money.
+  it("never lets a closed loan expose the money", () => {
     for (const status of ALL_STATUSES) {
-      if (status === "DRAFT" || status === "PENDING_APPROVAL") continue;
+      if (!["PAID", "CANCELLED", "WRITTEN_OFF"].includes(status)) continue;
       expect(isEditable(status, "principal"), status).toBe(false);
       expect(isEditable(status, "interestRate"), status).toBe(false);
       expect(isEditable(status, "termCount"), status).toBe(false);
@@ -90,7 +107,8 @@ describe("canCancel", () => {
 describe("lockedReasonKey", () => {
   it("explains why, so the screen can tell the user", () => {
     expect(lockedReasonKey("DRAFT")).toBeNull();
-    expect(lockedReasonKey("ACTIVE")).toBe("loans.editLockedDisbursed");
+    expect(lockedReasonKey("ACTIVE")).toBeNull();
+    expect(lockedReasonKey("PAID")).toBe("loans.editLockedPaid");
     expect(lockedReasonKey("CANCELLED")).toBe("loans.editLockedClosed");
   });
 });

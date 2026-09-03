@@ -1,43 +1,52 @@
 /**
  * Human readable sequential codes (CLI-000123, PRE-000045, REC-001045).
  *
- * Derived from the current row count inside a transaction, then retried on a
- * unique constraint violation, which keeps the codes gapless enough for an
- * operator without needing a separate counter table.
+ * Taken from the highest code already issued rather than from the row count:
+ * counting looks equivalent until something is deleted, and then the next code
+ * comes out repeating one that is already printed on a receipt in somebody's
+ * hand. The unique constraint plus a retry covers two people creating at once.
  */
 
 import type { Prisma } from "@prisma/client";
 
-export type SequencePrefix = "CLI" | "PRE" | "REC";
+import { nextCode, type SequencePrefix } from "@/core/sequences";
 
-const PAD_LENGTH = 6;
-
-function format(prefix: SequencePrefix, value: number): string {
-  return `${prefix}-${String(value).padStart(PAD_LENGTH, "0")}`;
-}
+export type { SequencePrefix };
 
 export async function nextCustomerCode(
   tx: Prisma.TransactionClient,
   companyId: string,
 ): Promise<string> {
-  const count = await tx.customer.count({ where: { companyId } });
-  return format("CLI", count + 1);
+  const latest = await tx.customer.findFirst({
+    where: { companyId },
+    orderBy: { code: "desc" },
+    select: { code: true },
+  });
+  return nextCode("CLI", latest?.code);
 }
 
 export async function nextLoanCode(
   tx: Prisma.TransactionClient,
   companyId: string,
 ): Promise<string> {
-  const count = await tx.loan.count({ where: { companyId } });
-  return format("PRE", count + 1);
+  const latest = await tx.loan.findFirst({
+    where: { companyId },
+    orderBy: { code: "desc" },
+    select: { code: true },
+  });
+  return nextCode("PRE", latest?.code);
 }
 
 export async function nextReceiptNumber(
   tx: Prisma.TransactionClient,
   companyId: string,
 ): Promise<string> {
-  const count = await tx.payment.count({ where: { companyId } });
-  return format("REC", count + 1);
+  const latest = await tx.payment.findFirst({
+    where: { companyId },
+    orderBy: { receiptNumber: "desc" },
+    select: { receiptNumber: true },
+  });
+  return nextCode("REC", latest?.receiptNumber);
 }
 
 /** Retries an operation whose only likely failure is a code collision. */
