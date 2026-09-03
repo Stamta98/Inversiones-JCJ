@@ -23,6 +23,8 @@ import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
+import { ShareDocument } from "@/components/ui/share-document";
+
 import { ReversePaymentButton } from "../../payments/reverse-payment-button";
 import { disburseLoanAction } from "../actions";
 import { PaymentForm } from "./payment-form";
@@ -78,6 +80,17 @@ export default async function LoanDetailPage({
   if (!loan) notFound();
 
   const { t, money } = context;
+
+  const rawPhone = loan.customer.mobilePhone ?? loan.customer.phone;
+  const customerPhone = rawPhone ? rawPhone.replace(/\D/g, "") : null;
+  const documentMessage = [
+    context.companyName,
+    `${t("loans.documentTitle")} ${loan.code}`,
+    `${t("loans.principal")}: ${money(Number(loan.principal))}`,
+    `${t("loans.totalToPay")}: ${money(
+      Number(loan.totalPrincipal) + Number(loan.totalInterest),
+    )}`,
+  ].join("\n");
 
   const nextOpen = loan.installments.find(
     (installment) =>
@@ -216,6 +229,29 @@ export default async function LoanDetailPage({
             {loan.customer.address ? (
               <p className="text-ink-muted">{loan.customer.address}</p>
             ) : null}
+          </CardBody>
+        </Card>
+      </div>
+
+      <div className="mt-4">
+        <Card>
+          <CardHeader
+            title={t("loans.documentTitle")}
+            description={t("loans.documentHint")}
+          />
+          <CardBody>
+            <ShareDocument
+              url={`/api/loans/${loan.id}/pdf`}
+              fileName={`${loan.code}.pdf`}
+              mimeType="application/pdf"
+              message={documentMessage}
+              phone={customerPhone}
+              shareLabel={t("loans.sharePdf")}
+              downloadLabel={t("loans.downloadPdf")}
+              busyLabel={t("payments.sharing")}
+              fallbackLabel={t("payments.shareFallback")}
+              downloadIcon="file-text"
+            />
           </CardBody>
         </Card>
       </div>

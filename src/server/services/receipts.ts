@@ -118,3 +118,118 @@ export async function loadReceipt(
     collectedBy: collector?.fullName ?? null,
   };
 }
+
+export interface LoanPaperwork {
+  company: {
+    name: string;
+    legalName: string | null;
+    phone: string | null;
+    city: string | null;
+    address: string | null;
+    currencyCode: string;
+    locale: string;
+    decimalPlaces: number;
+  };
+  customer: {
+    fullName: string;
+    document: string;
+    address: string | null;
+    phone: string | null;
+  };
+  loan: {
+    code: string;
+    principal: number;
+    interest: number;
+    totalToPay: number;
+    installmentAmount: number;
+    interestRate: number;
+    rateBasis: string;
+    interestMethod: string;
+    frequency: string;
+    termCount: number;
+    status: string;
+    disbursedAt: Date | null;
+    firstDueDate: Date;
+    lastDueDate: Date | null;
+  };
+  installments: Array<{
+    number: number;
+    dueDate: Date;
+    principal: number;
+    interest: number;
+    lateFee: number;
+    total: number;
+    balanceAfter: number;
+  }>;
+}
+
+/** Everything the loan's paperwork says, refusing another company's loan. */
+export async function loadLoanPaperwork(
+  companyId: string,
+  loanId: string,
+): Promise<LoanPaperwork | null> {
+  const loan = await db.loan.findFirst({
+    where: { id: loanId, companyId },
+    include: {
+      company: true,
+      customer: true,
+      installments: { orderBy: { number: "asc" } },
+    },
+  });
+  if (!loan) return null;
+
+  const totalToPay = Number(loan.totalPrincipal) + Number(loan.totalInterest);
+  let balance = totalToPay;
+
+  const installments = loan.installments.map((installment) => {
+    const total = Number(installment.totalAmount);
+    balance -= total;
+    return {
+      number: installment.number,
+      dueDate: installment.dueDate,
+      principal: Number(installment.principalAmount),
+      interest: Number(installment.interestAmount),
+      lateFee: Number(installment.lateFeeAmount),
+      total,
+      // What is left to hand over after this one, which is the number a
+      // customer follows down the page.
+      balanceAfter: Math.max(0, Math.round(balance * 100) / 100),
+    };
+  });
+
+  return {
+    company: {
+      name: loan.company.name,
+      legalName: loan.company.legalName,
+      phone: loan.company.phone,
+      city: loan.company.city,
+      address: loan.company.address,
+      currencyCode: loan.company.currencyCode,
+      locale: loan.company.locale,
+      decimalPlaces: loan.company.decimalPlaces,
+    },
+    customer: {
+      fullName: `${loan.customer.firstName} ${loan.customer.lastName}`,
+      document: maskDocument(loan.customer.documentNumber),
+      address: loan.customer.address ?? loan.customer.neighborhood,
+      phone: loan.customer.mobilePhone ?? loan.customer.phone,
+    },
+    loan: {
+      code: loan.code,
+      principal: Number(loan.principal),
+      interest: Number(loan.totalInterest),
+      totalToPay,
+      installmentAmount: installments[0]?.total ?? 0,
+      interestRate: Number(loan.interestRate),
+      rateBasis: loan.rateBasis,
+      interestMethod: loan.interestMethod,
+      frequency: loan.frequency,
+      termCount: loan.termCount,
+      status: loan.status,
+      disbursedAt: loan.disbursedAt,
+      firstDueDate: loan.firstDueDate,
+      lastDueDate: loan.installments.at(-1)?.dueDate ?? null,
+    },
+    installments,
+  };
+}

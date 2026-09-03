@@ -427,6 +427,21 @@ export const es = {
     customer: "Cliente",
     product: "Tipo de préstamo",
     principal: "Monto prestado",
+    // --- Comprobante del préstamo ---
+    documentTitle: "Comprobante de préstamo",
+    documentHint: "El papel que firma y se lleva el cliente, con todas las cuotas.",
+    downloadPdf: "Descargar el PDF",
+    sharePdf: "Enviar por WhatsApp",
+    documentPage: "Página {current} de {total}",
+    documentFooter:
+      "Este documento detalla las condiciones acordadas y el plan de cuotas.",
+    signCustomer: "Firma del cliente",
+    signCompany: "Por la empresa",
+    columnNumber: "N.º",
+    columnBalance: "Saldo",
+    principalShare: "Capital",
+    interestShare: "Interés",
+
     interestRate: "Tasa de interés (%)",
     interestRateHint: "El porcentaje que le cobras al cliente.",
     rateBasis: "¿El interés es sobre qué?",

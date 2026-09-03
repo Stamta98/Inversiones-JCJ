@@ -16,9 +16,10 @@ import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import { loadReceipt } from "@/server/services/receipts";
 
+import { ShareDocument } from "@/components/ui/share-document";
+
 import { ReversePaymentButton } from "../reverse-payment-button";
 import { DeleteReceipt } from "./delete-receipt";
-import { ShareReceipt } from "./share-receipt";
 
 export const dynamic = "force-dynamic";
 
@@ -209,11 +210,16 @@ export default async function ReceiptPage({
               description={t("payments.receiptKeep")}
             />
             <CardBody>
-              <ShareReceipt
-                paymentId={receipt.paymentId}
-                receiptNumber={receipt.receiptNumber}
+              <ShareDocument
+                url={`/api/receipts/${receipt.paymentId}`}
+                fileName={`${receipt.receiptNumber}.png`}
+                mimeType="image/png"
                 message={message}
                 phone={phone}
+                shareLabel={t("payments.share")}
+                downloadLabel={t("payments.download")}
+                busyLabel={t("payments.sharing")}
+                fallbackLabel={t("payments.shareFallback")}
               />
             </CardBody>
           </Card>
