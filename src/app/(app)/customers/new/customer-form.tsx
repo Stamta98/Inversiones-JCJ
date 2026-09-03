@@ -9,6 +9,7 @@ import {
   CardBody,
   CardHeader,
   Field,
+  FormSection,
   Input,
   Select,
   Textarea,
@@ -120,6 +121,18 @@ export function CustomerForm({
     customer?.employmentType ?? "",
   );
   const fieldError = (name: string) => state.fieldErrors?.[name];
+  /** A folded section that holds a rejected field has to unfold itself. */
+  const sectionHasError = (names: readonly string[]) =>
+    names.some((name) => fieldError(name) !== undefined);
+  /**
+   * Editing someone whose work is already on file should not hide it: a
+   * section that has something in it starts open.
+   */
+  const filled = (...values: Array<string | number | null | undefined>) =>
+    editando &&
+    values.some(
+      (value) => value !== null && value !== undefined && value !== "",
+    );
   /** Los campos de texto no aceptan null, y en creación no hay valor previo. */
   const v = (value: string | number | null | undefined) =>
     value === null || value === undefined ? "" : String(value);
@@ -136,7 +149,10 @@ export function CustomerForm({
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
 
       <Card>
-        <CardHeader title={es.customers.personalSection} />
+        <CardHeader
+          title={es.customers.mainSection}
+          description={es.customers.mainSectionHint}
+        />
         <CardBody className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2 flex justify-center pb-2">
             <PhotoUpload
@@ -175,6 +191,43 @@ export function CustomerForm({
               required
             />
           </Field>
+          <div className="sm:col-span-2">
+            <Field
+              label={es.customers.mobilePhone}
+              htmlFor="mobilePhone"
+              hint="Se usa para enviar los mensajes de cobro por WhatsApp."
+            >
+              <Input
+                id="mobilePhone"
+                name="mobilePhone"
+                defaultValue={v(customer?.mobilePhone)}
+                type="tel"
+                inputMode="tel"
+              />
+            </Field>
+          </div>
+        </CardBody>
+      </Card>
+
+      <FormSection
+        icon="credit-card"
+        title={es.customers.generalSection}
+        hint={es.customers.generalSectionHint}
+        defaultOpen={filled(
+          customer?.documentNumber,
+          customer?.birthDate,
+          customer?.gender,
+          customer?.nationality,
+        )}
+        hasError={sectionHasError([
+          "documentType",
+          "documentNumber",
+          "birthDate",
+          "gender",
+          "nationality",
+        ])}
+      >
+        <CardBody className="grid gap-4 sm:grid-cols-2">
           <Field label={es.customers.documentType} htmlFor="documentType">
             <Input
               id="documentType"
@@ -243,24 +296,16 @@ export function CustomerForm({
             </datalist>
           </div>
         </CardBody>
-      </Card>
+      </FormSection>
 
-      <Card>
-        <CardHeader title={es.customers.contactSection} />
+      <FormSection
+        icon="phone"
+        title={es.customers.contactSection}
+        hint={es.customers.contactSectionHint}
+        defaultOpen={filled(customer?.phone, customer?.email)}
+        hasError={sectionHasError(["phone", "email"])}
+      >
         <CardBody className="grid gap-4 sm:grid-cols-2">
-          <Field
-            label={es.customers.mobilePhone}
-            htmlFor="mobilePhone"
-            hint="Se usa para enviar los mensajes de cobro por WhatsApp."
-          >
-            <Input
-              id="mobilePhone"
-              name="mobilePhone"
-              defaultValue={v(customer?.mobilePhone)}
-              type="tel"
-              inputMode="tel"
-            />
-          </Field>
           <Field label={es.customers.phone} htmlFor="phone">
             <Input
               id="phone"
@@ -270,26 +315,39 @@ export function CustomerForm({
               inputMode="tel"
             />
           </Field>
-          <div className="sm:col-span-2">
-            <Field
-              label={es.customers.email}
-              htmlFor="email"
-              error={fieldError("email")}
-            >
-              <Input
-                id="email"
-                name="email"
-                defaultValue={v(customer?.email)}
-                type="email"
-                autoCapitalize="none"
-              />
-            </Field>
-          </div>
+          <Field
+            label={es.customers.email}
+            htmlFor="email"
+            error={fieldError("email")}
+          >
+            <Input
+              id="email"
+              name="email"
+              defaultValue={v(customer?.email)}
+              type="email"
+              autoCapitalize="none"
+            />
+          </Field>
         </CardBody>
-      </Card>
+      </FormSection>
 
-      <Card>
-        <CardHeader title={es.customers.homeSection} />
+      <FormSection
+        icon="map-pin"
+        title={es.customers.homeSection}
+        hint={es.customers.homeSectionHint}
+        defaultOpen={filled(
+          customer?.address,
+          customer?.neighborhood,
+          customer?.city,
+          customer?.landmark,
+        )}
+        hasError={sectionHasError([
+          "address",
+          "neighborhood",
+          "city",
+          "landmark",
+        ])}
+      >
         <CardBody className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Field label={es.customers.address} htmlFor="address">
@@ -339,10 +397,28 @@ export function CustomerForm({
             />
           </div>
         </CardBody>
-      </Card>
+      </FormSection>
 
-      <Card>
-        <CardHeader title={es.customers.workSection} />
+      <FormSection
+        icon="building"
+        title={es.customers.workSection}
+        hint={es.customers.workSectionHint}
+        defaultOpen={filled(
+          customer?.employmentType,
+          customer?.occupation,
+          customer?.workAddress,
+          customer?.monthlyIncome,
+        )}
+        hasError={sectionHasError([
+          "employmentType",
+          "occupation",
+          "employerName",
+          "workAddress",
+          "workNeighborhood",
+          "workLandmark",
+          "monthlyIncome",
+        ])}
+      >
         <CardBody className="grid gap-4 sm:grid-cols-2">
           <Field label={es.customers.employmentType} htmlFor="employmentType">
             <Select
@@ -438,13 +514,14 @@ export function CustomerForm({
             />
           </div>
         </CardBody>
-      </Card>
+      </FormSection>
 
-      <Card>
-        <CardHeader
-          title={es.customers.paydaySection}
-          description={es.customers.paydayHint}
-        />
+      <FormSection
+        icon="calendar"
+        title={es.customers.paydaySection}
+        hint={es.customers.paydayHint}
+        defaultOpen={filled(customer?.paydayKind)}
+      >
         <CardBody>
           <PaydayFields
             defaultKind={(customer?.paydayKind ?? "") as PaydayKind | ""}
@@ -452,23 +529,26 @@ export function CustomerForm({
             defaultDayOfMonth={customer?.paydayDayOfMonth}
           />
         </CardBody>
-      </Card>
+      </FormSection>
 
-      <Card>
-        <CardHeader
-          title={es.customers.referencesSection}
-          description={es.customers.referencesHint}
-        />
+      <FormSection
+        icon="users"
+        title={es.customers.referencesSection}
+        hint={es.customers.referencesHint}
+        defaultOpen={editando && (customer?.references.length ?? 0) > 0}
+      >
         <CardBody>
           <ReferenceFields defaultValues={customer?.references ?? []} />
         </CardBody>
-      </Card>
+      </FormSection>
 
-      <Card>
-        <CardHeader
-          title={es.customers.documentsSection}
-          description={es.customers.documentsHint}
-        />
+      <FormSection
+        icon="camera"
+        title={es.customers.documentsSection}
+        hint={es.customers.documentsHint}
+        defaultOpen={filled(customer?.idFrontUrl, customer?.idBackUrl)}
+        hasError={sectionHasError(["idFrontUrl", "idBackUrl"])}
+      >
         <CardBody className="grid gap-4 sm:grid-cols-2">
           <PhotoUpload
             name="idFrontUrl"
@@ -481,10 +561,14 @@ export function CustomerForm({
             defaultValue={storedPhoto(customer?.idBackUrl)}
           />
         </CardBody>
-      </Card>
+      </FormSection>
 
-      <Card>
-        <CardHeader title={es.common.notes} />
+      <FormSection
+        icon="file-text"
+        title={es.common.notes}
+        hint={es.customers.notesHint}
+        defaultOpen={filled(customer?.notes)}
+      >
         <CardBody>
           <Field label={es.common.notes} htmlFor="notes">
             <Textarea
@@ -494,7 +578,7 @@ export function CustomerForm({
             />
           </Field>
         </CardBody>
-      </Card>
+      </FormSection>
 
       <div className="flex justify-end gap-2">
         <SubmitButton pending={pending} />

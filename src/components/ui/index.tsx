@@ -106,8 +106,7 @@ type ButtonSize = "sm" | "md";
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   primary:
     "bg-brand text-ink-inverse hover:bg-brand-strong disabled:bg-brand/50",
-  secondary:
-    "border border-border bg-surface text-ink hover:bg-surface-muted",
+  secondary: "border border-border bg-surface text-ink hover:bg-surface-muted",
   ghost: "text-ink-muted hover:bg-surface-muted hover:text-ink",
   danger: "bg-danger text-ink-inverse hover:opacity-90",
 };
@@ -454,5 +453,6 @@ export function Select({
   );
 }
 
+export { FormSection } from "./form-section";
 export { Icon };
 export type { IconName };
