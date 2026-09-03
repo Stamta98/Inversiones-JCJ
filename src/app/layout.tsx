@@ -30,8 +30,9 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#1d2126" },
+    // Un solo color: la app es siempre clara, así que la barra del sistema
+    // no debe seguir al teléfono.
+    { color: "#ffffff" },
   ],
 };
 
