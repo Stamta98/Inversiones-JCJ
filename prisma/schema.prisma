@@ -449,6 +449,14 @@ enum LoanStatus {
   WRITTEN_OFF
 }
 
+/// Where a loan came from. A refinance carries an old balance over with no
+/// money moving; a renewal lends again and discounts what was still owed.
+enum LoanOrigin {
+  NEW
+  REFINANCE
+  RENEWAL
+}
+
 enum LateFeeMode {
   NONE
   /// Percentage of the overdue installment charged once it becomes late.
@@ -520,6 +528,12 @@ model Loan {
   closingDate        DateTime?
   status             LoanStatus       @default(DRAFT)
 
+  /// How this loan came about, and the loan it replaced when it replaced one.
+  origin       LoanOrigin @default(NEW)
+  parentLoanId String?
+  parentLoan   Loan?      @relation("LoanRenewal", fields: [parentLoanId], references: [id], onDelete: SetNull)
+  renewals     Loan[]     @relation("LoanRenewal")
+
   lateFeeMode     LateFeeMode @default(NONE)
   lateFeeValue    Decimal     @default(0) @db.Decimal(9, 4)
   gracePeriodDays Int         @default(0)
@@ -550,6 +564,7 @@ model Loan {
   @@index([companyId, status])
   @@index([customerId])
   @@index([companyId, firstDueDate])
+  @@index([parentLoanId])
 }
 
 enum InstallmentStatus {
@@ -591,6 +606,10 @@ enum PaymentMethod {
   CARD
   CHECK
   MOBILE_WALLET
+  /// Settled by a refinance or a renewal rather than by money changing hands.
+  /// Kept apart from cash on purpose: a collector must never be credited with
+  /// collecting a balance that was only moved onto another loan.
+  REFINANCE
   OTHER
 }
 

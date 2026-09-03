@@ -78,6 +78,8 @@ function data(overrides: Partial<LoanDocumentData> = {}): LoanDocumentData {
       firstDueDate: new Date(2026, 8, 8),
       lastDueDate: new Date(2026, 8, 29),
       statusLabel: "Activo",
+      originLabel: null,
+      parentCode: null,
     },
     installments: [1, 2, 3, 4].map((number) => installment(number)),
     money: (amount) => `$ ${amount.toLocaleString("es-CO")}`,
@@ -127,6 +129,23 @@ describe("buildLoanPdf", () => {
     );
 
     expect(Buffer.from(bytes.slice(0, 5)).toString()).toBe("%PDF-");
+  });
+
+  // A refinanced loan whose paper does not name the loan it replaced looks
+  // like a second debt for the same money.
+  it("names the loan a refinance replaced", async () => {
+    const plain = await buildLoanPdf(data());
+    const refinanced = await buildLoanPdf(
+      data({
+        loan: {
+          ...data().loan,
+          originLabel: "Refinanciación",
+          parentCode: "PRE-000001",
+        },
+      }),
+    );
+
+    expect(refinanced.byteLength).toBeGreaterThan(plain.byteLength);
   });
 
   // A "cuota" larger than capital plus interest with nothing explaining why

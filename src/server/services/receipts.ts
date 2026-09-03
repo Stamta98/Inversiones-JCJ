@@ -151,6 +151,9 @@ export interface LoanPaperwork {
     disbursedAt: Date | null;
     firstDueDate: Date;
     lastDueDate: Date | null;
+    /** NEW, REFINANCE or RENEWAL, and the loan this one replaced. */
+    origin: string;
+    parentCode: string | null;
   };
   installments: Array<{
     number: number;
@@ -174,6 +177,7 @@ export async function loadLoanPaperwork(
       company: true,
       customer: true,
       installments: { orderBy: { number: "asc" } },
+      parentLoan: { select: { code: true } },
     },
   });
   if (!loan) return null;
@@ -229,6 +233,8 @@ export async function loadLoanPaperwork(
       disbursedAt: loan.disbursedAt,
       firstDueDate: loan.firstDueDate,
       lastDueDate: loan.installments.at(-1)?.dueDate ?? null,
+      origin: loan.origin,
+      parentCode: loan.parentLoan?.code ?? null,
     },
     installments,
   };

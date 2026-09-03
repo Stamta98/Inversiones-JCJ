@@ -11,14 +11,12 @@ import {
   Field,
   Input,
   Select,
-  TableWrap,
-  Td,
   Textarea,
-  Th,
 } from "@/components/ui";
+import { SchedulePreview } from "@/components/loans/schedule-preview";
 import { suggestFirstDueDate, type Payday } from "@/core/customers/payday";
 import { ScheduleError, buildSchedule } from "@/core/loans/schedule";
-import { fromCents, stepForDecimals, toCents } from "@/core/money";
+import { stepForDecimals, toCents } from "@/core/money";
 import {
   INTEREST_METHODS,
   LATE_FEE_MODES,
@@ -534,65 +532,11 @@ export function LoanForm({
           </CardBody>
         </Card>
 
-        <Card>
-          <CardHeader
-            title={es.loans.schedulePreview}
-            description={
-              schedule
-                ? `${es.loans.totalToPay}: ${money(fromCents(schedule.totalToPayCents))} · ${es.loans.totalInterest}: ${money(fromCents(schedule.totalInterestCents))}`
-                : undefined
-            }
-          />
-          {preview.error ? (
-            <CardBody>
-              <Alert tone="danger">{preview.error}</Alert>
-            </CardBody>
-          ) : schedule ? (
-            <>
-              {schedule.isOpenEnded ? (
-                <CardBody className="pb-0">
-                  <Alert tone="info" icon="clock">
-                    {es.loans.openEndedNotice}
-                  </Alert>
-                </CardBody>
-              ) : null}
-              <div className="max-h-[28rem] overflow-y-auto">
-                <TableWrap dense>
-                  <thead className="sticky top-0 bg-surface">
-                    <tr>
-                      <Th>{es.loans.installment}</Th>
-                      <Th>{es.loans.dueDate}</Th>
-                      <Th align="right">{es.loans.principalPart}</Th>
-                      <Th align="right">{es.loans.interestPart}</Th>
-                      <Th align="right">{es.loans.installmentTotal}</Th>
-                      <Th align="right">{es.loans.balanceAfter}</Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {schedule.installments.map((installment) => (
-                      <tr key={installment.number}>
-                        <Td numeric>{installment.number}</Td>
-                        <Td numeric>{formatDate(installment.dueDate)}</Td>
-                        <Td align="right" numeric>
-                          {money(fromCents(installment.principalCents))}
-                        </Td>
-                        <Td align="right" numeric>
-                          {money(fromCents(installment.interestCents))}
-                        </Td>
-                        <Td align="right" numeric className="font-medium">
-                          {money(fromCents(installment.totalCents))}
-                        </Td>
-                        <Td align="right" numeric>
-                          {money(fromCents(installment.balanceAfterCents))}
-                        </Td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </TableWrap>
-              </div>
-            </>
-          ) : null}
-        </Card>
+        <SchedulePreview
+          schedule={schedule}
+          error={preview.error}
+          money={money}
+        />
       </div>
 
       <div className="flex justify-end">

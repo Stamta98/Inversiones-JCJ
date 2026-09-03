@@ -5,6 +5,8 @@
  * into a cash box, and refreshes the loan. Reversing one undoes all three.
  */
 
+import type { Prisma } from "@prisma/client";
+
 import { allocatePayment } from "@/core/loans/allocation";
 import { fromCents, toCents } from "@/core/money";
 
@@ -38,7 +40,11 @@ export interface PostPaymentInput {
 export class PaymentError extends Error {
   constructor(
     message: string,
-    readonly code: "amount" | "loanNotActive" | "nothingToApply",
+    readonly code:
+      | "amount"
+      | "loanNotActive"
+      | "nothingToApply"
+      | "settlesRefinance",
   ) {
     super(message);
     this.name = "PaymentError";
@@ -189,9 +195,41 @@ export async function postPayment(
   return posted;
 }
 
+/**
+ * Refuses to undo the payment that settled a refinance on its own.
+ *
+ * That balance did not disappear: it became the principal of another loan.
+ * Putting it back while that loan still stands would have the customer owing
+ * the same money twice. The way out is to cancel the loan that absorbed it,
+ * which reverses this payment as part of the same move.
+ */
+async function guardRefinanceSettlement(
+  tx: Prisma.TransactionClient,
+  payment: { method: string; loanId: string },
+): Promise<void> {
+  if (payment.method !== "REFINANCE") return;
+
+  const replacement = await tx.loan.findFirst({
+    where: { parentLoanId: payment.loanId, status: { not: "CANCELLED" } },
+    select: { code: true },
+  });
+  if (replacement) {
+    throw new PaymentError(
+      `Settled by ${replacement.code}`,
+      "settlesRefinance",
+    );
+  }
+}
+
 export async function reversePayment(
   paymentId: string,
-  options: { reason?: string; userId?: string | null } = {},
+  options: {
+    reason?: string;
+    userId?: string | null;
+    /** Set when the refinance itself is being undone, which is the one time
+     *  the settling payment may be reversed. */
+    allowRefinanceSettlement?: boolean;
+  } = {},
 ): Promise<void> {
   await db.$transaction(async (tx) => {
     const payment = await tx.payment.findUniqueOrThrow({
@@ -200,6 +238,9 @@ export async function reversePayment(
     });
 
     if (payment.status === "REVERSED") return;
+    if (!options.allowRefinanceSettlement) {
+      await guardRefinanceSettlement(tx, payment);
+    }
 
     for (const allocation of payment.allocations) {
       const installment = await tx.loanInstallment.findUniqueOrThrow({
@@ -298,6 +339,7 @@ export async function deletePayment(
     select: {
       id: true,
       status: true,
+      method: true,
       receiptNumber: true,
       amount: true,
       loanId: true,
@@ -305,6 +347,8 @@ export async function deletePayment(
     },
   });
   if (!payment) return;
+
+  await db.$transaction((tx) => guardRefinanceSettlement(tx, payment));
 
   if (payment.status !== "REVERSED") {
     await reversePayment(payment.id, {

@@ -55,6 +55,11 @@ export async function GET(
       firstDueDate: loan.firstDueDate,
       lastDueDate: loan.lastDueDate,
       statusLabel: t(`loans.status.${loan.status}`),
+      originLabel:
+        loan.origin === "NEW"
+          ? null
+          : t(`loans.renewal.originLabel.${loan.origin}`),
+      parentCode: loan.parentCode,
     },
     installments: paperwork.installments,
     money: (amount) =>

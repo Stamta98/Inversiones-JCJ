@@ -132,6 +132,12 @@ const PATHS: Record<string, string[]> = {
     "M3 4h18v18H3z",
     "M3 10h18",
   ],
+  refresh: [
+    "M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7.5-4",
+    "M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7.5 4",
+    "m20 3-.5 4-4-.5",
+    "m4 21 .5-4 4 .5",
+  ],
 };
 
 export type IconName = keyof typeof PATHS | string;

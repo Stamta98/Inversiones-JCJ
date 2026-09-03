@@ -18,6 +18,9 @@ export function SignInForm() {
 
   return (
     <form
+      // Obligatorio: sin esto, un envío antes de hidratar sale por GET y la
+      // contraseña queda escrita en la URL. Ver src/lib/use-form-action.ts.
+      method="post"
       onSubmit={onSubmit}
       className="space-y-4 rounded-[--radius-card] border border-border bg-surface p-5"
     >

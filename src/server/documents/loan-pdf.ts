@@ -38,6 +38,9 @@ export interface LoanDocumentData {
     firstDueDate: Date;
     lastDueDate: Date | null;
     statusLabel: string;
+    /** Set when this loan replaced another one, so the paper says so. */
+    originLabel: string | null;
+    parentCode: string | null;
   };
   installments: Array<{
     number: number;
@@ -251,6 +254,12 @@ export async function buildLoanPdf(data: LoanDocumentData): Promise<Uint8Array> 
     ],
     [data.labels.status, data.loan.statusLabel],
   ];
+
+  // A refinanced loan whose paper does not name the loan it replaced looks
+  // like a second debt for the same money.
+  if (data.loan.originLabel && data.loan.parentCode) {
+    pairs.push([data.loan.originLabel, data.loan.parentCode]);
+  }
 
   const half = width / 2;
   pairs.forEach(([label, value], index) => {

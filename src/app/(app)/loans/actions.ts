@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { RenewalError } from "@/core/loans/renewal";
 import { ScheduleError } from "@/core/loans/schedule";
 import {
   INTEREST_METHODS,
@@ -20,6 +21,7 @@ import {
   disburseLoan,
   updateLoan,
 } from "@/server/services/loans";
+import { RenewLoanError, renewLoan } from "@/server/services/renewals";
 
 const loanSchema = z.object({
   customerId: z.string().min(1),
@@ -243,4 +245,89 @@ export async function disburseLoanAction(formData: FormData): Promise<void> {
 
   revalidatePath(`/loans/${loanId}`);
   revalidatePath("/loans");
+}
+
+/**
+ * Refinances or renews a loan.
+ *
+ * The terms come from the same shape a new loan uses, minus the principal on a
+ * refinance: there the balance decides it, and letting the form pick a
+ * different figure would mean money moving that nobody counted.
+ */
+const renewSchema = loanSchema
+  .omit({ customerId: true, principal: true, disburseNow: true })
+  .extend({
+    loanId: z.string().min(1),
+    kind: z.enum(["REFINANCE", "RENEWAL"]),
+    /** Absent on a refinance, where the outstanding balance is the loan. */
+    principal: z.coerce.number().positive().optional(),
+  });
+
+export async function renewLoanAction(
+  _previous: LoanFormState,
+  formData: FormData,
+): Promise<LoanFormState> {
+  const context = await requirePermission("loans.create");
+
+  const entries = Object.fromEntries(
+    [...formData.entries()].map(([key, value]) => [key, String(value)]),
+  );
+  const parsed = renewSchema.safeParse({
+    ...entries,
+    // Blank on a refinance: the balance decides the principal.
+    principal: entries.principal ? entries.principal : undefined,
+    nonCollectionDays: formData.getAll("nonCollectionDays").map(String),
+  });
+
+  if (!parsed.success) return { error: t("common.error") };
+  const data = parsed.data;
+
+  let created: { loanId: string };
+  try {
+    created = await renewLoan({
+      companyId: context.companyId,
+      loanId: data.loanId,
+      kind: data.kind,
+      principal: data.principal,
+      interestRate: data.interestRate,
+      rateBasis: data.rateBasis as never,
+      interestMethod: data.interestMethod as never,
+      frequency: data.frequency as never,
+      customIntervalDays: data.customIntervalDays,
+      nonCollectionDays: data.nonCollectionDays,
+      termCount: data.termCount,
+      firstDueDate: new Date(`${data.firstDueDate}T00:00:00.000Z`),
+      lateFeeMode: data.lateFeeMode as never,
+      lateFeeValue: data.lateFeeValue,
+      gracePeriodDays: data.gracePeriodDays,
+      decimalPlaces: context.decimalPlaces,
+      notes: data.notes || null,
+      cashBoxId: data.cashBoxId || null,
+      createdById: context.userId,
+    });
+  } catch (error) {
+    if (error instanceof RenewLoanError || error instanceof RenewalError) {
+      const message = t(`loans.errors.${error.code}`);
+      return {
+        error:
+          message === `loans.errors.${error.code}` ? t("common.error") : message,
+      };
+    }
+    if (error instanceof ScheduleError) {
+      const message = t(`loans.errors.${error.code}`);
+      return {
+        error:
+          message === `loans.errors.${error.code}` ? error.message : message,
+      };
+    }
+    throw error;
+  }
+
+  revalidatePath("/loans");
+  revalidatePath(`/loans/${data.loanId}`);
+  revalidatePath("/payments");
+  revalidatePath("/cash");
+  revalidatePath("/dashboard");
+  // Straight to the new loan: its schedule is what the customer needs now.
+  redirect(`/loans/${created.loanId}`);
 }

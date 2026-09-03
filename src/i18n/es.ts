@@ -581,11 +581,58 @@ export const es = {
       closed: "Este préstamo está cerrado y no se puede modificar.",
       cannotCancel:
         "Este préstamo no se puede anular: ya está saldado, anulado o dado por incobrable.",
+      noBalance:
+        "Este préstamo no debe nada. Si el cliente quiere plata otra vez, hazle un préstamo nuevo.",
+      notNewMoney:
+        "Para renovar, el monto nuevo tiene que ser mayor que el saldo. Si es igual al saldo, lo que estás haciendo es una refinanciación.",
+      notRenewable:
+        "Solo se refinancian o renuevan préstamos que estén activos o en mora.",
+      alreadyRenewed:
+        "Este préstamo ya fue refinanciado o renovado con otro préstamo.",
     },
     cancelReason: "Motivo de la anulación",
     cancelled: "Préstamo anulado.",
     editNotesOnly: "Notas del préstamo",
     saved: "Préstamo actualizado.",
+
+    // --- Refinanciación y renovación ---
+    renewal: {
+      action: "Refinanciar o renovar",
+      title: "Refinanciar o renovar el préstamo {code}",
+      subtitle:
+        "El saldo que queda se pasa a un préstamo nuevo. El préstamo viejo queda saldado.",
+      kind: "¿Qué vas a hacer?",
+      kindLabel: {
+        REFINANCE: "Refinanciar",
+        RENEWAL: "Renovar",
+      },
+      kindHint: {
+        REFINANCE:
+          "El cliente no tiene con qué pagar el saldo. Ese saldo pasa a ser el monto del préstamo nuevo y se le cobra interés encima. No entregas ni recibes plata.",
+        RENEWAL:
+          "El cliente quiere que le vuelvas a prestar. Le descuentas lo que debía y le entregas la diferencia en efectivo.",
+      },
+      settled: "Saldo que se pasa al préstamo nuevo",
+      newPrincipal: "Monto del préstamo nuevo",
+      newPrincipalHint:
+        "Lo que le vas a prestar en total. Tiene que ser mayor que el saldo que debe.",
+      cashOut: "Le entregas en efectivo",
+      cashOutNone: "No entregas plata: solo se pasa el saldo.",
+      cashOutHint: "Monto nuevo menos el saldo que debía.",
+      summaryTitle: "Cómo queda la cuenta",
+      confirmRefinance: "Refinanciar",
+      confirmRenewal: "Renovar y entregar",
+      settledWith: "Cancelado con el préstamo",
+      // Se ven en la ficha del préstamo, uniendo el viejo con el nuevo.
+      originLabel: {
+        NEW: "Préstamo nuevo",
+        REFINANCE: "Refinanciación",
+        RENEWAL: "Renovación",
+      },
+      comesFrom: "Viene del préstamo {code}",
+      replacedBy: "Refinanciado con el préstamo {code}",
+      done: "Listo: préstamo {code} creado.",
+    },
   },
 
   payments: {
@@ -640,6 +687,7 @@ export const es = {
       CARD: "Tarjeta",
       CHECK: "Cheque",
       MOBILE_WALLET: "Billetera móvil",
+      REFINANCE: "Refinanciación",
       OTHER: "Otro",
     },
     statusLabel: {
@@ -651,6 +699,8 @@ export const es = {
     errors: {
       amountPositive: "El monto debe ser mayor que cero.",
       loanNotActive: "El préstamo no está activo.",
+      settlesRefinance:
+        "Este cobro es el saldo que se pasó a otro préstamo, no plata que entró. Para deshacerlo, anula el préstamo con el que se refinanció.",
       nothingToApply: "Este préstamo no tiene cuotas pendientes.",
     },
   },
@@ -771,6 +821,8 @@ export const es = {
       amount: "El monto debe ser mayor que cero.",
       loanNotActive: "El préstamo no está activo.",
       nothingToApply: "Este préstamo no tiene cuotas pendientes.",
+      settlesRefinance:
+        "Este cobro es el saldo que se pasó a otro préstamo, no plata que entró. Para deshacerlo, anula el préstamo con el que se refinanció.",
     },
   },
 

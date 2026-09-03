@@ -261,6 +261,7 @@ export function StopCard({
 
       {editable && open === "collect" ? (
         <form
+          method="post"
           onSubmit={collect.onSubmit}
           className="mt-3 space-y-3 rounded-lg bg-surface-muted p-3"
         >
@@ -357,6 +358,7 @@ export function StopCard({
 
       {editable && open === "visit" ? (
         <form
+          method="post"
           onSubmit={visit.onSubmit}
           className="mt-3 space-y-3 rounded-lg bg-surface-muted p-3"
         >

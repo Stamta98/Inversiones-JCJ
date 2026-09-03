@@ -73,6 +73,16 @@ export default async function ReceiptPage({
   const { t, money } = context;
   const canDelete = can(context, "payments.delete");
   const voided = receipt.status === "REVERSED";
+  // El saldo que absorbió una refinanciación sigue vivo mientras exista el
+  // préstamo que se lo llevó; el servicio lo comprueba otra vez.
+  const settlesRefinance =
+    receipt.method === "REFINANCE" &&
+    (await db.loan.count({
+      where: {
+        parentLoanId: receipt.loan.id,
+        status: { not: "CANCELLED" },
+      },
+    })) > 0;
   const late = isLate({ daysLate: receipt.loan.daysLate });
 
   const rawPhone =
@@ -227,12 +237,22 @@ export default async function ReceiptPage({
           {canDelete ? (
             <Card>
               <CardHeader title={t("common.actions")} />
-              <CardBody className="flex flex-wrap items-center gap-3">
-                {voided ? null : (
-                  <ReversePaymentButton paymentId={receipt.paymentId} />
-                )}
-                <DeleteReceipt paymentId={receipt.paymentId} />
-              </CardBody>
+              {/* El saldo que se pasó a otro préstamo no se devuelve por aquí:
+                  volvería a la cuenta vieja sin tocar la nueva y el cliente
+                  quedaría debiendo dos veces. Se deshace anulando el préstamo
+                  que se lo llevó, y se dice dónde. */}
+              {settlesRefinance ? (
+                <CardBody>
+                  <Alert tone="info">{t("payments.errors.settlesRefinance")}</Alert>
+                </CardBody>
+              ) : (
+                <CardBody className="flex flex-wrap items-center gap-3">
+                  {voided ? null : (
+                    <ReversePaymentButton paymentId={receipt.paymentId} />
+                  )}
+                  <DeleteReceipt paymentId={receipt.paymentId} />
+                </CardBody>
+              )}
             </Card>
           ) : null}
 

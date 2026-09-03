@@ -68,6 +68,14 @@ export default async function LoanDetailPage({
           orderBy: { paidAt: "desc" },
           take: 20,
         },
+        // A refinance splits one debt across two loans; each has to say so or
+        // the money looks like it came from nowhere and went nowhere.
+        parentLoan: { select: { id: true, code: true } },
+        renewals: {
+          where: { status: { not: "CANCELLED" } },
+          select: { id: true, code: true },
+          take: 1,
+        },
       },
     }),
     db.cashBox.findMany({
@@ -105,6 +113,16 @@ export default async function LoanDetailPage({
     ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status);
   const canReverse = can(context, "payments.delete");
 
+  // Only an open loan with a balance can be carried onto another, and only
+  // once: a second refinance would leave the customer owing the same money
+  // twice. The service checks this again, since a URL can be typed by hand.
+  const replacement = loan.renewals[0] ?? null;
+  const canRenew =
+    can(context, "loans.create") &&
+    replacement === null &&
+    Number(loan.outstanding) > 0 &&
+    ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status);
+
   return (
     <>
       <PageHeader
@@ -115,6 +133,16 @@ export default async function LoanDetailPage({
             <Badge tone={LOAN_TONES[loan.status] ?? "neutral"}>
               {t(`loans.status.${loan.status}`)}
             </Badge>
+            {canRenew ? (
+              <LinkButton
+                href={`/loans/${loan.id}/renew`}
+                variant="secondary"
+                size="sm"
+                icon="refresh"
+              >
+                {t("loans.renewal.action")}
+              </LinkButton>
+            ) : null}
             {can(context, "loans.update") &&
             canEditAtAll(loan.status as LoanStatus) ? (
               <LinkButton
@@ -129,6 +157,39 @@ export default async function LoanDetailPage({
           </div>
         }
       />
+
+      {/* Ninguno de los dos préstamos se entiende solo: el viejo dice con qué
+          quedó saldado y el nuevo de dónde viene el monto. */}
+      {loan.parentLoan || replacement ? (
+        <div className="mb-4 space-y-2">
+          {loan.parentLoan ? (
+            <Alert tone="info" icon="refresh">
+              <Link
+                href={`/loans/${loan.parentLoan.id}`}
+                className="underline underline-offset-2"
+              >
+                {t("loans.renewal.comesFrom").replace(
+                  "{code}",
+                  loan.parentLoan.code,
+                )}
+              </Link>
+            </Alert>
+          ) : null}
+          {replacement ? (
+            <Alert tone="info" icon="refresh">
+              <Link
+                href={`/loans/${replacement.id}`}
+                className="underline underline-offset-2"
+              >
+                {t("loans.renewal.replacedBy").replace(
+                  "{code}",
+                  replacement.code,
+                )}
+              </Link>
+            </Alert>
+          ) : null}
+        </div>
+      ) : null}
 
       {loan.status === "DRAFT" && can(context, "loans.approve") ? (
         <form action={disburseLoanAction} className="mb-4">
@@ -376,7 +437,12 @@ export default async function LoanDetailPage({
                     </Td>
                     {canReverse ? (
                       <Td align="right">
-                        {payment.status === "REVERSED" ? null : (
+                        {/* El recibo de una refinanciación no se anula solo:
+                            devolvería el saldo dejando vivo el préstamo que
+                            se lo llevó, y el cliente quedaría debiendo dos
+                            veces lo mismo. Se deshace anulando ese préstamo. */}
+                        {payment.status === "REVERSED" ||
+                        payment.method === "REFINANCE" ? null : (
                           <ReversePaymentButton paymentId={payment.id} />
                         )}
                       </Td>

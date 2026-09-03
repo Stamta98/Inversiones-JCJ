@@ -19,6 +19,7 @@ import type {
 } from "@/core/types";
 
 import { db } from "../db";
+import { reversePayment } from "./payments";
 import { nextLoanCode, withCodeRetry } from "./sequences";
 
 export interface CreateLoanInput {
@@ -304,6 +305,29 @@ export async function cancelLoan(input: {
       data: { status: "CANCELLED", closingDate: new Date() },
     });
 
+    // Cancelling a refinance or a renewal is how one gets undone: the balance
+    // this loan absorbed goes back onto the loan it came from. Only the
+    // bookkeeping is reversed — cash already handed over is not clawed back
+    // here, exactly as it is not for an ordinary cancelled loan.
+    if (loan.parentLoanId) {
+      const settlement = await tx.payment.findFirst({
+        where: {
+          loanId: loan.parentLoanId,
+          method: "REFINANCE",
+          status: "POSTED",
+        },
+        select: { id: true },
+      });
+
+      if (settlement) {
+        await reversePayment(settlement.id, {
+          reason: `${loan.code}`,
+          userId: input.cancelledById ?? null,
+          allowRefinanceSettlement: true,
+        });
+      }
+    }
+
     await tx.auditLog.create({
       data: {
         companyId: input.companyId,
@@ -311,13 +335,23 @@ export async function cancelLoan(input: {
         action: "loan.cancelled",
         entityType: "Loan",
         entityId: loan.id,
-        metadata: { code: loan.code, reason: input.reason ?? null },
+        metadata: {
+          code: loan.code,
+          reason: input.reason ?? null,
+          releasedLoanId: loan.parentLoanId,
+        },
       },
     });
   });
 }
 
-async function recordDisbursement(
+/**
+ * Takes money out of a cash box for a loan.
+ *
+ * Shared with the refinance service, where the amount handed over is the net
+ * of a renewal rather than the loan's principal.
+ */
+export async function recordDisbursement(
   tx: Prisma.TransactionClient,
   input: {
     cashBoxId: string;

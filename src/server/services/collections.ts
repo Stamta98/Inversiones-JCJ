@@ -33,6 +33,7 @@ export class CollectionError extends Error {
       | "amount"
       | "loanNotActive"
       | "nothingToApply"
+      | "settlesRefinance"
       | "alreadySettled"
       | "notSettled",
   ) {

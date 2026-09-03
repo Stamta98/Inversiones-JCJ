@@ -58,6 +58,7 @@ export function CancelLoanForm({ loanId }: { loanId: string }) {
 
   return (
     <form
+      method="post"
       onSubmit={(event) => {
         // Anular cierra el préstamo; conviene preguntar una sola vez.
         if (!window.confirm(es.loans.cancelConfirm)) {
