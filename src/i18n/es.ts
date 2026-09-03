@@ -34,6 +34,13 @@ export const es = {
     view: "Ver",
     details: "Detalle",
     actions: "Acciones",
+    // --- Ordenar la lista a mano ---
+    order: "Orden",
+    moveToTop: "Mover al principio",
+    moveUp: "Subir",
+    moveDown: "Bajar",
+    resetOrder: "Volver al orden automático",
+    orderedByHand: "Esta lista está ordenada a mano.",
     export: "Exportar",
     print: "Imprimir",
     download: "Descargar",

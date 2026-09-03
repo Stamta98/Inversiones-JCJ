@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 
 import {
   Badge,
+  Button,
   Card,
   EmptyState,
   Icon,
@@ -14,9 +15,14 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
+import { ReorderButtons } from "@/components/ui/reorder-buttons";
+import { isManuallyOrdered } from "@/core/ordering";
 import { initials } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
+import { CUSTOMER_ORDER } from "@/server/services/ordering";
+
+import { moveCustomerAction, resetCustomerOrderAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +60,8 @@ export default async function CustomersPage({
 
   const customers = await db.customer.findMany({
     where,
-    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    // Primero lo que la persona puso a mano, después el orden de siempre.
+    orderBy: CUSTOMER_ORDER,
     take: PAGE_SIZE,
     include: {
       loans: {
@@ -65,6 +72,8 @@ export default async function CustomersPage({
   });
 
   const { t, money } = context;
+  const canOrder = can(context, "customers.update");
+  const handOrdered = isManuallyOrdered(customers);
 
   return (
     <>
@@ -96,6 +105,20 @@ export default async function CustomersPage({
         </div>
       </form>
 
+      {canOrder && handOrdered ? (
+        <form
+          action={resetCustomerOrderAction}
+          className="mb-3 flex flex-wrap items-center gap-3"
+        >
+          <span className="text-xs text-ink-subtle">
+            {t("common.orderedByHand")}
+          </span>
+          <Button type="submit" size="sm" variant="ghost" icon="refresh">
+            {t("common.resetOrder")}
+          </Button>
+        </form>
+      ) : null}
+
       <Card>
         {customers.length === 0 ? (
           <EmptyState
@@ -114,6 +137,7 @@ export default async function CustomersPage({
           <TableWrap>
             <thead>
               <tr>
+                {canOrder ? <Th>{t("common.order")}</Th> : null}
                 <Th>{t("customers.code")}</Th>
                 <Th>{t("customers.fullName")}</Th>
                 <Th>{t("customers.mobilePhone")}</Th>
@@ -122,7 +146,7 @@ export default async function CustomersPage({
               </tr>
             </thead>
             <tbody>
-              {customers.map((customer) => {
+              {customers.map((customer, index) => {
                 const outstanding = customer.loans.reduce(
                   (total, loan) => total + Number(loan.outstanding),
                   0,
@@ -134,6 +158,21 @@ export default async function CustomersPage({
 
                 return (
                   <tr key={customer.id}>
+                    {canOrder ? (
+                      <Td>
+                        <ReorderButtons
+                          id={customer.id}
+                          previousId={customers[index - 1]?.id ?? null}
+                          nextId={customers[index + 1]?.id ?? null}
+                          action={moveCustomerAction}
+                          labels={{
+                            top: t("common.moveToTop"),
+                            up: t("common.moveUp"),
+                            down: t("common.moveDown"),
+                          }}
+                        />
+                      </Td>
+                    ) : null}
                     <Td numeric>
                       <Link
                         href={`/customers/${customer.id}`}

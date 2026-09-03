@@ -9,6 +9,10 @@ import { t } from "@/i18n";
 import { normalizePhoneNumber } from "@/modules/messaging/providers";
 import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
+import {
+  moveCustomer,
+  resetCustomerOrder,
+} from "@/server/services/ordering";
 import { nextCustomerCode, withCodeRetry } from "@/server/services/sequences";
 
 /**
@@ -427,4 +431,45 @@ export async function updateCustomer(
   revalidatePath(`/customers/${data.customerId}`);
   revalidatePath("/customers");
   redirect(`/customers/${data.customerId}`);
+}
+
+/**
+ * Mueve un cliente en la lista.
+ *
+ * Llega el vecino, no una posición: la lista puede venir filtrada o buscada, y
+ * "ponlo antes de este" significa lo mismo en la lista completa que en la que
+ * la persona está viendo.
+ */
+const moveSchema = z.object({
+  id: z.string().min(1),
+  targetId: z.string().optional(),
+  placement: z.enum(["before", "after", "top"]),
+});
+
+export async function moveCustomerAction(formData: FormData): Promise<void> {
+  const context = await requirePermission("customers.update");
+
+  const parsed = moveSchema.safeParse(
+    Object.fromEntries(
+      [...formData.entries()].map(([key, value]) => [key, String(value)]),
+    ),
+  );
+  // Una página vieja pide un movimiento imposible: no es un error que merezca
+  // pantalla, solo no se hace nada.
+  if (!parsed.success) return;
+
+  await moveCustomer({
+    companyId: context.companyId,
+    id: parsed.data.id,
+    targetId: parsed.data.targetId || null,
+    placement: parsed.data.placement,
+  });
+
+  revalidatePath("/customers");
+}
+
+export async function resetCustomerOrderAction(): Promise<void> {
+  const context = await requirePermission("customers.update");
+  await resetCustomerOrder(context.companyId);
+  revalidatePath("/customers");
 }

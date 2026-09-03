@@ -327,6 +327,10 @@ model Customer {
   paydayWeekday    Int?
   /// 1-31, for MONTHLY. 31 means the last day of the month.
   paydayDayOfMonth Int?
+  /// Hand-picked position in the list. Zero means "wherever the automatic
+  /// sort puts it", so an untouched company keeps its usual order and only
+  /// the rows somebody moved float to where they were put.
+  sortOrder        Int            @default(0)
   status           CustomerStatus @default(ACTIVE)
   /// Profile photo. Required when creating a customer through the UI; the
   /// column stays nullable so records created before this existed still load.
@@ -349,6 +353,7 @@ model Customer {
 
   @@unique([companyId, code])
   @@index([companyId, status])
+  @@index([companyId, sortOrder, lastName, firstName])
   @@index([companyId, lastName, firstName])
   @@index([companyId, documentNumber])
 }
@@ -527,6 +532,8 @@ model Loan {
   firstDueDate       DateTime
   closingDate        DateTime?
   status             LoanStatus       @default(DRAFT)
+  /// Hand-picked position in the list; see Customer.sortOrder.
+  sortOrder          Int              @default(0)
 
   /// How this loan came about, and the loan it replaced when it replaced one.
   origin       LoanOrigin @default(NEW)
@@ -564,6 +571,7 @@ model Loan {
   @@index([companyId, status])
   @@index([customerId])
   @@index([companyId, firstDueDate])
+  @@index([companyId, sortOrder])
   @@index([parentLoanId])
 }
 

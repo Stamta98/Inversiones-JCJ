@@ -132,6 +132,7 @@ const PATHS: Record<string, string[]> = {
     "M3 4h18v18H3z",
     "M3 10h18",
   ],
+  "arrow-to-top": ["M5 4h14", "m7 13 5-5 5 5", "M12 20V8"],
   refresh: [
     "M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7.5-4",
     "M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7.5 4",

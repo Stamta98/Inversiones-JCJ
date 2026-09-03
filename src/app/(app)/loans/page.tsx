@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 
 import {
   Badge,
+  Button,
   Card,
   EmptyState,
   LinkButton,
@@ -13,9 +14,14 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
+import { ReorderButtons } from "@/components/ui/reorder-buttons";
+import { isManuallyOrdered } from "@/core/ordering";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
+import { LOAN_ORDER } from "@/server/services/ordering";
+
+import { moveLoanAction, resetLoanOrderAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -50,11 +56,14 @@ export default async function LoansPage({
   const loans = await db.loan.findMany({
     where,
     include: { customer: true },
-    orderBy: [{ daysInArrears: "desc" }, { createdAt: "desc" }],
+    // Primero lo que la persona puso a mano, después el orden de siempre.
+    orderBy: LOAN_ORDER,
     take: 50,
   });
 
   const { t, money } = context;
+  const canOrder = can(context, "loans.update");
+  const handOrdered = isManuallyOrdered(loans);
 
   return (
     <>
@@ -89,6 +98,20 @@ export default async function LoansPage({
         </noscript>
       </form>
 
+      {canOrder && handOrdered ? (
+        <form
+          action={resetLoanOrderAction}
+          className="mb-3 flex flex-wrap items-center gap-3"
+        >
+          <span className="text-xs text-ink-subtle">
+            {t("common.orderedByHand")}
+          </span>
+          <Button type="submit" size="sm" variant="ghost" icon="refresh">
+            {t("common.resetOrder")}
+          </Button>
+        </form>
+      ) : null}
+
       <Card>
         {loans.length === 0 ? (
           <EmptyState
@@ -107,6 +130,7 @@ export default async function LoansPage({
           <TableWrap>
             <thead>
               <tr>
+                {canOrder ? <Th>{t("common.order")}</Th> : null}
                 <Th>{t("loans.code")}</Th>
                 <Th>{t("loans.customer")}</Th>
                 <Th>{t("loans.frequency")}</Th>
@@ -117,8 +141,23 @@ export default async function LoansPage({
               </tr>
             </thead>
             <tbody>
-              {loans.map((loan) => (
+              {loans.map((loan, index) => (
                 <tr key={loan.id}>
+                  {canOrder ? (
+                    <Td>
+                      <ReorderButtons
+                        id={loan.id}
+                        previousId={loans[index - 1]?.id ?? null}
+                        nextId={loans[index + 1]?.id ?? null}
+                        action={moveLoanAction}
+                        labels={{
+                          top: t("common.moveToTop"),
+                          up: t("common.moveUp"),
+                          down: t("common.moveDown"),
+                        }}
+                      />
+                    </Td>
+                  ) : null}
                   <Td numeric>
                     <Link
                       href={`/loans/${loan.id}`}

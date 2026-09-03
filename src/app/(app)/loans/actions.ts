@@ -21,6 +21,7 @@ import {
   disburseLoan,
   updateLoan,
 } from "@/server/services/loans";
+import { moveLoan, resetLoanOrder } from "@/server/services/ordering";
 import { RenewLoanError, renewLoan } from "@/server/services/renewals";
 
 const loanSchema = z.object({
@@ -330,4 +331,40 @@ export async function renewLoanAction(
   revalidatePath("/dashboard");
   // Straight to the new loan: its schedule is what the customer needs now.
   redirect(`/loans/${created.loanId}`);
+}
+
+/**
+ * Mueve un préstamo en la lista. Igual que en clientes: llega el vecino que la
+ * persona ve, no una posición, porque la lista puede venir filtrada.
+ */
+const moveLoanSchema = z.object({
+  id: z.string().min(1),
+  targetId: z.string().optional(),
+  placement: z.enum(["before", "after", "top"]),
+});
+
+export async function moveLoanAction(formData: FormData): Promise<void> {
+  const context = await requirePermission("loans.update");
+
+  const parsed = moveLoanSchema.safeParse(
+    Object.fromEntries(
+      [...formData.entries()].map(([key, value]) => [key, String(value)]),
+    ),
+  );
+  if (!parsed.success) return;
+
+  await moveLoan({
+    companyId: context.companyId,
+    id: parsed.data.id,
+    targetId: parsed.data.targetId || null,
+    placement: parsed.data.placement,
+  });
+
+  revalidatePath("/loans");
+}
+
+export async function resetLoanOrderAction(): Promise<void> {
+  const context = await requirePermission("loans.update");
+  await resetLoanOrder(context.companyId);
+  revalidatePath("/loans");
 }
