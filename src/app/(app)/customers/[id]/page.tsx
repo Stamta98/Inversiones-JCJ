@@ -11,6 +11,7 @@ import {
   EmptyState,
   LinkButton,
   PageHeader,
+  StatCard,
   TableWrap,
   Td,
   Th,
@@ -99,6 +100,15 @@ export default async function CustomerDetailPage({
     (worst, loan) => Math.max(worst, loan.daysInArrears),
     0,
   );
+  // Lo que este cliente debe hoy, sumando solo los préstamos que siguen
+  // abiertos: uno saldado ya no debe nada y uno anulado nunca se cobró.
+  const openLoans = customer.loans.filter((loan) =>
+    ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status),
+  );
+  const outstanding = openLoans.reduce(
+    (total, loan) => total + Number(loan.outstanding),
+    0,
+  );
 
   return (
     <>
@@ -137,6 +147,24 @@ export default async function CustomerDetailPage({
             {t("customers.arrearsWarning", { days: worstArrears })}
           </Alert>
         ) : null}
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          label={t("loans.outstanding")}
+          value={money(outstanding)}
+          hint={
+            openLoans.length > 0
+              ? `${openLoans.length} ${
+                  openLoans.length === 1
+                    ? t("loans.singular").toLowerCase()
+                    : t("loans.title").toLowerCase()
+                }`
+              : t("customers.noOpenLoans")
+          }
+          icon="hand-coins"
+          tone={worstArrears > 0 ? "danger" : "brand"}
+        />
       </div>
 
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-3">

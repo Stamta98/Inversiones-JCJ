@@ -406,6 +406,7 @@ export const es = {
     photoRequired: "La foto del cliente es obligatoria.",
     documentRequired: "El número de documento es obligatorio.",
     loanCount: "Préstamos",
+    noOpenLoans: "Sin préstamos abiertos",
     documentsSection: "Fotos del documento de identidad",
     documentsHint:
       "Fotografía el documento por ambos lados, que se lea el número.",
