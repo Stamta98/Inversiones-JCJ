@@ -16,6 +16,10 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
+import {
+  summarizePromises,
+  type PromiseStatus,
+} from "@/core/collections/promise";
 import { ageOn } from "@/core/customers/identity";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
@@ -70,6 +74,14 @@ export default async function CustomerDetailPage({
   });
 
   if (!customer) notFound();
+
+  const promises = await db.paymentPromise.findMany({
+    where: { customerId: customer.id, companyId: context.companyId },
+    select: { status: true },
+  });
+  const promiseRecord = summarizePromises(
+    promises.map((promise) => promise.status as PromiseStatus),
+  );
 
   const { t, money } = context;
   const idDocuments = customer.attachments.filter(
@@ -197,6 +209,24 @@ export default async function CustomerDetailPage({
               <DetailRow
                 label={t("common.status")}
                 value={t(`customers.status.${customer.status}`)}
+              />
+              {/* Whether to believe the next promise is the question a
+                  collector actually has about this customer. */}
+              <DetailRow
+                label={t("promises.record")}
+                value={
+                  promiseRecord.kept + promiseRecord.broken === 0
+                    ? t("promises.recordNone")
+                    : `${t("promises.recordSummary")
+                        .replace("{kept}", String(promiseRecord.kept))
+                        .replace(
+                          "{settled}",
+                          String(promiseRecord.kept + promiseRecord.broken),
+                        )} · ${t("promises.reliability").replace(
+                        "{percent}",
+                        String(promiseRecord.reliability),
+                      )}`
+                }
               />
             </dl>
 

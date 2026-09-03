@@ -20,6 +20,7 @@ import type { Prisma } from "@prisma/client";
 
 import { db } from "../db";
 import { PaymentError, postPayment, type PaymentMethod } from "./payments";
+import { cancelPromise, recordPromise } from "./promises";
 
 export class CollectionError extends Error {
   constructor(
@@ -201,6 +202,8 @@ export interface RecordVisitInput {
 /** Records what happened at a door, without money changing hands. */
 export async function recordVisit(input: RecordVisitInput): Promise<void> {
   const stop = await openStopOrThrow(input.companyId, input.stopId);
+  const promisedFor =
+    input.status === "PROMISED" ? (input.promisedFor ?? null) : null;
 
   await db.routeStop.update({
     where: { id: stop.id },
@@ -208,11 +211,41 @@ export async function recordVisit(input: RecordVisitInput): Promise<void> {
       status: input.status,
       // Going back to pending undoes the visit, date included.
       visitedAt: input.status === "PENDING" ? null : new Date(),
-      promisedFor:
-        input.status === "PROMISED" ? (input.promisedFor ?? null) : null,
+      promisedFor,
       ...(input.notes !== undefined ? { notes: input.notes } : {}),
     },
   });
+
+  // A promise made at the door belongs on the promises list, not only in the
+  // route that will be closed and forgotten tomorrow.
+  if (promisedFor) {
+    await recordPromise({
+      companyId: input.companyId,
+      customerId: stop.customerId,
+      loanId: stop.loanId,
+      amount: Math.max(
+        0,
+        Number(stop.expectedAmount) - Number(stop.collectedAmount),
+      ),
+      promisedFor,
+      source: "ROUTE",
+      routeStopId: stop.id,
+      notes: input.notes ?? null,
+      createdById: input.userId ?? null,
+    });
+  } else {
+    // They said something else this time: the old promise is off.
+    const existing = await db.paymentPromise.findUnique({
+      where: { routeStopId: stop.id },
+      select: { id: true, status: true },
+    });
+    if (existing && existing.status === "PENDING") {
+      await cancelPromise({
+        companyId: input.companyId,
+        promiseId: existing.id,
+      });
+    }
+  }
 }
 
 export interface CollectAtStopInput {

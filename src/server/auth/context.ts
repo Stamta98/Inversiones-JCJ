@@ -88,7 +88,7 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
 
   const [installations, translations] = await Promise.all([
     db.moduleInstallation.findMany({
-      where: { companyId: membership.companyId, isEnabled: true },
+      where: { companyId: membership.companyId, isEnabled: false },
       select: { moduleKey: true },
     }),
     db.translation.findMany({
@@ -100,9 +100,16 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
     }),
   ]);
 
-  const enabledModuleKeys = installations.map(
-    (installation) => installation.moduleKey,
+  // A module is on unless the company turned it off. Reading it the other way
+  // round — on only with a row saying so — meant a module added to the
+  // registry after a company was created stayed invisible to it forever, even
+  // though every other part of the app treats a missing row as enabled.
+  const disabledModuleKeys = new Set(
+    installations.map((installation) => installation.moduleKey),
   );
+  const enabledModuleKeys = MODULE_REGISTRY.filter(
+    (definition) => !disabledModuleKeys.has(definition.key),
+  ).map((definition) => definition.key);
   const permissions = membership.role.permissions;
   const overrides: TranslationOverrides = Object.fromEntries(
     translations.map((translation) => [translation.key, translation.value]),

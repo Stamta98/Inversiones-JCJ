@@ -6,6 +6,7 @@ import { z } from "zod";
 import { t } from "@/i18n";
 import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
+import { recordPromise } from "@/server/services/promises";
 
 const interactionSchema = z.object({
   customerId: z.string().min(1),
@@ -58,7 +59,7 @@ export async function logInteraction(
     ? Number(data.promisedAmount)
     : null;
 
-  await db.interaction.create({
+  const interaction = await db.interaction.create({
     data: {
       companyId: context.companyId,
       customerId: data.customerId,
@@ -76,6 +77,24 @@ export async function logInteraction(
     },
   });
 
+  // Said on a call is said: it goes on the same list as the ones made at the
+  // door, so nobody has to remember which screen it was written on.
+  const promisedFor = optionalDate(data.promisedFor);
+  if (promisedFor && promisedAmount !== null && promisedAmount > 0) {
+    await recordPromise({
+      companyId: context.companyId,
+      customerId: data.customerId,
+      loanId: data.loanId || null,
+      amount: promisedAmount,
+      promisedFor,
+      source: "CALL",
+      interactionId: interaction.id,
+      notes: data.notes || null,
+      createdById: context.userId,
+    });
+  }
+
   revalidatePath("/call-center");
+  revalidatePath("/promises");
   return { success: t("common.save") };
 }

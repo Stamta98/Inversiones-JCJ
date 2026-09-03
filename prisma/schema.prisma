@@ -76,6 +76,7 @@ model Company {
   automationRules   AutomationRule[]
   messagingAccounts MessagingAccount[]
   routeSettlements  RouteSettlement[]
+  paymentPromises   PaymentPromise[]
 
   @@index([isActive])
 }
@@ -123,6 +124,7 @@ model User {
   auditLogs            AuditLog[]
   interactions         Interaction[]
   routeStops           RouteStop[]       @relation("RouteStopCollector")
+  promisesCreated      PaymentPromise[]  @relation("PromiseAuthor")
   settlementsCollected RouteSettlement[] @relation("SettlementCollector")
   settlementsReceived  RouteSettlement[] @relation("SettlementReceiver")
   cashMovements        CashMovement[]
@@ -343,6 +345,7 @@ model Customer {
   interactions     Interaction[]
   outboundMessages OutboundMessage[]
   routeStops       RouteStop[]
+  paymentPromises  PaymentPromise[]
 
   @@unique([companyId, code])
   @@index([companyId, status])
@@ -529,6 +532,7 @@ model Loan {
   routeStops       RouteStop[]
   interactions     Interaction[]
   outboundMessages OutboundMessage[]
+  paymentPromises  PaymentPromise[]
 
   @@unique([companyId, code])
   @@index([companyId, status])
@@ -785,9 +789,61 @@ model RouteStop {
   /// reversal can be seen from the route.
   paymentId       String?
   payment         Payment?        @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  paymentPromise  PaymentPromise?
 
   @@index([routeId, sortOrder])
   @@index([collectorId, status])
+}
+
+/// What a customer said they would pay, and whether they did.
+///
+/// A promise is made in two places — at the door on a route, and on a call —
+/// and until now it was written down in whichever of the two and then
+/// forgotten. Kept here, it can be chased: these are people who already said
+/// yes, which makes them the cheapest collection there is.
+enum PromiseStatus {
+  PENDING
+  KEPT
+  BROKEN
+  /// Withdrawn, or replaced by a new promise.
+  CANCELLED
+}
+
+enum PromiseSource {
+  ROUTE
+  CALL
+  MANUAL
+}
+
+model PaymentPromise {
+  id            String        @id @default(cuid())
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  loanId        String?
+  loan          Loan?         @relation(fields: [loanId], references: [id], onDelete: SetNull)
+  amount        Decimal       @db.Decimal(18, 2)
+  /// Calendar day the customer named.
+  promisedFor   DateTime
+  status        PromiseStatus @default(PENDING)
+  source        PromiseSource @default(MANUAL)
+  /// The visit it came from. One promise per visit: saying it again on the
+  /// same doorstep replaces what was said before, it does not stack.
+  routeStopId   String?       @unique
+  routeStop     RouteStop?    @relation(fields: [routeStopId], references: [id], onDelete: SetNull)
+  interactionId String?       @unique
+  interaction   Interaction?  @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+  /// Paid towards it since it was made, so a part payment is visible.
+  paidAmount    Decimal       @default(0) @db.Decimal(18, 2)
+  notes         String?
+  createdById   String?
+  createdBy     User?         @relation("PromiseAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     DateTime      @default(now())
+  resolvedAt    DateTime?
+
+  @@index([companyId, status, promisedFor])
+  @@index([customerId, status])
 }
 
 /// A collector's cash, counted at the end of the day.
@@ -1045,6 +1101,7 @@ model Interaction {
   durationSeconds Int?
   occurredAt      DateTime           @default(now())
   createdAt       DateTime           @default(now())
+  paymentPromise  PaymentPromise?
 
   @@index([companyId, occurredAt])
   @@index([customerId])

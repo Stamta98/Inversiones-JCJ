@@ -20,6 +20,7 @@ import {
   dispatchQueue,
   queueScheduledMessages,
 } from "@/server/services/messaging";
+import { refreshOverduePromises } from "@/server/services/promises";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,10 @@ async function run(request: NextRequest) {
       await db.$transaction((tx) => refreshLoan(tx, loan.id, runDate));
     }
 
+    // A promise nobody paid has to break on its own: the payment that would
+    // have kept it is never going to arrive and trigger the check.
+    const promisesChecked = await refreshOverduePromises(company.id, runDate);
+
     const queued = await queueScheduledMessages(company.id, runDate);
     const dispatched = await dispatchQueue(company.id);
 
@@ -73,6 +78,7 @@ async function run(request: NextRequest) {
       companyId: company.id,
       company: company.name,
       loansRefreshed: loans.length,
+      promisesChecked,
       ...queued,
       ...dispatched,
     });

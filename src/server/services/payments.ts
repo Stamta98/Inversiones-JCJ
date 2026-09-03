@@ -10,6 +10,7 @@ import { fromCents, toCents } from "@/core/money";
 
 import { db } from "../db";
 import { refreshLoan } from "./loans";
+import { refreshPromisesForCustomer } from "./promises";
 import { nextReceiptNumber, withCodeRetry } from "./sequences";
 
 export type PaymentMethod =
@@ -60,7 +61,7 @@ export async function postPayment(
 
   const paidAt = input.paidAt ?? new Date();
 
-  return withCodeRetry(() =>
+  const posted = await withCodeRetry(() =>
     db.$transaction(async (tx) => {
       const loan = await tx.loan.findUniqueOrThrow({
         where: { id: input.loanId },
@@ -174,9 +175,18 @@ export async function postPayment(
         receiptNumber,
         appliedAmount: fromCents(result.appliedCents),
         unappliedAmount: fromCents(result.unappliedCents),
+        customerId: loan.customerId,
       };
     }),
   );
+
+  // Outside the transaction on purpose: a promise that fails to update must
+  // never roll back money that was already taken.
+  await refreshPromisesForCustomer(input.companyId, posted.customerId).catch(
+    () => undefined,
+  );
+
+  return posted;
 }
 
 export async function reversePayment(

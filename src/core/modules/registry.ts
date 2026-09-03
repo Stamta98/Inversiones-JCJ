@@ -103,6 +103,20 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     sortOrder: 50,
   },
   {
+    key: "promises",
+    labelKey: "modules.promises.label",
+    descriptionKey: "modules.promises.description",
+    category: "operations",
+    icon: "clock",
+    route: "/promises",
+    // Chasing promises is collections work, done by the same people.
+    requiredPermission: "collections.read",
+    isRemovable: true,
+    dependsOn: ["loans"],
+    showInMobileNav: true,
+    sortOrder: 55,
+  },
+  {
     key: "cash",
     labelKey: "modules.cash.label",
     descriptionKey: "modules.cash.description",

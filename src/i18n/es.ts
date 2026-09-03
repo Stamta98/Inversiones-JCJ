@@ -227,6 +227,11 @@ export const es = {
       label: "Rutas de cobro",
       description: "Rutas por cobrador, orden de visitas y resultado del día.",
     },
+    promises: {
+      label: "Promesas de pago",
+      description:
+        "Quién prometió pagar, cuándo, y quién cumplió. Lo más barato de cobrar.",
+    },
     cash: {
       label: "Caja y bancos",
       description: "Movimientos de efectivo, cuentas y arqueo.",
@@ -707,6 +712,47 @@ export const es = {
     },
   },
 
+  promises: {
+    title: "Promesas de pago",
+    subtitle: "Gente que ya dijo que sí. Solo hay que recordarles.",
+    overdue: "Incumplidas y vencidas",
+    overdueHint: "Prometieron y no pagaron. Aquí es donde se cobra.",
+    dueToday: "Vencen hoy",
+    dueTodayHint: "Llámalos antes de que se acabe el día.",
+    upcoming: "Próximas",
+    closed: "Cerradas",
+    promised: "Prometió",
+    paidSoFar: "Abonado",
+    promisedFor: "Para el",
+    daysLate: "{days} días de atraso",
+    dayLate: "1 día de atraso",
+    daysLeft: "En {days} días",
+    dayLeft: "Mañana",
+    dueTodayBadge: "Hoy",
+    source: {
+      ROUTE: "En la ruta",
+      CALL: "Por teléfono",
+      MANUAL: "A mano",
+    },
+    status: {
+      PENDING: "Pendiente",
+      KEPT: "Cumplió",
+      BROKEN: "No cumplió",
+      CANCELLED: "Anulada",
+    },
+    cancel: "Anular la promesa",
+    cancelled: "Promesa anulada.",
+    record: "Cumplimiento",
+    recordSummary: "Cumplió {kept} de {settled} promesas",
+    recordNone: "Sin promesas cerradas",
+    reliability: "{percent}% de cumplimiento",
+    emptyTitle: "No hay promesas de pago",
+    emptyHint:
+      "Cuando alguien prometa pagar, en la ruta o por teléfono, aparece aquí.",
+    seeCustomer: "Ver el cliente",
+    seeLoan: "Ver el préstamo",
+  },
+
   cash: {
     title: "Caja y bancos",
     singular: "Caja",
@@ -1072,6 +1118,7 @@ export const es = {
       loans: "Préstamos",
       payments: "Cobros",
       collections: "Rutas de cobro",
+      promises: "Promesas de pago",
       cash: "Caja y bancos",
       expenses: "Gastos",
       reports: "Reportes",
