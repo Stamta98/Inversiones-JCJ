@@ -36,3 +36,9 @@ npm-debug.log*
 .idea/
 *.tsbuildinfo
 next-env.d.ts
+
+# Guiones de verificación en el navegador, de andar comprobando pantallas
+# contra la base mientras se trabaja. Solo corren en esta máquina: apuntan a
+# un Postgres local, a los fixtures de /tmp y a los ids de una semilla de
+# aquí, así que en otra copia del repositorio no servirían de nada.
+/check-*.mjs
