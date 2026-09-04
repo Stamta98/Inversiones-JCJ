@@ -148,7 +148,11 @@ export default async function LoanDetailPage({
   // De un préstamo anulado o ya saldado no se cobra, y tampoco se atrasa:
   // las cuotas que le queden sin pagar no son mora de nadie.
   const openLoan = ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status);
-  const daysLate = openLoan ? collect.daysLate : 0;
+  // Cuotas atrasadas y días vencido: lo primero se cuenta en cuotas, lo
+  // segundo en días desde que se acabó el plazo. Confundirlos era decirle al
+  // cliente que lleva quince días vencido cuando el crédito se venció ayer.
+  const overdueCount = openLoan ? collect.overdueCount : 0;
+  const daysExpired = openLoan ? collect.daysExpired : 0;
 
   const canCollect = can(context, "payments.create") && openLoan;
   const canReverse = can(context, "payments.delete");
@@ -189,7 +193,7 @@ export default async function LoanDetailPage({
       : 0;
 
   const displayStatus =
-    loan.status === "ACTIVE" && daysLate > 0 ? "IN_ARREARS" : loan.status;
+    loan.status === "ACTIVE" && overdueCount > 0 ? "IN_ARREARS" : loan.status;
 
   return (
     <>
@@ -227,9 +231,21 @@ export default async function LoanDetailPage({
               {t("loans.singular")} {loan.code}
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {daysLate > 0 ? (
+              {overdueCount > 0 ? (
                 <Badge tone="danger">
-                  {t("loans.arrearsDays").replace("{days}", String(daysLate))}
+                  {t(
+                    overdueCount === 1
+                      ? "loans.overdueCountShortOne"
+                      : "loans.overdueCountShort",
+                  ).replace("{count}", String(overdueCount))}
+                </Badge>
+              ) : null}
+              {daysExpired > 0 ? (
+                <Badge tone="danger">
+                  {t("loans.expiredShort").replace(
+                    "{days}",
+                    String(daysExpired),
+                  )}
                 </Badge>
               ) : null}
               <Badge tone={LOAN_TONES[displayStatus] ?? "neutral"}>
@@ -343,29 +359,37 @@ export default async function LoanDetailPage({
           hint={`${t("loans.paidAmount")}: ${money(Number(loan.totalPaid))}`}
           tone="brand"
         />
+        {/* Lo grande son las cuotas, que es lo que se atrasa. Debajo, si el
+            plazo ya se acabó, cuántos días lleva vencido el crédito; si no,
+            desde cuándo viene debiendo. */}
         <StatCard
-          label={t("loans.daysInArrears")}
-          value={String(daysLate)}
+          label={t("loans.overdueInstallments")}
+          value={String(overdueCount)}
           hint={
-            daysLate > 0 && collect.overdueSince
+            daysExpired > 0
               ? t(
-                  collect.overdueCount === 1
-                    ? "loans.overdueSinceOne"
-                    : "loans.overdueSinceMany",
-                )
-                  .replace("{date}", formatDate(collect.overdueSince))
-                  .replace("{count}", String(collect.overdueCount))
-              : !openLoan
-                ? `${t("loans.lateFeePart")}: ${money(Number(loan.totalLateFees))}`
-                : collect.nextDueDate
-                  ? t("loans.nextDueOn").replace(
-                      "{date}",
-                      formatDate(collect.nextDueDate),
-                    )
-                  : t("loans.upToDate")
+                  daysExpired === 1
+                    ? "loans.expiredDaysOne"
+                    : "loans.expiredDays",
+                ).replace("{days}", String(daysExpired))
+              : overdueCount > 0 && collect.overdueSince
+                ? t("loans.oldestOverdue").replace(
+                    "{date}",
+                    formatDate(collect.overdueSince),
+                  )
+                : !openLoan
+                  ? `${t("loans.lateFeePart")}: ${money(Number(loan.totalLateFees))}`
+                  : collect.lastDueDate
+                    ? t("loans.expiresOn").replace(
+                        "{date}",
+                        formatDate(collect.lastDueDate),
+                      )
+                    : t("loans.upToDate")
           }
-          tone={daysLate > 0 ? "danger" : "positive"}
-          icon={daysLate > 0 ? "alert-triangle" : "check"}
+          tone={overdueCount > 0 || daysExpired > 0 ? "danger" : "positive"}
+          icon={
+            overdueCount > 0 || daysExpired > 0 ? "alert-triangle" : "check"
+          }
         />
       </div>
 

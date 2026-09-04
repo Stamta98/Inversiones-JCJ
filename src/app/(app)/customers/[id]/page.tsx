@@ -22,6 +22,7 @@ import {
   type PromiseStatus,
 } from "@/core/collections/promise";
 import { ageOn } from "@/core/customers/identity";
+import { startOfDay } from "@/core/dates";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
@@ -63,7 +64,23 @@ export default async function CustomerDetailPage({
   const customer = await db.customer.findFirst({
     where: { id, companyId: context.companyId },
     include: {
-      loans: { orderBy: { createdAt: "desc" } },
+      loans: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          // Las cuotas que ya pasaron de fecha y siguen sin pagar: eso es lo
+          // que está atrasado, contado hoy.
+          _count: {
+            select: {
+              installments: {
+                where: {
+                  dueDate: { lt: startOfDay(new Date()) },
+                  status: { notIn: ["PAID", "WAIVED"] },
+                },
+              },
+            },
+          },
+        },
+      },
       references: true,
       attachments: { orderBy: { createdAt: "asc" } },
       interactions: {
@@ -96,14 +113,14 @@ export default async function CustomerDetailPage({
     (attachment) =>
       attachment.kind === "ID_FRONT" || attachment.kind === "ID_BACK",
   );
-  const worstArrears = customer.loans.reduce(
-    (worst, loan) => Math.max(worst, loan.daysInArrears),
-    0,
-  );
   // Lo que este cliente debe hoy, sumando solo los préstamos que siguen
   // abiertos: uno saldado ya no debe nada y uno anulado nunca se cobró.
   const openLoans = customer.loans.filter((loan) =>
     ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status),
+  );
+  const overdueCount = openLoans.reduce(
+    (total, loan) => total + loan._count.installments,
+    0,
   );
   const outstanding = openLoans.reduce(
     (total, loan) => total + Number(loan.outstanding),
@@ -142,9 +159,11 @@ export default async function CustomerDetailPage({
         {customer.status === "BLACKLISTED" ? (
           <Alert tone="danger">{t("customers.blacklistWarning")}</Alert>
         ) : null}
-        {worstArrears > 0 ? (
+        {overdueCount > 0 ? (
           <Alert tone="warning">
-            {t("customers.arrearsWarning", { days: worstArrears })}
+            {overdueCount === 1
+              ? t("customers.arrearsWarningOne")
+              : t("customers.arrearsWarning", { count: overdueCount })}
           </Alert>
         ) : null}
       </div>
@@ -163,7 +182,7 @@ export default async function CustomerDetailPage({
               : t("customers.noOpenLoans")
           }
           icon="hand-coins"
-          tone={worstArrears > 0 ? "danger" : "brand"}
+          tone={overdueCount > 0 ? "danger" : "brand"}
         />
       </div>
 

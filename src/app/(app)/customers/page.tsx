@@ -13,6 +13,7 @@ import {
   type Tone,
 } from "@/components/ui";
 import { SortableRows } from "@/components/ui/sortable-rows";
+import { startOfDay } from "@/core/dates";
 import { isManuallyOrdered } from "@/core/ordering";
 import { initials } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
@@ -67,7 +68,22 @@ export default async function CustomersPage({
       take: PAGE_SIZE,
       include: {
         loans: {
-          select: { status: true, daysInArrears: true },
+          select: {
+            status: true,
+            // Cuotas atrasadas contadas hoy, no el contador de días que
+            // escribe el trabajo de la madrugada: lo que se atrasa son
+            // cuotas, y aquí se cuentan las que ya pasaron de fecha.
+            _count: {
+              select: {
+                installments: {
+                  where: {
+                    dueDate: { lt: startOfDay(new Date()) },
+                    status: { notIn: ["PAID", "WAIVED"] },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     }),
@@ -198,8 +214,8 @@ export default async function CustomersPage({
             const openLoans = customer.loans.filter((loan) =>
               (OPEN_STATUSES as readonly string[]).includes(loan.status),
             );
-            const worstArrears = openLoans.reduce(
-              (worst, loan) => Math.max(worst, loan.daysInArrears),
+            const overdueCount = openLoans.reduce(
+              (total, loan) => total + loan._count.installments,
               0,
             );
             const tone = STATUS_TONES[customer.status];
@@ -232,8 +248,14 @@ export default async function CustomersPage({
                       <span className="truncate text-sm font-bold text-ink uppercase">
                         {customer.firstName} {customer.lastName}
                       </span>
-                      {worstArrears > 0 ? (
-                        <Badge tone="danger">{worstArrears} d</Badge>
+                      {overdueCount > 0 ? (
+                        <Badge tone="danger">
+                          {t(
+                            overdueCount === 1
+                              ? "loans.overdueCountShortOne"
+                              : "loans.overdueCountShort",
+                          ).replace("{count}", String(overdueCount))}
+                        </Badge>
                       ) : null}
                       {tone ? (
                         <Badge tone={tone}>

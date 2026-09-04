@@ -142,6 +142,48 @@ describe("collectionSnapshot", () => {
     expect(snapshot.installmentCents).toBe(0);
   });
 
+  // Lo que se atrasa son cuotas; lo que se vence es el crédito. Un cliente
+  // puede llevar dos cuotas atrasadas y que el crédito no se haya vencido.
+  it("no cuenta días vencidos mientras el crédito no se acabe", () => {
+    const snapshot = collectionSnapshot(
+      [installment(1, 3), installment(2, 8), installment(3, 20)],
+      TODAY,
+    );
+
+    expect(snapshot.overdueCount).toBe(2);
+    expect(snapshot.daysExpired).toBe(0);
+    expect(snapshot.lastDueDate).toEqual(new Date(2026, 8, 20));
+  });
+
+  it("cuenta los días desde que se venció el crédito", () => {
+    const snapshot = collectionSnapshot(
+      [installment(1, 3), installment(2, 9)],
+      TODAY,
+    );
+
+    expect(snapshot.daysExpired).toBe(1);
+    expect(snapshot.overdueCount).toBe(2);
+  });
+
+  it("un crédito saldado no se vence", () => {
+    const snapshot = collectionSnapshot(
+      [
+        installment(1, 3, { status: "PAID" }),
+        installment(2, 9, { status: "PAID" }),
+      ],
+      TODAY,
+    );
+
+    expect(snapshot.daysExpired).toBe(0);
+    expect(snapshot.lastDueDate).toEqual(new Date(2026, 8, 9));
+  });
+
+  it("el crédito que se acaba hoy todavía no está vencido", () => {
+    const snapshot = collectionSnapshot([installment(1, 10)], TODAY);
+
+    expect(snapshot.daysExpired).toBe(0);
+  });
+
   it("aguanta un préstamo sin cuotas", () => {
     const snapshot = collectionSnapshot([], TODAY);
 

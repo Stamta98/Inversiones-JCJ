@@ -10,7 +10,7 @@ import {
   type Tone,
 } from "@/components/ui";
 import { SortableRows } from "@/components/ui/sortable-rows";
-import { addDays, startOfDay } from "@/core/dates";
+import { startOfDay } from "@/core/dates";
 import { collectionSnapshot } from "@/core/loans/collection";
 import { fromCents, toCents } from "@/core/money";
 import { isManuallyOrdered } from "@/core/ordering";
@@ -61,11 +61,14 @@ function unpaidBefore(date: Date): Prisma.LoanWhereInput {
 }
 
 function buildFilters(today: Date) {
-  const heavyFrom = addDays(today, -30);
   // De un anulado no se cobra, así que tampoco se atrasa por más cuotas sin
   // pagar que le queden colgando.
   const open: Prisma.LoanWhereInput = {
     status: { in: ["ACTIVE", "IN_ARREARS", "APPROVED"] },
+  };
+  // Al crédito le queda plazo mientras le quede alguna cuota por vencer.
+  const stillRunning: Prisma.LoanWhereInput = {
+    installments: { some: { dueDate: { gte: today } } },
   };
   return {
     all: {} as Prisma.LoanWhereInput,
@@ -73,35 +76,53 @@ function buildFilters(today: Date) {
       status: { in: ["ACTIVE", "APPROVED"] },
       NOT: unpaidBefore(today),
     },
-    late: { ...open, ...unpaidBefore(today), NOT: unpaidBefore(heavyFrom) },
-    heavy: { ...open, ...unpaidBefore(heavyFrom) },
+    // Atrasado en cuotas pero con plazo por delante: todavía se arregla
+    // cobrando. Vencido es que se acabó el plazo y sigue debiendo.
+    late: { ...open, AND: [unpaidBefore(today), stillRunning] },
+    expired: {
+      ...open,
+      AND: [
+        { installments: { some: { status: { notIn: ["PAID", "WAIVED"] } } } },
+        { NOT: stillRunning },
+      ],
+    },
     paid: { status: "PAID" },
   } satisfies Record<string, Prisma.LoanWhereInput>;
 }
 
 type FilterKey = keyof ReturnType<typeof buildFilters>;
 
-const FILTER_KEYS: FilterKey[] = ["all", "onTime", "late", "heavy", "paid"];
+const FILTER_KEYS: FilterKey[] = ["all", "onTime", "late", "expired", "paid"];
 
 const FILTER_LABELS: Record<FilterKey, string> = {
   all: "loans.filterAll",
   onTime: "loans.filterOnTime",
   late: "loans.filterLate",
-  heavy: "loans.filterHeavy",
+  expired: "loans.filterExpired",
   paid: "loans.filterPaid",
 };
 
 /** De estos se cobra. De un borrador todavía no, y de un anulado nunca más. */
 const COLLECTABLE = new Set(["ACTIVE", "IN_ARREARS", "APPROVED"]);
 
-/** La franja de la izquierda: se lee sin leer, bajando con el pulgar. */
-function severity(status: string, daysInArrears: number): string {
+/**
+ * La franja de la izquierda: se lee sin leer, bajando con el pulgar.
+ *
+ * Rojo es que el plazo ya se acabó y todavía debe; amarillo, que se quedó
+ * atrás en cuotas pero el crédito sigue corriendo. Son dos cosas distintas y
+ * la segunda todavía se arregla cobrando.
+ */
+function severity(
+  status: string,
+  overdueCount: number,
+  daysExpired: number,
+): string {
   if (status === "PAID") return "border-l-brand";
   if (status === "CANCELLED" || status === "WRITTEN_OFF") {
     return "border-l-border-strong";
   }
-  if (daysInArrears > 30) return "border-l-danger";
-  if (daysInArrears > 0) return "border-l-warning";
+  if (daysExpired > 0) return "border-l-danger";
+  if (overdueCount > 0) return "border-l-warning";
   return "border-l-positive";
 }
 
@@ -279,9 +300,10 @@ export default async function LoansPage({
             // El atraso se cuenta al abrir la lista: un préstamo que nadie ha
             // tocado en una semana ya lleva esa semana, diga lo que diga la
             // columna guardada.
-            const daysLate = collectable ? snapshot.daysLate : 0;
+            const overdueCount = collectable ? snapshot.overdueCount : 0;
+            const daysExpired = collectable ? snapshot.daysExpired : 0;
             const status =
-              loan.status === "ACTIVE" && daysLate > 0
+              loan.status === "ACTIVE" && overdueCount > 0
                 ? "IN_ARREARS"
                 : loan.status;
             const dueLabel =
@@ -295,7 +317,7 @@ export default async function LoansPage({
               <Card
                 key={loan.id}
                 sortableId={loan.id}
-                className={`overflow-hidden border-l-4 ${severity(loan.status, daysLate)}`}
+                className={`overflow-hidden border-l-4 ${severity(loan.status, overdueCount, daysExpired)}`}
               >
                 <Link
                   href={`/loans/${loan.id}`}
@@ -312,12 +334,22 @@ export default async function LoansPage({
                       <span className="font-semibold text-ink">
                         {snapshot.paidCount}/{loan.installments.length}
                       </span>
-                      {daysLate > 0 ? (
+                      {overdueCount > 0 ? (
                         <span className="font-semibold text-danger">
                           {" · "}
-                          {t("loans.arrearsDays").replace(
+                          {t(
+                            overdueCount === 1
+                              ? "loans.overdueCountShortOne"
+                              : "loans.overdueCountShort",
+                          ).replace("{count}", String(overdueCount))}
+                        </span>
+                      ) : null}
+                      {daysExpired > 0 ? (
+                        <span className="font-semibold text-danger">
+                          {" · "}
+                          {t("loans.expiredShort").replace(
                             "{days}",
-                            String(daysLate),
+                            String(daysExpired),
                           )}
                         </span>
                       ) : null}

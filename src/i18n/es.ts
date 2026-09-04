@@ -433,7 +433,9 @@ export const es = {
     blacklistWarning:
       "Este cliente está en lista negra. Revisa antes de aprobar un crédito.",
     arrearsWarning:
-      "Este cliente tiene {days} días de mora en un préstamo activo.",
+      "Este cliente tiene {count} cuotas atrasadas en sus préstamos abiertos.",
+    arrearsWarningOne:
+      "Este cliente tiene 1 cuota atrasada en un préstamo abierto.",
     errors: {
       birthDate: "Revisa la fecha de nacimiento: no puede ser futura.",
     },
@@ -665,12 +667,21 @@ export const es = {
     nothingDue: "Nada por cobrar",
     lastPayment: "Últ. pago",
     noPayments: "Sin pagos",
-    arrearsDays: "{days} d de atraso",
-    // El atraso contado como lo cuenta el cobrador: desde cuándo y cuántas
-    // cuotas se quedaron atrás.
-    overdueSince: "Vencida desde el {date}",
-    overdueSinceOne: "Vencida desde el {date} · 1 cuota",
-    overdueSinceMany: "Vencida desde el {date} · {count} cuotas",
+    // Lo que se atrasa son cuotas; lo que se vence es el crédito. Son dos
+    // cosas distintas y llamarlas igual confunde: un cliente puede llevar
+    // veinte cuotas atrasadas sin que el crédito se haya vencido, y el
+    // crédito puede haberse vencido ayer y llevar un solo día vencido.
+    overdueInstallments: "Cuotas atrasadas",
+    overdueCountShort: "{count} atrasadas",
+    overdueCountShortOne: "1 atrasada",
+    overdueCountLong: "{count} cuotas atrasadas",
+    overdueCountLongOne: "1 cuota atrasada",
+    noneOverdue: "Ninguna atrasada",
+    expiredDays: "Vencido hace {days} días",
+    expiredDaysOne: "Vencido hace 1 día",
+    expiredShort: "Vencido {days} d",
+    expiresOn: "Se vence el {date}",
+    oldestOverdue: "La más vieja, del {date}",
     upToDate: "Al día",
     // El avance del préstamo contado como lo cuenta el cliente: cuántas
     // cuotas lleva, cuántas le faltan y cuánta plata ya entregó.
@@ -690,7 +701,7 @@ export const es = {
     filterAll: "Todos",
     filterOnTime: "Al día",
     filterLate: "Atrasados",
-    filterHeavy: "Mora fuerte",
+    filterExpired: "Vencidos",
     filterPaid: "Saldados",
     cancelReason: "Motivo de la anulación",
     cancelled: "Préstamo anulado.",

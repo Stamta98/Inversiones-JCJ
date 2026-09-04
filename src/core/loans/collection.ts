@@ -34,6 +34,17 @@ export interface CollectionSnapshot {
   overdueCount: number;
   daysLate: number;
   overdueSince: Date | null;
+  /**
+   * El día en que el crédito se acaba — la última cuota — y cuántos días lleva
+   * vencido desde ese día.
+   *
+   * Es otra cosa que el atraso: un cliente puede llevar veinte cuotas
+   * atrasadas y que el crédito todavía no se venza, y puede vencerse ayer y
+   * llevar un solo día vencido. Lo que se atrasa son cuotas; lo que se vence
+   * es el crédito.
+   */
+  lastDueDate: Date | null;
+  daysExpired: number;
   /** La próxima cuota que toca, esté vencida o no. */
   nextDueDate: Date | null;
   nextAmountCents: Cents;
@@ -77,6 +88,13 @@ export function collectionSnapshot(
     : 0;
 
   const today = startOfDay(asOf);
+  const lastDueDate = installments.reduce<Date | null>(
+    (last, installment) =>
+      last === null || installment.dueDate > last
+        ? startOfDay(installment.dueDate)
+        : last,
+    null,
+  );
   const late = open.filter(
     (installment) =>
       startOfDay(installment.dueDate) < today &&
@@ -91,6 +109,8 @@ export function collectionSnapshot(
       overdueCount: 0,
       daysLate: 0,
       overdueSince: null,
+      lastDueDate,
+      daysExpired: 0,
       nextDueDate: null,
       nextAmountCents: 0,
       installmentCents: 0,
@@ -105,6 +125,11 @@ export function collectionSnapshot(
     overdueCount: late.length,
     daysLate: overdueSince ? daysBetween(overdueSince, today) : 0,
     overdueSince,
+    lastDueDate,
+    // Solo cuenta mientras quede algo por cobrar: un crédito saldado no se
+    // vence, se acabó.
+    daysExpired:
+      lastDueDate && lastDueDate < today ? daysBetween(lastDueDate, today) : 0,
     nextDueDate: next?.dueDate ?? null,
     nextAmountCents,
     installmentCents: next?.totalCents ?? 0,
