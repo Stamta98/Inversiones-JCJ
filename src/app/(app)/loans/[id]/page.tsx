@@ -8,6 +8,7 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Icon,
   LinkButton,
   Select,
   StatCard,
@@ -24,6 +25,7 @@ import type { LoanStatus } from "@/core/types";
 import { formatDate, initials } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
+import { LOAN_ORDER } from "@/server/services/ordering";
 
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { ShareDocument } from "@/components/ui/share-document";
@@ -62,7 +64,7 @@ export default async function LoanDetailPage({
   const context = await requirePermission("loans.read");
   const { id } = await params;
 
-  const [loan, cashBoxes, applied, paymentCount] = await Promise.all([
+  const [loan, cashBoxes, applied, paymentCount, ordered] = await Promise.all([
     db.loan.findFirst({
       where: { id, companyId: context.companyId },
       include: {
@@ -101,11 +103,28 @@ export default async function LoanDetailPage({
       },
     }),
     db.payment.count({ where: { loanId: id } }),
+    // Los ids en el orden en que se ve la lista, para saber cuál sigue y cuál
+    // va antes. Solo ids: es lo que hace falta y pesa nada.
+    db.loan.findMany({
+      where: { companyId: context.companyId },
+      orderBy: LOAN_ORDER,
+      select: { id: true },
+      take: 1000,
+    }),
   ]);
 
   if (!loan) notFound();
 
   const { t, money } = context;
+
+  // Bajando una ruta uno va de un préstamo al siguiente; devolverse a la
+  // lista cada vez son dos toques por cliente.
+  const position = ordered.findIndex((row) => row.id === id);
+  const previousLoan = position > 0 ? ordered[position - 1].id : null;
+  const nextLoan =
+    position >= 0 && position < ordered.length - 1
+      ? ordered[position + 1].id
+      : null;
 
   // Quién recibió cada abono. Payment guarda el id suelto, así que los
   // nombres se buscan de una vez para los recibos que se van a mostrar.
@@ -319,7 +338,46 @@ export default async function LoanDetailPage({
             </div>
           </div>
 
-          <div className="shrink-0 self-start">
+          <div className="flex shrink-0 items-center gap-1.5 self-start">
+            {/* Bajando la ruta se pasa de un cliente al que sigue sin
+                devolverse a la lista. Van juntas y pegadas al menú, que es
+                donde el pulgar ya está. */}
+            <div className="flex items-center overflow-hidden rounded-lg border border-border bg-surface-muted">
+              {previousLoan ? (
+                <Link
+                  href={`/loans/${previousLoan}`}
+                  aria-label={t("loans.previousLoan")}
+                  className="flex h-8 w-8 items-center justify-center text-ink transition-colors hover:bg-surface"
+                >
+                  <Icon name="chevron-left" size={18} />
+                </Link>
+              ) : (
+                <span
+                  aria-hidden
+                  className="flex h-8 w-8 items-center justify-center text-ink-subtle opacity-40"
+                >
+                  <Icon name="chevron-left" size={18} />
+                </span>
+              )}
+              <span className="h-4 w-px bg-border" />
+              {nextLoan ? (
+                <Link
+                  href={`/loans/${nextLoan}`}
+                  aria-label={t("loans.nextLoan")}
+                  className="flex h-8 w-8 items-center justify-center text-ink transition-colors hover:bg-surface"
+                >
+                  <Icon name="chevron-right" size={18} />
+                </Link>
+              ) : (
+                <span
+                  aria-hidden
+                  className="flex h-8 w-8 items-center justify-center text-ink-subtle opacity-40"
+                >
+                  <Icon name="chevron-right" size={18} />
+                </span>
+              )}
+            </div>
+
             <LoanMenu
               loanId={loan.id}
               customerId={loan.customerId}

@@ -683,6 +683,10 @@ export const es = {
     expiresOn: "Se vence el {date}",
     oldestOverdue: "La más vieja, del {date}",
     upToDate: "Al día",
+    // Para pasar de un préstamo a otro sin devolverse a la lista, que es lo
+    // que uno hace bajando una ruta.
+    previousLoan: "Préstamo anterior",
+    nextLoan: "Préstamo siguiente",
     // El avance del préstamo contado como lo cuenta el cliente: cuántas
     // cuotas lleva, cuántas le faltan y cuánta plata ya entregó.
     installmentsPaid: "Cuotas pagadas",
