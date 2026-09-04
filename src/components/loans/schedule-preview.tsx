@@ -1,14 +1,7 @@
 "use client";
 
-import {
-  Alert,
-  Card,
-  CardBody,
-  CardHeader,
-  TableWrap,
-  Td,
-  Th,
-} from "@/components/ui";
+import { Alert, CardBody, TableWrap, Td, Th } from "@/components/ui";
+import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import type { Schedule } from "@/core/loans/schedule";
 import { fromCents } from "@/core/money";
 import { es } from "@/i18n/es";
@@ -38,16 +31,17 @@ export function SchedulePreview({
     schedule?.installments.some((installment) => installment.chargeCents > 0) ??
     false;
 
+  // Llega cerrada: son treinta filas que se revisan una vez, y el total —que
+  // es lo que de verdad se mira antes de guardar— se lee sin abrirla.
   return (
-    <Card>
-      <CardHeader
-        title={title}
-        description={
-          schedule
-            ? `${es.loans.totalToPay}: ${money(fromCents(schedule.totalToPayCents))} · ${es.loans.totalInterest}: ${money(fromCents(schedule.totalInterestCents))}`
-            : undefined
-        }
-      />
+    <CollapsibleCard
+      title={title}
+      description={
+        schedule
+          ? `${es.loans.totalToPay}: ${money(fromCents(schedule.totalToPayCents))} · ${es.loans.totalInterest}: ${money(fromCents(schedule.totalInterestCents))}`
+          : undefined
+      }
+    >
       {error ? (
         <CardBody>
           <Alert tone="danger">{error}</Alert>
@@ -105,6 +99,6 @@ export function SchedulePreview({
           </div>
         </>
       ) : null}
-    </Card>
+    </CollapsibleCard>
   );
 }

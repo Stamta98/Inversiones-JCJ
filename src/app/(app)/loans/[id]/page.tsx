@@ -23,9 +23,11 @@ import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
+import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { ShareDocument } from "@/components/ui/share-document";
 
-import { ReversePaymentButton } from "../../payments/reverse-payment-button";
+import { DeletePaymentButton } from "../../payments/delete-payment-button";
+import { LoanMenu } from "./loan-menu";
 import { disburseLoanAction } from "../actions";
 import { PaymentForm } from "./payment-form";
 
@@ -153,17 +155,16 @@ export default async function LoanDetailPage({
                 {t("loans.renewal.action")}
               </LinkButton>
             ) : null}
-            {can(context, "loans.update") &&
-            canEditAtAll(loan.status as LoanStatus) ? (
-              <LinkButton
-                href={`/loans/${loan.id}/edit`}
-                variant="secondary"
-                size="sm"
-                icon="pencil"
-              >
-                {t("common.edit")}
-              </LinkButton>
-            ) : null}
+            <LoanMenu
+              loanId={loan.id}
+              phone={customerPhone}
+              message={documentMessage}
+              canEdit={
+                can(context, "loans.update") &&
+                canEditAtAll(loan.status as LoanStatus)
+              }
+              canDelete={can(context, "loans.delete")}
+            />
           </div>
         }
       />
@@ -365,10 +366,9 @@ export default async function LoanDetailPage({
       </div>
 
       <div className="mt-4 space-y-4">
-        <Card>
-          <CardHeader
-            title={t("loans.schedule")}
-            description={[
+        <CollapsibleCard
+          title={t("loans.schedule")}
+          description={[
               t(`loans.method.${loan.interestMethod}`),
               loan.frequency === "CUSTOM" && loan.customIntervalDays
                 ? `${t("loans.frequencyLabel.CUSTOM")} (${loan.customIntervalDays} días)`
@@ -378,10 +378,10 @@ export default async function LoanDetailPage({
                     .map((day) => t(`loans.weekday.${day}`))
                     .join(", ")}`
                 : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          />
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        >
           {loan.interestMethod === "CREDIT_LINE" ? (
             <CardBody className="pb-0">
               <Alert tone="info" icon="clock">
@@ -445,7 +445,7 @@ export default async function LoanDetailPage({
               ))}
             </tbody>
           </TableWrap>
-        </Card>
+        </CollapsibleCard>
 
         <Card>
           <CardHeader title={t("payments.title")} />
@@ -494,13 +494,21 @@ export default async function LoanDetailPage({
                     </Td>
                     {canReverse ? (
                       <Td align="right">
-                        {/* El recibo de una refinanciación no se anula solo:
-                            devolvería el saldo dejando vivo el préstamo que
-                            se lo llevó, y el cliente quedaría debiendo dos
+                        {/* El recibo de una refinanciación no se toca desde
+                            aquí: devolvería el saldo dejando vivo el préstamo
+                            que se lo llevó, y el cliente quedaría debiendo dos
                             veces lo mismo. Se deshace anulando ese préstamo. */}
-                        {payment.status === "REVERSED" ||
-                        payment.method === "REFINANCE" ? null : (
-                          <ReversePaymentButton paymentId={payment.id} />
+                        {payment.method === "REFINANCE" ? null : (
+                          <span className="flex items-center justify-end gap-0.5">
+                            <LinkButton
+                              href={`/payments/${payment.id}`}
+                              variant="ghost"
+                              size="sm"
+                              icon="pencil"
+                              aria-label={t("payments.edit")}
+                            />
+                            <DeletePaymentButton paymentId={payment.id} />
+                          </span>
                         )}
                       </Td>
                     ) : null}

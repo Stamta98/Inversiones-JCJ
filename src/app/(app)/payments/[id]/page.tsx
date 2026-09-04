@@ -18,7 +18,6 @@ import { loadReceipt } from "@/server/services/receipts";
 
 import { ShareDocument } from "@/components/ui/share-document";
 
-import { ReversePaymentButton } from "../reverse-payment-button";
 import { DeleteReceipt } from "./delete-receipt";
 import { EditPaymentForm } from "./edit-payment-form";
 
@@ -265,9 +264,6 @@ export default async function ReceiptPage({
                 </CardBody>
               ) : (
                 <CardBody className="flex flex-wrap items-center gap-3">
-                  {voided ? null : (
-                    <ReversePaymentButton paymentId={receipt.paymentId} />
-                  )}
                   <DeleteReceipt paymentId={receipt.paymentId} />
                 </CardBody>
               )}

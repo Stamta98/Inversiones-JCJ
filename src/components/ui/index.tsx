@@ -7,6 +7,7 @@
 
 import Link from "next/link";
 import type {
+  AnchorHTMLAttributes,
   ButtonHTMLAttributes,
   InputHTMLAttributes,
   ReactNode,
@@ -25,9 +26,12 @@ export function Card({
   children,
   className,
   sortableId,
+  id,
 }: {
   children: ReactNode;
   className?: string;
+  /** Para enlazar directo a esta tarjeta desde otra pantalla. */
+  id?: string;
   /**
    * Marca la tarjeta como una fila que se puede arrastrar. Va por props y no
    * como `data-` suelto porque un componente no reenvía lo que no declara, y
@@ -37,6 +41,7 @@ export function Card({
 }) {
   return (
     <section
+      id={id}
       data-sortable-id={sortableId}
       className={cn(
         "rounded-[--radius-card] border border-border bg-surface",
@@ -162,13 +167,18 @@ export function LinkButton({
   icon,
   className,
   children,
-}: {
+  ...props
+}: AnchorHTMLAttributes<HTMLAnchorElement> & {
   href: string;
   variant?: ButtonVariant;
   size?: ButtonSize;
   icon?: IconName;
-  className?: string;
-  children: ReactNode;
+  /**
+   * Opcional: un botón de solo ícono se explica con su `aria-label`, que
+   * llega por el resto de props. Sin reenviarlas, el enlace se quedaba sin
+   * nombre y nadie podía saber qué hacía.
+   */
+  children?: ReactNode;
 }) {
   return (
     <Link
@@ -179,6 +189,7 @@ export function LinkButton({
         BUTTON_SIZES[size],
         className,
       )}
+      {...props}
     >
       {icon ? <Icon name={icon} size={size === "sm" ? 14 : 16} /> : null}
       {children}

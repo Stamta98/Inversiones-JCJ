@@ -648,6 +648,13 @@ export const es = {
       installmentPart: "Cargo",
       collected: "Cargos cobrados",
     },
+    // --- Contactar al cliente desde el préstamo ---
+    contact: {
+      call: "Llamar",
+      whatsapp: "Escribir por WhatsApp",
+      sms: "Mensaje de texto",
+      noPhone: "Este cliente no tiene celular guardado.",
+    },
     // --- Lista de préstamos ---
     lent: "Prestado",
     collected: "Cobrado",

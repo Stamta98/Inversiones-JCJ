@@ -146,8 +146,9 @@ export default async function EditLoanPage({
         </Card>
       ) : null}
 
+      {/* Con ancla: el menú del préstamo trae directo aquí. */}
       {can(context, "loans.delete") ? (
-        <Card className="mt-4 max-w-2xl">
+        <Card className="mt-4 max-w-2xl" id="eliminar">
           <CardHeader title={t("loans.delete")} />
           <DeleteLoanForm loanId={loan.id} />
         </Card>

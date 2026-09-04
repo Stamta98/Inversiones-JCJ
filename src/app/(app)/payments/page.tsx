@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import {
   Badge,
+  LinkButton,
   Card,
   EmptyState,
   PageHeader,
@@ -15,7 +16,7 @@ import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
-import { ReversePaymentButton } from "./reverse-payment-button";
+import { DeletePaymentButton } from "./delete-payment-button";
 
 export const dynamic = "force-dynamic";
 
@@ -122,8 +123,17 @@ export default async function PaymentsPage() {
                   </Td>
                   {canReverse ? (
                     <Td align="right">
-                      {payment.status === "REVERSED" ? null : (
-                        <ReversePaymentButton paymentId={payment.id} />
+                      {payment.method === "REFINANCE" ? null : (
+                        <span className="flex items-center justify-end gap-0.5">
+                          <LinkButton
+                            href={`/payments/${payment.id}`}
+                            variant="ghost"
+                            size="sm"
+                            icon="pencil"
+                            aria-label={t("payments.edit")}
+                          />
+                          <DeletePaymentButton paymentId={payment.id} />
+                        </span>
                       )}
                     </Td>
                   ) : null}
