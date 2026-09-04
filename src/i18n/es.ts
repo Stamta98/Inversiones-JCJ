@@ -687,6 +687,10 @@ export const es = {
     // que uno hace bajando una ruta.
     previousLoan: "Préstamo anterior",
     nextLoan: "Préstamo siguiente",
+    // En el botón va la palabra corta, que en un teléfono angosto la larga
+    // no cabe; la larga queda para quien lo lee en voz alta.
+    previousShort: "Anterior",
+    nextShort: "Siguiente",
     // Lo que el cliente tendría que pagar hoy para quedar al corriente, y de
     // cuántas cuotas y cada cuánto es el crédito.
     toCatchUp: "Para ponerse al día",

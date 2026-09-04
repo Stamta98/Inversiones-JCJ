@@ -37,6 +37,10 @@ import { PaymentForm } from "./payment-form";
 
 export const dynamic = "force-dynamic";
 
+/** Los dos botones para pasar de un préstamo a otro, del mismo tamaño. */
+const STEP_LOAN =
+  "flex h-9 items-center justify-center gap-1 rounded-lg border border-border bg-surface-muted text-sm font-medium text-ink transition-colors hover:bg-surface";
+
 const LOAN_TONES: Record<string, Tone> = {
   DRAFT: "neutral",
   PENDING_APPROVAL: "info",
@@ -315,75 +319,31 @@ export default async function LoanDetailPage({
                 {loan.customer.firstName} {loan.customer.lastName}
               </Link>
             </h1>
-            {/* El código del cliente ya está en su tarjeta más abajo: aquí
-                solo cabía cortado. */}
-            <p className="numeric mt-0.5 truncate text-xs text-ink-muted">
-              {t("loans.singular")} {loan.code}
+            {/* La cédula: es lo que uno le pide al cliente para saber que es
+                él, y lo que se copia para buscarlo en cualquier parte. El
+                atraso y la mora los dicen las tarjetas de abajo, así que
+                aquí no se repiten. */}
+            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-ink-muted">
+              <Icon
+                name="credit-card"
+                size={14}
+                className="shrink-0 text-ink-subtle"
+              />
+              <span className="numeric truncate">
+                {loan.customer.documentNumber ?? loan.customer.code}
+              </span>
+              {/* Un préstamo que no está corriendo — anulado, saldado, sin
+                  desembolsar — no se nota en ninguna cifra, y confundirlo con
+                  uno vivo es cobrar lo que no se debe cobrar. */}
+              {displayStatus !== "ACTIVE" && displayStatus !== "IN_ARREARS" ? (
+                <Badge tone={LOAN_TONES[displayStatus] ?? "neutral"}>
+                  {t(`loans.status.${displayStatus}`)}
+                </Badge>
+              ) : null}
             </p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {overdueCount > 0 ? (
-                <Badge tone="danger">
-                  {t(
-                    overdueCount === 1
-                      ? "loans.overdueCountShortOne"
-                      : "loans.overdueCountShort",
-                  ).replace("{count}", String(overdueCount))}
-                </Badge>
-              ) : null}
-              {daysExpired > 0 ? (
-                <Badge tone="danger">
-                  {t("loans.expiredShort").replace(
-                    "{days}",
-                    String(daysExpired),
-                  )}
-                </Badge>
-              ) : null}
-              <Badge tone={LOAN_TONES[displayStatus] ?? "neutral"}>
-                {t(`loans.status.${displayStatus}`)}
-              </Badge>
-            </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 self-start">
-            {/* Bajando la ruta se pasa de un cliente al que sigue sin
-                devolverse a la lista. Van juntas y pegadas al menú, que es
-                donde el pulgar ya está. */}
-            <div className="flex items-center overflow-hidden rounded-lg border border-border bg-surface-muted">
-              {previousLoan ? (
-                <Link
-                  href={`/loans/${previousLoan}`}
-                  aria-label={t("loans.previousLoan")}
-                  className="flex h-8 w-8 items-center justify-center text-ink transition-colors hover:bg-surface"
-                >
-                  <Icon name="chevron-left" size={18} />
-                </Link>
-              ) : (
-                <span
-                  aria-hidden
-                  className="flex h-8 w-8 items-center justify-center text-ink-subtle opacity-40"
-                >
-                  <Icon name="chevron-left" size={18} />
-                </span>
-              )}
-              <span className="h-4 w-px bg-border" />
-              {nextLoan ? (
-                <Link
-                  href={`/loans/${nextLoan}`}
-                  aria-label={t("loans.nextLoan")}
-                  className="flex h-8 w-8 items-center justify-center text-ink transition-colors hover:bg-surface"
-                >
-                  <Icon name="chevron-right" size={18} />
-                </Link>
-              ) : (
-                <span
-                  aria-hidden
-                  className="flex h-8 w-8 items-center justify-center text-ink-subtle opacity-40"
-                >
-                  <Icon name="chevron-right" size={18} />
-                </span>
-              )}
-            </div>
-
             <LoanMenu
               loanId={loan.id}
               customerId={loan.customerId}
@@ -398,6 +358,42 @@ export default async function LoanDetailPage({
               canDelete={can(context, "loans.delete")}
             />
           </div>
+        </div>
+
+        {/* Bajando una ruta se pasa de un cliente al siguiente. Van abajo y de
+            lado a lado: arriba, al lado del nombre, le quitaban la mitad del
+            ancho y el nombre salía cortado. */}
+        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-2.5">
+          {previousLoan ? (
+            <Link
+              href={`/loans/${previousLoan}`}
+              aria-label={t("loans.previousLoan")}
+              className={STEP_LOAN}
+            >
+              <Icon name="chevron-left" size={18} />
+              {t("loans.previousShort")}
+            </Link>
+          ) : (
+            <span className={`${STEP_LOAN} opacity-40`} aria-hidden>
+              <Icon name="chevron-left" size={18} />
+              {t("loans.previousShort")}
+            </span>
+          )}
+          {nextLoan ? (
+            <Link
+              href={`/loans/${nextLoan}`}
+              aria-label={t("loans.nextLoan")}
+              className={STEP_LOAN}
+            >
+              {t("loans.nextShort")}
+              <Icon name="chevron-right" size={18} />
+            </Link>
+          ) : (
+            <span className={`${STEP_LOAN} opacity-40`} aria-hidden>
+              {t("loans.nextShort")}
+              <Icon name="chevron-right" size={18} />
+            </span>
+          )}
         </div>
       </Card>
 
