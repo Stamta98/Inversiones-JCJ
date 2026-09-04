@@ -813,6 +813,18 @@ export const es = {
       carried: "{count} · saldo trasladado",
       handedOut: "{count} · entregado",
       newLoans: "Préstamos nuevos",
+      // Los cuatro cuadros de arriba: lo que se movió hoy, cada cosa por su
+      // nombre y con cuántas fueron.
+      tileLoans: "Préstamos",
+      countLoans: "{count} préstamos",
+      countLoansOne: "1 préstamo",
+      countRenewals: "{count} renovaciones",
+      countRenewalsOne: "1 renovación",
+      countRefinances: "{count} refinanciaciones",
+      countRefinancesOne: "1 refinanciación",
+      countExpenses: "{count} gastos",
+      countExpensesOne: "1 gasto",
+      none: "Ninguno hoy",
       loansToday: "Préstamos de hoy",
       kindNew: "Nuevo",
       amountLent: "prestado",

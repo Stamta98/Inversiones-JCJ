@@ -7,6 +7,7 @@ import {
   CardBody,
   CardHeader,
   EmptyState,
+  Icon,
   PageHeader,
   TableWrap,
   Td,
@@ -214,6 +215,77 @@ export default async function PaymentsPage() {
     <>
       <PageHeader title={t("payments.title")} />
 
+      {/* Lo que se movió hoy, en cuatro cuadros: cada uno con su monto y
+          cuántos fueron. Prestar, renovar, refinanciar y gastar son cuatro
+          cosas distintas y ninguna se entiende sumada con las otras. */}
+      <div className="mb-3 grid grid-cols-2 gap-3">
+        {[
+          {
+            label: t("payments.summary.tileLoans"),
+            icon: "hand-coins" as const,
+            value: freshAmount,
+            count: fresh.length,
+            one: "payments.summary.countLoansOne",
+            many: "payments.summary.countLoans",
+            box: "border-info-soft bg-info-soft/60",
+            text: "text-info",
+          },
+          {
+            label: t("loans.renewal.kindMenu.RENEWAL"),
+            icon: "refresh" as const,
+            value: renewedHandedOut,
+            count: renewals.length,
+            one: "payments.summary.countRenewalsOne",
+            many: "payments.summary.countRenewals",
+            box: "border-positive-soft bg-positive-soft/60",
+            text: "text-positive",
+          },
+          {
+            label: t("loans.renewal.kindMenu.REFINANCE"),
+            icon: "file-text" as const,
+            value: refinancedAmount,
+            count: refinances.length,
+            one: "payments.summary.countRefinancesOne",
+            many: "payments.summary.countRefinances",
+            box: "border-warning-soft bg-warning-soft/60",
+            text: "text-warning",
+          },
+          {
+            label: t("payments.summary.expenses"),
+            icon: "receipt" as const,
+            value: spent,
+            count: expenses._count,
+            one: "payments.summary.countExpensesOne",
+            many: "payments.summary.countExpenses",
+            box: "border-danger-soft bg-danger-soft/60",
+            text: "text-danger",
+          },
+        ].map((tile) => (
+          <div
+            key={tile.label}
+            className={`rounded-[--radius-card] border p-3 ${tile.box}`}
+          >
+            <p
+              className={`flex items-center gap-1.5 text-sm font-semibold ${tile.text}`}
+            >
+              <Icon name={tile.icon} size={16} />
+              {tile.label}
+            </p>
+            <p className="numeric mt-1 text-xl font-bold tracking-tight text-ink">
+              {money(tile.value)}
+            </p>
+            <p className="mt-0.5 text-[0.6875rem] text-ink-muted">
+              {tile.count === 0
+                ? t("payments.summary.none")
+                : t(tile.count === 1 ? tile.one : tile.many).replace(
+                    "{count}",
+                    String(tile.count),
+                  )}
+            </p>
+          </div>
+        ))}
+      </div>
+
       {/* La cuenta de la noche: con cuánto se queda el cobrador y de dónde
           salió. Es la pregunta con la que se cierra el día. */}
       <Card className="mb-3 p-4">
@@ -310,64 +382,6 @@ export default async function PaymentsPage() {
                   {money(lent)}
                 </span>
               </p>
-              <p className="flex justify-between gap-3">
-                <span className="text-ink-muted">
-                  {t("payments.summary.expenses")}
-                </span>
-                <span className="numeric font-medium text-ink">
-                  {money(spent)}
-                </span>
-              </p>
-
-              {/* Refinanciar no mueve plata y renovar solo entrega la
-                  diferencia: van aparte para que nadie los cuente como
-                  préstamos nuevos. */}
-              {fresh.length > 0 ? (
-                <p className="flex justify-between gap-3">
-                  <span className="text-ink-muted">
-                    {t("payments.summary.newLoans")}{" "}
-                    <span className="text-ink-subtle">
-                      {String(fresh.length)}
-                    </span>
-                  </span>
-                  <span className="numeric font-medium text-ink">
-                    {money(freshAmount)}
-                  </span>
-                </p>
-              ) : null}
-              {refinances.length > 0 ? (
-                <p className="flex justify-between gap-3">
-                  <span className="text-ink-muted">
-                    {t("payments.summary.refinanced")}{" "}
-                    <span className="text-ink-subtle">
-                      {t("payments.summary.carried").replace(
-                        "{count}",
-                        String(refinances.length),
-                      )}
-                    </span>
-                  </span>
-                  <span className="numeric font-medium text-ink">
-                    {money(refinancedAmount)}
-                  </span>
-                </p>
-              ) : null}
-              {renewals.length > 0 ? (
-                <p className="flex justify-between gap-3">
-                  <span className="text-ink-muted">
-                    {t("payments.summary.renewed")}{" "}
-                    <span className="text-ink-subtle">
-                      {t("payments.summary.handedOut").replace(
-                        "{count}",
-                        String(renewals.length),
-                      )}
-                    </span>
-                  </span>
-                  <span className="numeric font-medium text-ink">
-                    {money(renewedHandedOut)}
-                  </span>
-                </p>
-              ) : null}
-
               <p className="flex justify-between gap-3 border-t border-border pt-1.5">
                 <span className="font-medium text-ink">
                   {t("payments.summary.profit")}
