@@ -259,7 +259,6 @@ export default async function CustomerDetailPage({
     <>
       <PageHeader
         title={`${customer.firstName} ${customer.lastName}`}
-        description={customer.code}
         // Todo lo que se hace con un cliente cabe detrás de los tres puntos,
         // como en el préstamo: en el teléfono el nombre se queda con su
         // ancho en vez de pelearlo con dos botones.
