@@ -827,7 +827,7 @@ export default async function LoanDetailPage({
         </CollapsibleCard>
 
         <Card>
-          <CardHeader title={t("payments.title")} />
+          <CardHeader title={t("payments.historyTitle")} />
           {loan.payments.length === 0 ? (
             <CardBody>
               <p className="text-sm text-ink-muted">

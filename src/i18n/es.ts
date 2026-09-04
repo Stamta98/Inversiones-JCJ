@@ -767,6 +767,9 @@ export const es = {
   payments: {
     title: "Cobros",
     singular: "Cobro",
+    // En el préstamo la lista no son "los cobros" en general: son los abonos
+    // que ese cliente ha hecho, y así los llama él.
+    historyTitle: "Historial de abonos",
     new: "Registrar cobro",
     receiptNumber: "Número de recibo",
     receipt: "Recibo",
