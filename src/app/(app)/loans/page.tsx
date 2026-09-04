@@ -2,19 +2,15 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 
 import {
-  Badge,
   Card,
   EmptyState,
   LinkButton,
   PageHeader,
-  type Tone,
 } from "@/components/ui";
+import { LoanRow } from "@/components/loans/loan-row";
 import { SortableRows } from "@/components/ui/sortable-rows";
 import { startOfDay } from "@/core/dates";
-import { collectionSnapshot } from "@/core/loans/collection";
-import { fromCents, toCents } from "@/core/money";
 import { isManuallyOrdered } from "@/core/ordering";
-import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import { LOAN_ORDER } from "@/server/services/ordering";
@@ -22,17 +18,6 @@ import { LOAN_ORDER } from "@/server/services/ordering";
 import { moveLoanAction } from "./actions";
 
 export const dynamic = "force-dynamic";
-
-const STATUS_TONES: Record<string, Tone> = {
-  DRAFT: "neutral",
-  PENDING_APPROVAL: "info",
-  APPROVED: "info",
-  ACTIVE: "positive",
-  IN_ARREARS: "danger",
-  PAID: "brand",
-  CANCELLED: "neutral",
-  WRITTEN_OFF: "warning",
-};
 
 /**
  * Los filtros llevan nombre a propósito.
@@ -103,7 +88,6 @@ const FILTER_LABELS: Record<FilterKey, string> = {
 };
 
 /** De estos se cobra. De un borrador todavía no, y de un anulado nunca más. */
-const COLLECTABLE = new Set(["ACTIVE", "IN_ARREARS", "APPROVED"]);
 
 /**
  * La franja de la izquierda: se lee sin leer, bajando con el pulgar.
@@ -112,20 +96,6 @@ const COLLECTABLE = new Set(["ACTIVE", "IN_ARREARS", "APPROVED"]);
  * atrás en cuotas pero el crédito sigue corriendo. Son dos cosas distintas y
  * la segunda todavía se arregla cobrando.
  */
-function severity(
-  status: string,
-  overdueCount: number,
-  daysExpired: number,
-): string {
-  if (status === "PAID") return "border-l-brand";
-  if (status === "CANCELLED" || status === "WRITTEN_OFF") {
-    return "border-l-border-strong";
-  }
-  if (daysExpired > 0) return "border-l-danger";
-  if (overdueCount > 0) return "border-l-warning";
-  return "border-l-positive";
-}
-
 export default async function LoansPage({
   searchParams,
 }: {
@@ -281,140 +251,18 @@ export default async function LoansPage({
           action={moveLoanAction}
           enabled={canOrder}
         >
-          {loans.map((loan) => {
-            const snapshot = collectionSnapshot(
-              loan.installments.map((installment) => ({
-                number: installment.number,
-                dueDate: installment.dueDate,
-                totalCents: toCents(Number(installment.totalAmount)),
-                paidCents: toCents(Number(installment.paidAmount)),
-                status: installment.status,
-              })),
-              now,
-            );
-            const lastPayment = loan.payments[0]?.paidAt ?? null;
-            // Un préstamo anulado conserva sus cuotas sin pagar, así que el
-            // cálculo por sí solo pediría cobrarlas. De un anulado no se cobra.
-            const collectable =
-              COLLECTABLE.has(loan.status) && snapshot.kind !== "settled";
-            // El atraso se cuenta al abrir la lista: un préstamo que nadie ha
-            // tocado en una semana ya lleva esa semana, diga lo que diga la
-            // columna guardada.
-            const overdueCount = collectable ? snapshot.overdueCount : 0;
-            const daysExpired = collectable ? snapshot.daysExpired : 0;
-            const status =
-              loan.status === "ACTIVE" && overdueCount > 0
-                ? "IN_ARREARS"
-                : loan.status;
-            const dueLabel =
-              snapshot.kind === "overdue"
-                ? t("loans.collectNow")
-                : snapshot.kind === "upcoming"
-                  ? t("loans.nextInstallment")
-                  : t("loans.nothingDue");
-
-            return (
-              <Card
-                key={loan.id}
-                sortableId={loan.id}
-                className={`overflow-hidden border-l-4 ${severity(loan.status, overdueCount, daysExpired)}`}
-              >
-                <Link
-                  href={`/loans/${loan.id}`}
-                  className="block px-3 py-2.5 transition-colors hover:bg-surface-muted"
-                >
-                  <span className="flex items-start justify-between gap-2">
-                    <span className="numeric text-xs text-ink-muted">
-                      <span className="font-semibold text-brand-strong">
-                        #{loan.code.replace(/^\D+0*/, "")}
-                      </span>
-                      {" · "}
-                      {t(`loans.frequencyLabel.${loan.frequency}`)}
-                      {" · "}
-                      <span className="font-semibold text-ink">
-                        {snapshot.paidCount}/{loan.installments.length}
-                      </span>
-                      {overdueCount > 0 ? (
-                        <span className="font-semibold text-danger">
-                          {" · "}
-                          {t(
-                            overdueCount === 1
-                              ? "loans.overdueCountShortOne"
-                              : "loans.overdueCountShort",
-                          ).replace("{count}", String(overdueCount))}
-                        </span>
-                      ) : null}
-                      {daysExpired > 0 ? (
-                        <span className="font-semibold text-danger">
-                          {" · "}
-                          {t("loans.expiredShort").replace(
-                            "{days}",
-                            String(daysExpired),
-                          )}
-                        </span>
-                      ) : null}
-                    </span>
-                    <Badge tone={STATUS_TONES[status] ?? "neutral"}>
-                      {t(`loans.status.${status}`)}
-                    </Badge>
-                  </span>
-
-                  <span className="block truncate text-[0.9375rem] leading-snug font-bold text-ink">
-                    {loan.customer.firstName} {loan.customer.lastName}
-                  </span>
-
-                  <span className="numeric block truncate text-xs leading-snug text-ink-subtle">
-                    {t("loans.lastPayment")}{" "}
-                    {lastPayment ? formatDate(lastPayment) : t("loans.noPayments")}
-                    {snapshot.nextDueDate ? (
-                      <>
-                        {" · "}
-                        {t("loans.nextInstallment")}{" "}
-                        <span className="font-medium text-ink-muted">
-                          {formatDate(snapshot.nextDueDate)}
-                        </span>
-                      </>
-                    ) : null}
-                  </span>
-
-                  {/* Lo que se le pide en la puerta, aparte del saldo: son
-                      números distintos y confundirlos es cobrar mal. */}
-                  <span className="mt-1 flex items-center justify-between gap-3">
-                    <span className="numeric text-xs text-ink-muted">
-                      {t("loans.outstanding")}{" "}
-                      <span className="font-semibold text-ink">
-                        {money(Number(loan.outstanding))}
-                      </span>
-                    </span>
-                    {collectable ? (
-                      <span
-                        className={
-                          "flex shrink-0 flex-col items-end rounded-lg px-2.5 py-0.5 " +
-                          (snapshot.kind === "overdue"
-                            ? "bg-danger-soft"
-                            : "bg-brand-soft")
-                        }
-                      >
-                        <span className="text-[0.5625rem] font-medium tracking-wide text-ink-muted uppercase">
-                          {dueLabel}
-                        </span>
-                        <span
-                          className={
-                            "numeric text-base leading-tight font-bold " +
-                            (snapshot.kind === "overdue"
-                              ? "text-danger"
-                              : "text-brand-strong")
-                          }
-                        >
-                          {money(fromCents(snapshot.amountCents))}
-                        </span>
-                      </span>
-                    ) : null}
-                  </span>
-                </Link>
-              </Card>
-            );
-          })}
+          {loans.map((loan) => (
+            <LoanRow
+              key={loan.id}
+              loan={loan}
+              now={now}
+              t={t}
+              money={money}
+              locale={context.locale}
+              title={`${loan.customer.firstName} ${loan.customer.lastName}`}
+              sortableId={loan.id}
+            />
+          ))}
         </SortableRows>
       )}
     </>

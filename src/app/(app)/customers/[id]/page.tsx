@@ -15,7 +15,6 @@ import {
   TableWrap,
   Td,
   Th,
-  type Tone,
 } from "@/components/ui";
 import {
   summarizePromises,
@@ -27,20 +26,11 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
+import { LoanRow } from "@/components/loans/loan-row";
+
 import { CustomerMenu } from "./customer-menu";
 
 export const dynamic = "force-dynamic";
-
-const LOAN_TONES: Record<string, Tone> = {
-  DRAFT: "neutral",
-  PENDING_APPROVAL: "info",
-  APPROVED: "info",
-  ACTIVE: "positive",
-  IN_ARREARS: "danger",
-  PAID: "brand",
-  CANCELLED: "neutral",
-  WRITTEN_OFF: "warning",
-};
 
 function mapsUrl(latitude: number, longitude: number): string {
   return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
@@ -108,6 +98,7 @@ export default async function CustomerDetailPage({
 }) {
   const context = await requirePermission("customers.read");
   const { id } = await params;
+  const now = new Date();
 
   const customer = await db.customer.findFirst({
     where: { id, companyId: context.companyId },
@@ -126,6 +117,23 @@ export default async function CustomerDetailPage({
                 },
               },
             },
+          },
+          // Lo que la tarjeta necesita para decir cuántas cuotas van y
+          // cuánto hay que pedir hoy.
+          installments: {
+            select: {
+              number: true,
+              dueDate: true,
+              totalAmount: true,
+              paidAmount: true,
+              status: true,
+            },
+          },
+          payments: {
+            where: { status: "POSTED" },
+            orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
+            take: 1,
+            select: { paidAt: true },
           },
         },
       },
@@ -663,41 +671,23 @@ export default async function CustomerDetailPage({
                 hint={t("loans.emptyHint")}
               />
             ) : (
-              <TableWrap>
-                <thead>
-                  <tr>
-                    <Th>{t("loans.code")}</Th>
-                    <Th align="right">{t("loans.principal")}</Th>
-                    <Th align="right">{t("loans.outstanding")}</Th>
-                    <Th align="center">{t("common.status")}</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {customer.loans.map((loan) => (
-                    <tr key={loan.id}>
-                      <Td numeric>
-                        <Link
-                          href={`/loans/${loan.id}`}
-                          className="text-brand-strong hover:underline"
-                        >
-                          {loan.code}
-                        </Link>
-                      </Td>
-                      <Td align="right" numeric>
-                        {money(Number(loan.principal))}
-                      </Td>
-                      <Td align="right" numeric>
-                        {money(Number(loan.outstanding))}
-                      </Td>
-                      <Td align="center">
-                        <Badge tone={LOAN_TONES[loan.status] ?? "neutral"}>
-                          {t(`loans.status.${loan.status}`)}
-                        </Badge>
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </TableWrap>
+              // Las mismas tarjetas de la lista de préstamos. La tabla de
+              // cuatro columnas se salía por la derecha del teléfono y el
+              // saldo quedaba fuera de la pantalla; la tarjeta cabe y además
+              // dice cuántas cuotas van, cuántas están atrasadas y cuánto
+              // hay que pedirle hoy. El nombre no se repite: es su ficha.
+              <CardBody className="space-y-2">
+                {customer.loans.map((loan) => (
+                  <LoanRow
+                    key={loan.id}
+                    loan={loan}
+                    now={now}
+                    t={t}
+                    money={money}
+                    locale={context.locale}
+                  />
+                ))}
+              </CardBody>
             )}
           </Card>
 
