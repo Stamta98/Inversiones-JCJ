@@ -770,6 +770,10 @@ export const es = {
     amountOverdue: "Vencido hasta hoy: {amount} en {count} cuotas",
     amountOverdueOne: "Vencido hasta hoy: {amount} en 1 cuota",
     amountRest: "Es lo que falta para saldar: {amount}",
+    // El historial: a dónde fue cada peso y quién lo recibió.
+    appliedTitle: "A dónde ha ido lo pagado",
+    collectedByShort: "por {name}",
+    showingLast: "Mostrando los últimos {shown} de {total} cobros.",
     // El contador de cuotas al lado del monto: dos toques en vez de teclear.
     installmentCount: "cuotas",
     installmentCountOne: "cuota",

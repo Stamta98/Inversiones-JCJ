@@ -96,7 +96,7 @@ export default async function CustomerDetailPage({
   const payments = await db.payment.findMany({
     where: { companyId: context.companyId, loan: { customerId: customer.id } },
     include: { loan: { select: { id: true, code: true } } },
-    orderBy: { paidAt: "desc" },
+    orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
     take: 30,
   });
 

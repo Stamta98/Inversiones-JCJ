@@ -62,15 +62,16 @@ export default async function LoanDetailPage({
   const context = await requirePermission("loans.read");
   const { id } = await params;
 
-  const [loan, cashBoxes] = await Promise.all([
+  const [loan, cashBoxes, applied, paymentCount] = await Promise.all([
     db.loan.findFirst({
       where: { id, companyId: context.companyId },
       include: {
         customer: true,
         installments: { orderBy: { number: "asc" } },
         payments: {
-          orderBy: { paidAt: "desc" },
-          take: 20,
+          orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
+          take: 50,
+          include: { allocations: true },
         },
         // A refinance splits one debt across two loans; each has to say so or
         // the money looks like it came from nowhere and went nowhere.
@@ -88,11 +89,67 @@ export default async function LoanDetailPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    // El reparto de todo lo pagado, no solo de los recibos que se alcanzan a
+    // ver: son las cuatro cifras que resumen para dónde se fue la plata.
+    db.paymentAllocation.aggregate({
+      where: { payment: { loanId: id, status: "POSTED" } },
+      _sum: {
+        principalAmount: true,
+        interestAmount: true,
+        chargeAmount: true,
+        lateFeeAmount: true,
+      },
+    }),
+    db.payment.count({ where: { loanId: id } }),
   ]);
 
   if (!loan) notFound();
 
   const { t, money } = context;
+
+  // Quién recibió cada abono. Payment guarda el id suelto, así que los
+  // nombres se buscan de una vez para los recibos que se van a mostrar.
+  const collectorIds = [
+    ...new Set(
+      loan.payments
+        .map((payment) => payment.collectedById)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const collectors = new Map(
+    collectorIds.length > 0
+      ? (
+          await db.user.findMany({
+            where: { id: { in: collectorIds } },
+            select: { id: true, fullName: true },
+          })
+        ).map((user) => [user.id, user.fullName])
+      : [],
+  );
+
+  // Lo que se le abonó a cada cosa, en total.
+  const appliedTiles = [
+    {
+      label: t("loans.principalPart"),
+      value: Number(applied._sum.principalAmount ?? 0),
+      tone: "text-ink",
+    },
+    {
+      label: t("loans.interestPart"),
+      value: Number(applied._sum.interestAmount ?? 0),
+      tone: "text-brand-strong",
+    },
+    {
+      label: t("loans.lateFeePart"),
+      value: Number(applied._sum.lateFeeAmount ?? 0),
+      tone: "text-danger",
+    },
+    {
+      label: t("loans.charges.installmentPart"),
+      value: Number(applied._sum.chargeAmount ?? 0),
+      tone: "text-ink",
+    },
+  ];
 
   const rawPhone = loan.customer.mobilePhone ?? loan.customer.phone;
   const customerPhone = rawPhone ? rawPhone.replace(/\D/g, "") : null;
@@ -683,67 +740,166 @@ export default async function LoanDetailPage({
               </p>
             </CardBody>
           ) : (
-            <TableWrap>
-              <thead>
-                <tr>
-                  <Th>{t("payments.receiptNumber")}</Th>
-                  <Th>{t("payments.paidAt")}</Th>
-                  <Th>{t("payments.method")}</Th>
-                  <Th align="right">{t("common.amount")}</Th>
-                  <Th align="center">{t("common.status")}</Th>
-                  {canReverse ? <Th align="right">{""}</Th> : null}
-                </tr>
-              </thead>
-              <tbody>
-                {loan.payments.map((payment) => (
-                  <tr key={payment.id}>
-                    <Td numeric>
-                      <Link
-                        href={`/payments/${payment.id}`}
-                        className="text-brand-strong hover:underline"
-                      >
-                        {payment.receiptNumber}
-                      </Link>
-                    </Td>
-                    <Td numeric>{formatDate(payment.paidAt)}</Td>
-                    <Td>{t(`payments.methodLabel.${payment.method}`)}</Td>
-                    <Td align="right" numeric>
-                      {money(Number(payment.amount))}
-                    </Td>
-                    <Td align="center">
-                      <Badge
-                        tone={
-                          payment.status === "REVERSED" ? "danger" : "positive"
-                        }
-                      >
-                        {t(`payments.statusLabel.${payment.status}`)}
-                      </Badge>
-                    </Td>
-                    {canReverse ? (
-                      <Td align="right">
-                        {/* El recibo de una refinanciación no se toca desde
+            <>
+              {/* Para dónde se fue todo lo que el cliente ha pagado. Es la
+                pregunta que sigue a "¿cuánto he pagado?": si abonó 400.000 y
+                el saldo bajó 300.000, los otros 100.000 están aquí. */}
+              <div className="grid grid-cols-4 divide-x divide-border border-b border-border px-3 py-2.5">
+                {appliedTiles.map((tile) => (
+                  <div key={tile.label} className="px-1 text-center">
+                    <p className="text-[0.625rem] font-medium tracking-wide text-ink-muted uppercase">
+                      {tile.label}
+                    </p>
+                    <p className={`numeric text-sm font-bold ${tile.tone}`}>
+                      {money(tile.value)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <TableWrap>
+                <thead>
+                  <tr>
+                    <Th>{t("payments.receiptNumber")}</Th>
+                    <Th>{t("payments.paidAt")}</Th>
+                    <Th>{t("payments.method")}</Th>
+                    <Th align="right">{t("common.amount")}</Th>
+                    <Th align="right">{t("loans.balanceAfter")}</Th>
+                    <Th align="center">{t("common.status")}</Th>
+                    {canReverse ? <Th align="right">{""}</Th> : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loan.payments.map((payment, index) => {
+                    // El saldo con el que quedó el cliente ese día: lo que debe
+                    // hoy más todo lo que abonó después. Los recibos vienen del
+                    // más nuevo al más viejo, así que "después" son los de
+                    // arriba. Un recibo anulado no movió el saldo.
+                    const laterPaid = loan.payments
+                      .slice(0, index)
+                      .filter((other) => other.status === "POSTED")
+                      .reduce(
+                        (total, other) => total + Number(other.amount),
+                        0,
+                      );
+                    const balanceAfter = Number(loan.outstanding) + laterPaid;
+
+                    const split = payment.allocations.reduce(
+                      (parts, allocation) => ({
+                        principal:
+                          parts.principal + Number(allocation.principalAmount),
+                        interest:
+                          parts.interest + Number(allocation.interestAmount),
+                        lateFee:
+                          parts.lateFee + Number(allocation.lateFeeAmount),
+                        charge: parts.charge + Number(allocation.chargeAmount),
+                      }),
+                      { principal: 0, interest: 0, lateFee: 0, charge: 0 },
+                    );
+                    const splitText = [
+                      split.principal > 0
+                        ? `${t("loans.principalPart")} ${money(split.principal)}`
+                        : null,
+                      split.interest > 0
+                        ? `${t("loans.interestPart")} ${money(split.interest)}`
+                        : null,
+                      split.lateFee > 0
+                        ? `${t("loans.lateFeePart")} ${money(split.lateFee)}`
+                        : null,
+                      split.charge > 0
+                        ? `${t("loans.charges.installmentPart")} ${money(
+                            split.charge,
+                          )}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ");
+                    const collector = payment.collectedById
+                      ? collectors.get(payment.collectedById)
+                      : null;
+
+                    return (
+                      <tr key={payment.id}>
+                        <Td numeric>
+                          <Link
+                            href={`/payments/${payment.id}`}
+                            className="text-brand-strong hover:underline"
+                          >
+                            {payment.receiptNumber}
+                          </Link>
+                          {splitText ? (
+                            <span className="numeric mt-0.5 block text-[0.6875rem] text-ink-subtle">
+                              {splitText}
+                            </span>
+                          ) : null}
+                        </Td>
+                        <Td numeric>
+                          {formatDate(payment.paidAt)}
+                          {collector ? (
+                            <span className="mt-0.5 block text-[0.6875rem] text-ink-subtle">
+                              {t("payments.collectedByShort").replace(
+                                "{name}",
+                                collector,
+                              )}
+                            </span>
+                          ) : null}
+                        </Td>
+                        <Td>{t(`payments.methodLabel.${payment.method}`)}</Td>
+                        <Td align="right" numeric>
+                          {money(Number(payment.amount))}
+                        </Td>
+                        <Td align="right" numeric className="text-ink-muted">
+                          {payment.status === "POSTED"
+                            ? money(balanceAfter)
+                            : "—"}
+                        </Td>
+                        <Td align="center">
+                          <Badge
+                            tone={
+                              payment.status === "REVERSED"
+                                ? "danger"
+                                : "positive"
+                            }
+                          >
+                            {t(`payments.statusLabel.${payment.status}`)}
+                          </Badge>
+                        </Td>
+                        {canReverse ? (
+                          <Td align="right">
+                            {/* El recibo de una refinanciación no se toca desde
                             aquí: devolvería el saldo dejando vivo el préstamo
                             que se lo llevó, y el cliente quedaría debiendo dos
                             veces lo mismo. Se deshace anulando ese préstamo. */}
-                        {payment.method === "REFINANCE" ? null : (
-                          <span className="flex items-center justify-end gap-0.5">
-                            <LinkButton
-                              href={`/payments/${payment.id}`}
-                              variant="ghost"
-                              size="sm"
-                              icon="pencil"
-                              aria-label={t("payments.edit")}
-                            />
-                            <DeletePaymentButton paymentId={payment.id} />
-                          </span>
-                        )}
-                      </Td>
-                    ) : null}
-                  </tr>
-                ))}
-              </tbody>
-            </TableWrap>
+                            {payment.method === "REFINANCE" ? null : (
+                              <span className="flex items-center justify-end gap-0.5">
+                                <LinkButton
+                                  href={`/payments/${payment.id}`}
+                                  variant="ghost"
+                                  size="sm"
+                                  icon="pencil"
+                                  aria-label={t("payments.edit")}
+                                />
+                                <DeletePaymentButton paymentId={payment.id} />
+                              </span>
+                            )}
+                          </Td>
+                        ) : null}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </TableWrap>
+            </>
           )}
+          {paymentCount > loan.payments.length ? (
+            <CardBody className="pt-0">
+              <p className="text-xs text-ink-subtle">
+                {t("payments.showingLast")
+                  .replace("{shown}", String(loan.payments.length))
+                  .replace("{total}", String(paymentCount))}
+              </p>
+            </CardBody>
+          ) : null}
         </Card>
       </div>
     </>

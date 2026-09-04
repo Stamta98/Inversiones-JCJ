@@ -160,7 +160,7 @@ export default async function LoansPage({
         },
         payments: {
           where: { status: "POSTED" },
-          orderBy: { paidAt: "desc" },
+          orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
           take: 1,
           select: { paidAt: true },
         },

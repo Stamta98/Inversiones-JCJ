@@ -28,7 +28,7 @@ export default async function PaymentsPage() {
     db.payment.findMany({
       where: { companyId: context.companyId },
       include: { loan: { include: { customer: true } } },
-      orderBy: { paidAt: "desc" },
+      orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
       take: 50,
     }),
     db.payment.aggregate({

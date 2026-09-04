@@ -178,7 +178,7 @@ export async function getRecentPayments(
   const payments = await db.payment.findMany({
     where: { companyId, status: "POSTED" },
     include: { loan: { select: { customer: true } } },
-    orderBy: { paidAt: "desc" },
+    orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
     take,
   });
 
