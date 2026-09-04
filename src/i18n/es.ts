@@ -227,6 +227,9 @@ export const es = {
     },
     payments: {
       label: "Cobros",
+      // En la barra de abajo del teléfono, donde solo caben una o dos
+      // palabras y lo que se abre es el resumen del día.
+      mobileLabel: "Resumen",
       description: "Recibos, abonos y aplicación automática a las cuotas.",
     },
     collections: {

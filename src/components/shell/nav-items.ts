@@ -10,6 +10,8 @@ export interface NavItem {
   route: string;
   icon: string;
   showInMobileNav: boolean;
+  /** Cómo se llama en la barra de abajo, que puede ser más corto. */
+  mobileLabel: string;
 }
 
 export interface ShellUser {

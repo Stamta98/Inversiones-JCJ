@@ -33,6 +33,11 @@ export interface ModuleDefinition {
   dependsOn: string[];
   /** Shown in the bottom navigation of the mobile shell. */
   showInMobileNav: boolean;
+  /**
+   * Rótulo para esa barra, cuando el del módulo no cabe o no es el que la
+   * persona espera ahí. Sin esto se usa `labelKey`.
+   */
+  mobileLabelKey?: string;
   sortOrder: number;
 }
 
@@ -79,6 +84,7 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
   {
     key: "payments",
     labelKey: "modules.payments.label",
+    mobileLabelKey: "modules.payments.mobileLabel",
     descriptionKey: "modules.payments.description",
     category: "core",
     icon: "receipt",

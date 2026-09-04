@@ -16,6 +16,7 @@ export default async function AppLayout({
     route: module.route,
     icon: module.icon,
     showInMobileNav: module.showInMobileNav,
+    mobileLabel: context.t(module.mobileLabelKey ?? module.labelKey),
   }));
 
   return (

@@ -117,7 +117,7 @@ export function AppShell({
                 )}
               >
                 <Icon name={item.icon} size={20} />
-                <span className="max-w-full truncate">{item.label}</span>
+                <span className="max-w-full truncate">{item.mobileLabel}</span>
               </Link>
             );
           })}
