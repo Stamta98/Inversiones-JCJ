@@ -789,6 +789,10 @@ export const es = {
     appliedTitle: "A dónde ha ido lo pagado",
     collectedByShort: "por {name}",
     showingLast: "Mostrando los últimos {shown} de {total} cobros.",
+    // El historial se abre solo cuando hace falta: en la puerta se miran los
+    // últimos, no los de hace tres meses.
+    showAll: "Ver historial completo ({count} más)",
+    showLess: "Ver solo los últimos",
     // El contador de cuotas al lado del monto: dos toques en vez de teclear.
     installmentCount: "cuotas",
     installmentCountOne: "cuota",
