@@ -12,7 +12,7 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { startOfDay } from "@/core/dates";
+import { addDays, startOfDay } from "@/core/dates";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
@@ -24,6 +24,10 @@ export const dynamic = "force-dynamic";
 export default async function PaymentsPage() {
   const context = await requirePermission("payments.read");
   const dayStart = startOfDay(new Date());
+  // "Hoy" tiene dos extremos. Con solo el de abajo, un cobro o un préstamo
+  // fechado adelante entraba en la cuenta del día y la inflaba.
+  const dayEnd = addDays(dayStart, 1);
+  const today = { gte: dayStart, lt: dayEnd };
 
   // Un traspaso de refinanciación se guarda como cobro para saldar el préstamo
   // viejo, pero esa plata nunca entró a la caja: contarla en el día sería
@@ -32,7 +36,7 @@ export default async function PaymentsPage() {
     companyId: context.companyId,
     status: "POSTED" as const,
     method: { not: "REFINANCE" as const },
-    paidAt: { gte: dayStart },
+    paidAt: today,
   };
 
   const [
@@ -77,7 +81,7 @@ export default async function PaymentsPage() {
       where: {
         cashBox: { companyId: context.companyId },
         kind: "LOAN_DISBURSEMENT",
-        createdAt: { gte: dayStart },
+        createdAt: today,
       },
       _sum: { amount: true },
       _count: true,
@@ -86,7 +90,7 @@ export default async function PaymentsPage() {
       where: {
         cashBox: { companyId: context.companyId },
         kind: "EXPENSE",
-        createdAt: { gte: dayStart },
+        createdAt: today,
       },
       _sum: { amount: true },
       _count: true,
@@ -94,10 +98,18 @@ export default async function PaymentsPage() {
     db.loan.findMany({
       where: {
         companyId: context.companyId,
-        disbursedAt: { gte: dayStart },
+        disbursedAt: today,
         status: { not: "CANCELLED" },
       },
-      select: { origin: true, principal: true, parentLoanId: true },
+      select: {
+        id: true,
+        code: true,
+        origin: true,
+        principal: true,
+        parentLoanId: true,
+        customer: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { disbursedAt: "desc" },
     }),
     // Lo que se trasladó de cada préstamo viejo al nuevo, para saber qué
     // parte de una renovación fue plata entregada y qué parte fue traspaso.
@@ -107,7 +119,7 @@ export default async function PaymentsPage() {
         companyId: context.companyId,
         status: "POSTED",
         method: "REFINANCE",
-        paidAt: { gte: dayStart },
+        paidAt: today,
       },
       _sum: { amount: true },
     }),
@@ -138,6 +150,11 @@ export default async function PaymentsPage() {
   const carriedOn = (parentLoanId: string | null) =>
     parentLoanId ? (carriedFor.get(parentLoanId) ?? 0) : 0;
 
+  const fresh = newLoans.filter((loan) => loan.origin === "NEW");
+  const freshAmount = fresh.reduce(
+    (total, loan) => total + Number(loan.principal),
+    0,
+  );
   const refinances = newLoans.filter((loan) => loan.origin === "REFINANCE");
   const renewals = newLoans.filter((loan) => loan.origin === "RENEWAL");
   const refinancedAmount = refinances.reduce(
@@ -146,9 +163,41 @@ export default async function PaymentsPage() {
   );
   const renewedHandedOut = renewals.reduce(
     (total, loan) =>
-      total + Math.max(0, Number(loan.principal) - carriedOn(loan.parentLoanId)),
+      total +
+      Math.max(0, Number(loan.principal) - carriedOn(loan.parentLoanId)),
     0,
   );
+
+  // Cada préstamo del día con su cliente y lo que significó en plata: uno
+  // nuevo es lo prestado, una renovación lo que se entregó encima y una
+  // refinanciación lo que se trasladó sin mover un peso.
+  const loansToday = newLoans.map((loan) => {
+    const moved = carriedOn(loan.parentLoanId);
+    const amount =
+      loan.origin === "REFINANCE"
+        ? moved
+        : loan.origin === "RENEWAL"
+          ? Math.max(0, Number(loan.principal) - moved)
+          : Number(loan.principal);
+    return {
+      id: loan.id,
+      code: loan.code,
+      name: `${loan.customer.firstName} ${loan.customer.lastName}`,
+      kind:
+        loan.origin === "REFINANCE"
+          ? t("loans.renewal.kindMenu.REFINANCE")
+          : loan.origin === "RENEWAL"
+            ? t("loans.renewal.kindMenu.RENEWAL")
+            : t("payments.summary.kindNew"),
+      note:
+        loan.origin === "REFINANCE"
+          ? t("payments.summary.amountCarried")
+          : loan.origin === "RENEWAL"
+            ? t("payments.summary.amountHandedOut")
+            : t("payments.summary.amountLent"),
+      amount,
+    };
+  });
 
   const paidWith = byMethod
     .map((row) => ({
@@ -273,11 +322,24 @@ export default async function PaymentsPage() {
               {/* Refinanciar no mueve plata y renovar solo entrega la
                   diferencia: van aparte para que nadie los cuente como
                   préstamos nuevos. */}
+              {fresh.length > 0 ? (
+                <p className="flex justify-between gap-3">
+                  <span className="text-ink-muted">
+                    {t("payments.summary.newLoans")}{" "}
+                    <span className="text-ink-subtle">
+                      {String(fresh.length)}
+                    </span>
+                  </span>
+                  <span className="numeric font-medium text-ink">
+                    {money(freshAmount)}
+                  </span>
+                </p>
+              ) : null}
               {refinances.length > 0 ? (
                 <p className="flex justify-between gap-3">
                   <span className="text-ink-muted">
-                    {t("payments.summary.refinanced")}
-                    <span className="ml-1 text-ink-subtle">
+                    {t("payments.summary.refinanced")}{" "}
+                    <span className="text-ink-subtle">
                       {t("payments.summary.carried").replace(
                         "{count}",
                         String(refinances.length),
@@ -292,8 +354,8 @@ export default async function PaymentsPage() {
               {renewals.length > 0 ? (
                 <p className="flex justify-between gap-3">
                   <span className="text-ink-muted">
-                    {t("payments.summary.renewed")}
-                    <span className="ml-1 text-ink-subtle">
+                    {t("payments.summary.renewed")}{" "}
+                    <span className="text-ink-subtle">
                       {t("payments.summary.handedOut").replace(
                         "{count}",
                         String(renewals.length),
@@ -325,6 +387,42 @@ export default async function PaymentsPage() {
           </Card>
         </div>
       )}
+
+      {/* A quién se le prestó hoy y cuánto. Sin los nombres, "prestado
+          $680.000" no dice a quién hay que ir a cobrarle mañana. */}
+      {loansToday.length > 0 ? (
+        <Card className="mb-4">
+          <CardHeader title={t("payments.summary.loansToday")} />
+          <CardBody className="divide-y divide-border py-0">
+            {loansToday.map((loan) => (
+              <div
+                key={loan.id}
+                className="flex items-center justify-between gap-3 py-2.5"
+              >
+                <span className="min-w-0">
+                  <Link
+                    href={`/loans/${loan.id}`}
+                    className="block truncate text-sm font-semibold text-ink hover:underline"
+                  >
+                    {loan.name}
+                  </Link>
+                  <span className="numeric block truncate text-xs text-ink-muted">
+                    {loan.code} · {loan.kind}
+                  </span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="numeric block text-sm font-bold text-ink">
+                    {money(loan.amount)}
+                  </span>
+                  <span className="block text-[0.6875rem] text-ink-subtle">
+                    {loan.note}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </CardBody>
+        </Card>
+      ) : null}
 
       <Card>
         {payments.length === 0 ? (
