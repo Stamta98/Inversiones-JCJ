@@ -678,6 +678,11 @@ export const es = {
     installmentsLeft: "Le faltan",
     paidSoFar: "Ya ha pagado",
     paidPercent: "{percent}% pagado",
+    // De cuándo a cuándo va el crédito, que es lo que el cliente pregunta
+    // cuando quiere saber cuánto le falta para quedar libre.
+    startedOn: "Inició el {date}",
+    endsOn: "Termina el {date}",
+    endedOn: "Terminó el {date}",
     nextDueOn: "Próxima cuota el {date}",
     installmentLate: "hace {days} d",
     installmentLateOne: "hace 1 d",

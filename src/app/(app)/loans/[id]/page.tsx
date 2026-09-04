@@ -173,6 +173,12 @@ export default async function LoanDetailPage({
     Number(loan.outstanding) > 0 &&
     ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status);
 
+  // El préstamo empieza el día en que se entregó la plata; mientras no se
+  // haya entregado, el día en que se creó.
+  const startedOn = loan.disbursedAt ?? loan.createdAt;
+  const lastDueDate =
+    loan.installments[loan.installments.length - 1]?.dueDate ?? null;
+
   // La barra va por plata, no por cuotas: un abono a medias también avanza.
   const dueTotal =
     Number(loan.totalPrincipal) +
@@ -377,6 +383,23 @@ export default async function LoanDetailPage({
               {t("loans.paidPercent").replace("{percent}", String(paidPercent))}
             </span>
           </div>
+
+          {/* De cuándo a cuándo va: la fecha en que se entregó y la de la
+              última cuota, que es el día en que el cliente queda libre. */}
+          <p className="numeric mt-2 border-t border-border pt-2 text-center text-[0.6875rem] text-ink-muted">
+            {t("loans.startedOn").replace("{date}", formatDate(startedOn))}
+            {lastDueDate ? (
+              <>
+                {" · "}
+                {t(
+                  loan.closingDate ? "loans.endedOn" : "loans.endsOn",
+                ).replace(
+                  "{date}",
+                  formatDate(loan.closingDate ?? lastDueDate),
+                )}
+              </>
+            ) : null}
+          </p>
         </Card>
       ) : null}
 

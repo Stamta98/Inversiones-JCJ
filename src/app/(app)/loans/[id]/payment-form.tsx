@@ -22,7 +22,7 @@ const METHODS = [
 ] as const;
 
 const STEP_BUTTON =
-  "flex size-7 items-center justify-center rounded-md text-lg leading-none font-semibold text-ink transition-colors hover:bg-surface disabled:opacity-30";
+  "flex size-8 items-center justify-center rounded-md text-lg leading-none font-semibold text-ink transition-colors hover:bg-surface disabled:opacity-30";
 
 export function PaymentForm({
   loanId,
@@ -55,7 +55,8 @@ export function PaymentForm({
     {},
   );
 
-  const show = (value: number) => (value > 0 ? value.toFixed(decimalPlaces) : "");
+  const show = (value: number) =>
+    value > 0 ? value.toFixed(decimalPlaces) : "";
 
   const [amount, setAmount] = useState(() => show(suggestedAmount));
   // Cuántas cuotas cubre lo que hay en el campo. Null cuando el cobrador
@@ -114,70 +115,72 @@ export function PaymentForm({
         </Alert>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Field
-          label={es.payments.amount}
-          htmlFor="amount"
-          hint={amountHint}
-          required
-        >
-          <div className="flex items-stretch gap-2">
-            <Input
-              id="amount"
-              name="amount"
-              type="number"
-              inputMode="decimal"
-              step={wholeUnits ? "1" : "0.01"}
-              min={wholeUnits ? "1" : "0.01"}
-              required
-              className="flex-1"
-              value={amount}
-              onChange={(event) => {
-                setAmount(event.target.value);
-                setCount(null);
-              }}
-            />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <Field
+            label={es.payments.amount}
+            htmlFor="amount"
+            hint={amountHint}
+            required
+          >
+            <div className="flex items-stretch gap-2">
+              <Input
+                id="amount"
+                name="amount"
+                type="number"
+                inputMode="decimal"
+                step={wholeUnits ? "1" : "0.01"}
+                min={wholeUnits ? "1" : "0.01"}
+                required
+                className="numeric flex-1 py-2.5 text-lg font-semibold"
+                value={amount}
+                onChange={(event) => {
+                  setAmount(event.target.value);
+                  setCount(null);
+                }}
+              />
 
-            {/* El cliente que paga dos cuotas es cosa de todos los días: se
+              {/* El cliente que paga dos cuotas es cosa de todos los días: se
                 tocan, no se teclean. */}
-            {canStep ? (
-              <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-surface-muted px-1">
-                <button
-                  type="button"
-                  className={STEP_BUTTON}
-                  aria-label={es.payments.oneLess}
-                  disabled={
-                    count !== null ? count <= 1 : value <= installmentAmount
-                  }
-                  onClick={() => step(-1)}
-                >
-                  −
-                </button>
-                <span className="w-10 text-center leading-tight">
-                  <span className="numeric block text-sm font-semibold text-ink">
-                    {count ?? "—"}
+              {canStep ? (
+                <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-surface-muted px-1">
+                  <button
+                    type="button"
+                    className={STEP_BUTTON}
+                    aria-label={es.payments.oneLess}
+                    disabled={
+                      count !== null ? count <= 1 : value <= installmentAmount
+                    }
+                    onClick={() => step(-1)}
+                  >
+                    −
+                  </button>
+                  <span className="w-11 text-center leading-tight">
+                    <span className="numeric block text-sm font-semibold text-ink">
+                      {count ?? "—"}
+                    </span>
+                    <span className="block text-[0.5625rem] text-ink-subtle">
+                      {count === null
+                        ? es.payments.customAmount
+                        : count === 1
+                          ? es.payments.installmentCountOne
+                          : es.payments.installmentCount}
+                    </span>
                   </span>
-                  <span className="block text-[0.5625rem] text-ink-subtle">
-                    {count === null
-                      ? es.payments.customAmount
-                      : count === 1
-                        ? es.payments.installmentCountOne
-                        : es.payments.installmentCount}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className={STEP_BUTTON}
-                  aria-label={es.payments.oneMore}
-                  disabled={atCeiling}
-                  onClick={() => step(1)}
-                >
-                  +
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </Field>
+                  <button
+                    type="button"
+                    className={STEP_BUTTON}
+                    aria-label={es.payments.oneMore}
+                    disabled={atCeiling}
+                    onClick={() => step(1)}
+                  >
+                    +
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </Field>
+        </div>
 
         <Field label={es.payments.method} htmlFor="method">
           <Select id="method" name="method" defaultValue="CASH">
@@ -214,10 +217,6 @@ export function PaymentForm({
             </Select>
           </Field>
         ) : null}
-
-        <Field label={es.payments.reference} htmlFor="reference">
-          <Input id="reference" name="reference" />
-        </Field>
       </div>
 
       <p className="text-xs text-ink-subtle">{es.payments.allocationHint}</p>

@@ -489,7 +489,10 @@ async function main(): Promise<void> {
           nonCollectionDays,
           termCount: spec.termCount,
           firstDueDate,
-          disbursedAt: firstDueDate,
+          // La plata se entrega cuando se hace el préstamo, no el día de la
+          // primera cuota: con la fecha de la cuota, un préstamo demostrativo
+          // aparecía empezando después de haberse acabado.
+          disbursedAt: today,
           status: "ACTIVE",
           lateFeeMode: "PERCENT_PER_DAY",
           lateFeeValue: 1,
