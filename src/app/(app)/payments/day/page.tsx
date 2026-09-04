@@ -9,7 +9,7 @@ import {
   PageHeader,
   type Tone,
 } from "@/components/ui";
-import { addDays, startOfDay } from "@/core/dates";
+import { addDays, dayParam, parseDay, startOfDay } from "@/core/dates";
 import type { LoanStatus } from "@/core/types";
 import { formatDate } from "@/lib/format";
 import { requirePermission } from "@/server/auth/context";
@@ -70,17 +70,21 @@ function Fact({
   );
 }
 
-export default async function TodayDetailPage({
+export default async function DayDetailPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string }>;
+  searchParams: Promise<{ kind?: string; date?: string }>;
 }) {
   const context = await requirePermission("payments.read");
-  const { kind: raw } = await searchParams;
+  const { kind: raw, date } = await searchParams;
   const kind: Kind = KINDS.includes(raw as Kind) ? (raw as Kind) : "NEW";
 
-  const dayStart = startOfDay(new Date());
+  // El mismo día que se estaba viendo en el resumen; sin fecha, hoy.
+  const now = startOfDay(new Date());
+  const dayStart = parseDay(date) ?? now;
   const today = { gte: dayStart, lt: addDays(dayStart, 1) };
+  const isToday = dayStart.getTime() === now.getTime();
+  const selected = dayParam(dayStart);
   const { t, money } = context;
 
   const loans =
@@ -148,11 +152,15 @@ export default async function TodayDetailPage({
     <>
       <PageHeader
         title={t(TITLES[kind])}
-        description={`${t("payments.summary.detailTotal")}: ${money(total)}`}
+        description={`${
+          isToday
+            ? `${t("payments.summary.dayToday")} · ${formatDate(dayStart)}`
+            : formatDate(dayStart)
+        } · ${t("payments.summary.detailTotal")}: ${money(total)}`}
       />
 
       <Link
-        href="/payments"
+        href={`/payments?date=${selected}`}
         className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-strong hover:underline"
       >
         <Icon name="arrow-left" size={16} />

@@ -16,6 +16,34 @@ export function startOfDay(date: Date): Date {
   );
 }
 
+/**
+ * El día que viene escrito en una dirección: "2026-08-05".
+ *
+ * Devuelve null cuando no es una fecha de verdad — un mes trece, un texto
+ * cualquiera — para que quien la lea decida qué hacer en vez de quedarse con
+ * un "Invalid Date" que se cuela hasta la consulta.
+ */
+export function parseDay(value: string | undefined | null): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  // Un 31 de febrero se convierte solo en marzo: si los números no vuelven
+  // iguales, la fecha no existía.
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return parsed;
+}
+
+/** El día como se escribe en una dirección: "2026-08-05". */
+export function dayParam(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
 export function addDays(date: Date, days: number): Date {
   const result = new Date(date.getTime());
   result.setUTCDate(result.getUTCDate() + days);

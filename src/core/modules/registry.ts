@@ -84,7 +84,6 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
   {
     key: "payments",
     labelKey: "modules.payments.label",
-    mobileLabelKey: "modules.payments.mobileLabel",
     descriptionKey: "modules.payments.description",
     category: "core",
     icon: "receipt",

@@ -2,18 +2,20 @@ import Link from "next/link";
 
 import {
   Badge,
+  Button,
   LinkButton,
   Card,
   CardBody,
   CardHeader,
   EmptyState,
   Icon,
+  Input,
   PageHeader,
   TableWrap,
   Td,
   Th,
 } from "@/components/ui";
-import { addDays, startOfDay } from "@/core/dates";
+import { addDays, dayParam, parseDay, startOfDay } from "@/core/dates";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
@@ -22,13 +24,24 @@ import { DeletePaymentButton } from "./delete-payment-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function PaymentsPage() {
+export default async function PaymentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
   const context = await requirePermission("payments.read");
-  const dayStart = startOfDay(new Date());
+  const { date } = await searchParams;
+
+  // El resumen es de un día, y ese día se escoge. Sin fecha, o con una que no
+  // existe, es el de hoy.
+  const today = startOfDay(new Date());
+  const dayStart = parseDay(date) ?? today;
   // "Hoy" tiene dos extremos. Con solo el de abajo, un cobro o un préstamo
   // fechado adelante entraba en la cuenta del día y la inflaba.
   const dayEnd = addDays(dayStart, 1);
-  const today = { gte: dayStart, lt: dayEnd };
+  const day = { gte: dayStart, lt: dayEnd };
+  const isToday = dayStart.getTime() === today.getTime();
+  const selected = dayParam(dayStart);
 
   // Un traspaso de refinanciación se guarda como cobro para saldar el préstamo
   // viejo, pero esa plata nunca entró a la caja: contarla en el día sería
@@ -37,7 +50,7 @@ export default async function PaymentsPage() {
     companyId: context.companyId,
     status: "POSTED" as const,
     method: { not: "REFINANCE" as const },
-    paidAt: today,
+    paidAt: day,
   };
 
   const [
@@ -51,7 +64,7 @@ export default async function PaymentsPage() {
     carried,
   ] = await Promise.all([
     db.payment.findMany({
-      where: { companyId: context.companyId },
+      where: { companyId: context.companyId, paidAt: day },
       include: { loan: { include: { customer: true } } },
       orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
       take: 50,
@@ -82,24 +95,23 @@ export default async function PaymentsPage() {
       where: {
         cashBox: { companyId: context.companyId },
         kind: "LOAN_DISBURSEMENT",
-        createdAt: today,
+        createdAt: day,
       },
       _sum: { amount: true },
       _count: true,
     }),
-    db.cashMovement.aggregate({
-      where: {
-        cashBox: { companyId: context.companyId },
-        kind: "EXPENSE",
-        createdAt: today,
-      },
+    // El gasto se cuenta desde el gasto, no desde la caja: uno registrado sin
+    // caja igual salió del bolsillo, y el detalle lo lista aunque el cuadro
+    // dijera cero.
+    db.expense.aggregate({
+      where: { companyId: context.companyId, spentAt: day },
       _sum: { amount: true },
       _count: true,
     }),
     db.loan.findMany({
       where: {
         companyId: context.companyId,
-        disbursedAt: today,
+        disbursedAt: day,
         status: { not: "CANCELLED" },
       },
       select: {
@@ -120,7 +132,7 @@ export default async function PaymentsPage() {
         companyId: context.companyId,
         status: "POSTED",
         method: "REFINANCE",
-        paidAt: today,
+        paidAt: day,
       },
       _sum: { amount: true },
     }),
@@ -139,6 +151,10 @@ export default async function PaymentsPage() {
   const interestPaid = Number(applied._sum.interestAmount ?? 0);
   const lateFeePaid = Number(applied._sum.lateFeeAmount ?? 0);
   const chargePaid = Number(applied._sum.chargeAmount ?? 0);
+  // Lo cobrado que no alcanzó a entrar en ninguna cuota, porque el cliente
+  // pagó más de lo que debía.
+  const surplus =
+    collected - (principalPaid + interestPaid + lateFeePaid + chargePaid);
   // Lo que deja el día: el capital vuelve, no se gana. Los gastos sí salen.
   const profit = interestPaid + lateFeePaid + chargePaid - spent;
 
@@ -213,7 +229,43 @@ export default async function PaymentsPage() {
 
   return (
     <>
-      <PageHeader title={t("payments.title")} />
+      <PageHeader
+        title={t("payments.summary.title")}
+        description={
+          isToday
+            ? `${t("payments.summary.dayToday")} · ${formatDate(dayStart)}`
+            : formatDate(dayStart)
+        }
+      />
+
+      {/* Qué día se está mirando. Es un formulario de los de toda la vida: sin
+          JavaScript también cambia de día. */}
+      <form method="get" className="mb-3 flex flex-wrap items-end gap-2">
+        <span className="min-w-40 flex-1">
+          <label
+            htmlFor="date"
+            className="mb-1 block text-xs font-medium text-ink-muted"
+          >
+            {t("payments.summary.day")}
+          </label>
+          <Input id="date" name="date" type="date" defaultValue={selected} />
+        </span>
+        <Button type="submit" variant="secondary" icon="search">
+          {t("payments.summary.show")}
+        </Button>
+        <span className="flex gap-1.5">
+          <LinkButton href="/payments" variant="ghost" size="sm">
+            {t("payments.summary.dayToday")}
+          </LinkButton>
+          <LinkButton
+            href={`/payments?date=${dayParam(addDays(today, -1))}`}
+            variant="ghost"
+            size="sm"
+          >
+            {t("payments.summary.dayYesterday")}
+          </LinkButton>
+        </span>
+      </form>
 
       {/* Lo que se movió hoy, en cuatro cuadros: cada uno con su monto y
           cuántos fueron. Prestar, renovar, refinanciar y gastar son cuatro
@@ -267,7 +319,7 @@ export default async function PaymentsPage() {
         ].map((tile) => (
           <Link
             key={tile.label}
-            href={`/payments/today?kind=${tile.kind}`}
+            href={`/payments/day?kind=${tile.kind}&date=${selected}`}
             className={`rounded-[--radius-card] border p-3 transition-shadow hover:shadow-md ${tile.box}`}
           >
             <p
@@ -321,7 +373,11 @@ export default async function PaymentsPage() {
         <Card className="mb-3">
           <CardBody>
             <p className="text-sm text-ink-muted">
-              {t("payments.summary.nothing")}
+              {t(
+                isToday
+                  ? "payments.summary.nothing"
+                  : "payments.summary.nothingThatDay",
+              )}
             </p>
           </CardBody>
         </Card>
@@ -338,6 +394,13 @@ export default async function PaymentsPage() {
                   label: t("loans.charges.installmentPart"),
                   value: chargePaid,
                 },
+                // Cuando alguien paga más de lo que debía, ese sobrante no
+                // entró a ninguna cuota. Sin esta línea las cuatro de arriba
+                // no suman el total y la cuenta del día parece cuadrada
+                // cuando no lo está.
+                ...(surplus > 0
+                  ? [{ label: t("payments.unapplied"), value: surplus }]
+                  : []),
               ].map((row) => (
                 <p key={row.label} className="flex justify-between gap-3">
                   <span className="text-ink-muted">{row.label}</span>
@@ -412,7 +475,7 @@ export default async function PaymentsPage() {
           $680.000" no dice a quién hay que ir a cobrarle mañana. */}
       {loansToday.length > 0 ? (
         <Card className="mb-4">
-          <CardHeader title={t("payments.summary.loansToday")} />
+          <CardHeader title={t("payments.summary.loansOfDay")} />
           <CardBody className="divide-y divide-border py-0">
             {loansToday.map((loan) => (
               <div

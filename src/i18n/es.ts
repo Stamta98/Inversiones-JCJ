@@ -226,10 +226,9 @@ export const es = {
         "Créditos con tabla de amortización, contratos y control de mora.",
     },
     payments: {
-      label: "Cobros",
-      // En la barra de abajo del teléfono, donde solo caben una o dos
-      // palabras y lo que se abre es el resumen del día.
-      mobileLabel: "Resumen",
+      // Lo que se abre es el resumen del día, y así lo llama el cobrador
+      // tanto en el menú como en la barra de abajo del teléfono.
+      label: "Resumen",
       description: "Recibos, abonos y aplicación automática a las cuotas.",
     },
     collections: {
@@ -824,15 +823,22 @@ export const es = {
       countRefinancesOne: "1 refinanciación",
       countExpenses: "{count} gastos",
       countExpensesOne: "1 gasto",
-      none: "Ninguno hoy",
+      none: "Ninguno",
       // La pantalla que se abre al tocar un cuadro.
-      detailLoans: "Préstamos de hoy",
-      detailRenewals: "Renovaciones de hoy",
-      detailRefinances: "Refinanciaciones de hoy",
-      detailExpenses: "Gastos de hoy",
-      detailEmpty: "No hay nada de esto registrado hoy.",
+      detailLoans: "Préstamos",
+      detailRenewals: "Renovaciones",
+      detailRefinances: "Refinanciaciones",
+      detailExpenses: "Gastos",
+      detailEmpty: "No hay nada de esto registrado ese día.",
       detailTotal: "Total del día",
       back: "Volver al resumen",
+      // El día que se está viendo, que no siempre es hoy.
+      title: "Resumen",
+      day: "Día",
+      dayToday: "Hoy",
+      dayYesterday: "Ayer",
+      show: "Ver",
+      loansOfDay: "Préstamos del día",
       capital: "Capital",
       rate: "% Interés",
       mode: "Modalidad",
@@ -842,7 +848,6 @@ export const es = {
       lateFeePerInstallment: "Mora por cuota",
       graceHint: "Aplica mora después de {days} días",
       expenseCategory: "Sin categoría",
-      loansToday: "Préstamos de hoy",
       kindNew: "Nuevo",
       amountLent: "prestado",
       amountHandedOut: "entregado",
@@ -850,6 +855,8 @@ export const es = {
       profit: "Ganancia del día",
       profitHint: "Interés, mora y cargos cobrados, menos los gastos.",
       nothing: "Todavía no hay movimiento hoy.",
+      // Mirando otro día, "hoy" sería mentira: ese día ya pasó.
+      nothingThatDay: "Ese día no hubo movimiento.",
     },
     // El contador de cuotas al lado del monto: dos toques en vez de teclear.
     installmentCount: "cuotas",
