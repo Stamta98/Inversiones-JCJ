@@ -81,19 +81,22 @@ export function RenewForm({
   currencyCode,
   locale,
   decimalPlaces,
+  initialKind = "REFINANCE",
 }: {
   loan: RenewableLoan;
   cashBoxes: CashBoxOption[];
   currencyCode: string;
   locale: string;
   decimalPlaces: number;
+  /** Con cuál de las dos abre, para que el menú entre derecho a la que se pidió. */
+  initialKind?: RenewalKind;
 }) {
   const { state, pending, onSubmit } = useFormAction<LoanFormState>(
     renewLoanAction,
     {},
   );
 
-  const [kind, setKind] = useState<RenewalKind>("REFINANCE");
+  const [kind, setKind] = useState<RenewalKind>(initialKind);
   const [principal, setPrincipal] = useState(String(loan.principal));
   const [interestRate, setInterestRate] = useState(String(loan.interestRate));
   const [rateBasis, setRateBasis] = useState<RateBasis>(loan.rateBasis);

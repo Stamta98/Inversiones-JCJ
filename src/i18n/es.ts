@@ -688,6 +688,10 @@ export const es = {
         REFINANCE: "Refinanciar",
         RENEWAL: "Renovar",
       },
+      kindMenu: {
+        REFINANCE: "Refinanciación",
+        RENEWAL: "Renovación",
+      },
       kindHint: {
         REFINANCE:
           "El cliente no tiene con qué pagar el saldo. Ese saldo pasa a ser el monto del préstamo nuevo y se le cobra interés encima. No entregas ni recibes plata.",

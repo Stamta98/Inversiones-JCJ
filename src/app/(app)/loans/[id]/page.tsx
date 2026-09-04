@@ -141,24 +141,17 @@ export default async function LoanDetailPage({
         title={`${t("loans.singular")} ${loan.code}`}
         description={`${loan.customer.firstName} ${loan.customer.lastName}`}
         action={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
             <Badge tone={LOAN_TONES[loan.status] ?? "neutral"}>
               {t(`loans.status.${loan.status}`)}
             </Badge>
-            {canRenew ? (
-              <LinkButton
-                href={`/loans/${loan.id}/renew`}
-                variant="secondary"
-                size="sm"
-                icon="refresh"
-              >
-                {t("loans.renewal.action")}
-              </LinkButton>
-            ) : null}
             <LoanMenu
               loanId={loan.id}
+              customerId={loan.customerId}
               phone={customerPhone}
               message={documentMessage}
+              canCreate={can(context, "loans.create")}
+              canRenew={canRenew}
               canEdit={
                 can(context, "loans.update") &&
                 canEditAtAll(loan.status as LoanStatus)
