@@ -235,9 +235,17 @@ export default async function LoanDetailPage({
 
   // El préstamo empieza el día en que se entregó la plata; mientras no se
   // haya entregado, el día en que se creó.
-  const startedOn = loan.disbursedAt ?? loan.createdAt;
-  const lastDueDate =
-    loan.installments[loan.installments.length - 1]?.dueDate ?? null;
+  //
+  // Salvo cuando se pasó a la app un préstamo que ya venía andando en la
+  // calle: ahí la fecha de entrega es el día en que se digitó y las cuotas
+  // son de antes, y decir que "inició" después de su primera cuota — o
+  // después de haberse acabado — no tiene sentido. La primera cuota manda.
+  const registeredOn = loan.disbursedAt ?? loan.createdAt;
+  const startedOn =
+    loan.firstDueDate < registeredOn ? loan.firstDueDate : registeredOn;
+  // La última por fecha, no la última de la lista: así ninguna reordenada
+  // puede volver el fin del crédito una fecha del medio.
+  const lastDueDate = collect.lastDueDate;
 
   // La barra va por plata, no por cuotas: un abono a medias también avanza.
   const dueTotal =
@@ -502,15 +510,24 @@ export default async function LoanDetailPage({
 
           {/* De cuándo a cuándo va: la fecha en que se entregó y la de la
               última cuota, que es el día en que el cliente queda libre. */}
-          <p className="numeric mt-2 border-t border-border pt-2 text-center text-[0.6875rem] text-ink-muted">
-            {t("loans.startedOn").replace("{date}", formatDate(startedOn))}
+          <p className="numeric mt-2 border-t border-border pt-2.5 text-center text-sm text-ink-muted">
+            <span className="whitespace-nowrap">
+              {t("loans.startedOn").replace("{date}", "")}
+              <span className="font-semibold text-ink">
+                {formatDate(startedOn)}
+              </span>
+            </span>
             {lastDueDate ? (
               <>
-                {" · "}
-                {t(loan.closingDate ? "loans.endedOn" : "loans.endsOn").replace(
-                  "{date}",
-                  formatDate(loan.closingDate ?? lastDueDate),
-                )}
+                <span className="px-1.5 text-ink-subtle">·</span>
+                <span className="whitespace-nowrap">
+                  {t(
+                    loan.closingDate ? "loans.endedOn" : "loans.endsOn",
+                  ).replace("{date}", "")}
+                  <span className="font-semibold text-ink">
+                    {formatDate(loan.closingDate ?? lastDueDate)}
+                  </span>
+                </span>
               </>
             ) : null}
           </p>
