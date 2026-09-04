@@ -222,6 +222,7 @@ export default async function PaymentsPage() {
         {[
           {
             label: t("payments.summary.tileLoans"),
+            kind: "NEW",
             icon: "hand-coins" as const,
             value: freshAmount,
             count: fresh.length,
@@ -232,6 +233,7 @@ export default async function PaymentsPage() {
           },
           {
             label: t("loans.renewal.kindMenu.RENEWAL"),
+            kind: "RENEWAL",
             icon: "refresh" as const,
             value: renewedHandedOut,
             count: renewals.length,
@@ -242,6 +244,7 @@ export default async function PaymentsPage() {
           },
           {
             label: t("loans.renewal.kindMenu.REFINANCE"),
+            kind: "REFINANCE",
             icon: "file-text" as const,
             value: refinancedAmount,
             count: refinances.length,
@@ -252,6 +255,7 @@ export default async function PaymentsPage() {
           },
           {
             label: t("payments.summary.expenses"),
+            kind: "EXPENSE",
             icon: "receipt" as const,
             value: spent,
             count: expenses._count,
@@ -261,9 +265,10 @@ export default async function PaymentsPage() {
             text: "text-danger",
           },
         ].map((tile) => (
-          <div
+          <Link
             key={tile.label}
-            className={`rounded-[--radius-card] border p-3 ${tile.box}`}
+            href={`/payments/today?kind=${tile.kind}`}
+            className={`rounded-[--radius-card] border p-3 transition-shadow hover:shadow-md ${tile.box}`}
           >
             <p
               className={`flex items-center gap-1.5 text-sm font-semibold ${tile.text}`}
@@ -274,15 +279,16 @@ export default async function PaymentsPage() {
             <p className="numeric mt-1 text-xl font-bold tracking-tight text-ink">
               {money(tile.value)}
             </p>
-            <p className="mt-0.5 text-[0.6875rem] text-ink-muted">
+            <p className="mt-0.5 flex items-center gap-0.5 text-[0.6875rem] text-ink-muted">
               {tile.count === 0
                 ? t("payments.summary.none")
                 : t(tile.count === 1 ? tile.one : tile.many).replace(
                     "{count}",
                     String(tile.count),
                   )}
+              <Icon name="chevron-right" size={12} />
             </p>
-          </div>
+          </Link>
         ))}
       </div>
 
