@@ -5,7 +5,7 @@ import { formatCode, nextCode } from "../sequences";
 describe("nextCode", () => {
   it("starts at one when there is nothing yet", () => {
     expect(nextCode("PRE", null)).toBe("PRE-000001");
-    expect(nextCode("CLI", undefined)).toBe("CLI-000001");
+    expect(nextCode("REC", undefined)).toBe("REC-000001");
   });
 
   it("follows the highest code there is", () => {
@@ -32,6 +32,6 @@ describe("nextCode", () => {
 
 describe("formatCode", () => {
   it("pads to six figures", () => {
-    expect(formatCode("CLI", 7)).toBe("CLI-000007");
+    expect(formatCode("PRE", 7)).toBe("PRE-000007");
   });
 });

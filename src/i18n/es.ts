@@ -436,6 +436,8 @@ export const es = {
     photoHint: "Obligatoria. Tómala de frente y con buena luz.",
     photoRequired: "La foto del cliente es obligatoria.",
     documentRequired: "El número de documento es obligatorio.",
+    documentTaken:
+      "Ya hay un cliente registrado con ese número de documento. Búscalo en la lista en vez de crearlo de nuevo.",
     vehiclePlate: "Placa del vehículo",
     vehiclePlateHint:
       "Si trabaja con taxi, moto o carro. Sirve para ubicarlo cuando no está en la casa.",

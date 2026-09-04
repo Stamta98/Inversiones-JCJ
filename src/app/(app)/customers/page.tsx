@@ -263,13 +263,28 @@ export default async function CustomersPage({
                         </Badge>
                       ) : null}
                     </span>
+                    {/* El código de un cliente nuevo es su documento, así que
+                        decirlo dos veces sobra. Los viejos llevan el
+                        correlativo CLI-000003, y ese sí va aparte, con el
+                        prefijo y los ceros quitados para que se lea. */}
                     <span className="mt-0.5 block truncate text-xs text-ink-muted">
-                      <span className="numeric font-semibold text-brand-strong">
-                        #{customer.code.replace(/^\D+0*/, "")}
-                      </span>
-                      {customer.documentNumber ? (
-                        <span className="numeric"> · {customer.documentNumber}</span>
-                      ) : null}
+                      {customer.code === customer.documentNumber ? (
+                        <span className="numeric font-semibold text-brand-strong">
+                          {customer.documentNumber}
+                        </span>
+                      ) : (
+                        <>
+                          <span className="numeric font-semibold text-brand-strong">
+                            #{customer.code.replace(/^CLI-0*/, "")}
+                          </span>
+                          {customer.documentNumber ? (
+                            <span className="numeric">
+                              {" · "}
+                              {customer.documentNumber}
+                            </span>
+                          ) : null}
+                        </>
+                      )}
                     </span>
                     {/* El barrio, que es por donde el cobrador la ubica. */}
                     <span className="mt-0.5 flex items-center gap-1 truncate text-xs text-ink-subtle">

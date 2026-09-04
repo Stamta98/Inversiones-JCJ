@@ -14,7 +14,6 @@ import {
   moveCustomer,
   resetCustomerOrder,
 } from "@/server/services/ordering";
-import { nextCustomerCode, withCodeRetry } from "@/server/services/sequences";
 
 /**
  * An optional text field.
@@ -214,9 +213,15 @@ export async function createCustomer(
 
   const data = parsed.data;
   const references = readReferences(formData);
-  const customerId = await withCodeRetry(() =>
-    db.$transaction(async (tx) => {
-      const code = await nextCustomerCode(tx, context.companyId);
+  // El identificador del cliente es su número de documento, tal como quedó
+  // al registrarlo. Un correlativo CLI-000012 no le dice nada a nadie:
+  // cuando alguien pregunta por un cliente lo hace con la cédula en la mano.
+  // Corregirle el documento después no le cambia el código: quedaría
+  // apuntando a algo distinto de lo que se archivó el día que se registró.
+  const code = data.documentNumber;
+  let customerId: string;
+  try {
+    customerId = await db.$transaction(async (tx) => {
       const customer = await tx.customer.create({
         data: {
           companyId: context.companyId,
@@ -296,8 +301,20 @@ export async function createCustomer(
       });
 
       return customer.id;
-    }),
-  );
+    });
+  } catch (error) {
+    // Dos clientes con el mismo documento son la misma persona registrada dos
+    // veces. Antes se dejaba, porque el código era un correlativo; ahora la
+    // base lo impide y hay que decir por qué, sin reintentar: repetir el
+    // mismo documento vuelve a chocar.
+    if ((error as { code?: string }).code === "P2002") {
+      return {
+        error: t("customers.documentTaken"),
+        fieldErrors: { documentNumber: t("customers.documentTaken") },
+      };
+    }
+    throw error;
+  }
 
   revalidatePath("/customers");
   redirect(`/customers/${customerId}`);

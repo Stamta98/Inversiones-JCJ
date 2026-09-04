@@ -1,5 +1,8 @@
 /**
- * Códigos legibles y correlativos: CLI-000123, PRE-000045, REC-001045.
+ * Códigos legibles y correlativos: PRE-000045, REC-001045.
+ *
+ * El cliente no lleva uno: su código es el número de documento con el que se
+ * registró, que es por lo que la gente pregunta.
  *
  * Se sacan del código más alto que ya existe, no de cuántas filas hay. Contar
  * parece equivalente y no lo es: en cuanto se borra un préstamo o un cobro, la
@@ -7,7 +10,7 @@
  * impreso en un recibo que el cliente tiene en la mano.
  */
 
-export type SequencePrefix = "CLI" | "PRE" | "REC";
+export type SequencePrefix = "PRE" | "REC";
 
 const PAD_LENGTH = 6;
 

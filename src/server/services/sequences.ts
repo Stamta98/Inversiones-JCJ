@@ -1,5 +1,8 @@
 /**
- * Human readable sequential codes (CLI-000123, PRE-000045, REC-001045).
+ * Human readable sequential codes (PRE-000045, REC-001045).
+ *
+ * Customers are not here: their code is the document number they were
+ * registered with, which is what people actually ask for.
  *
  * Taken from the highest code already issued rather than from the row count:
  * counting looks equivalent until something is deleted, and then the next code
@@ -12,18 +15,6 @@ import type { Prisma } from "@prisma/client";
 import { nextCode, type SequencePrefix } from "@/core/sequences";
 
 export type { SequencePrefix };
-
-export async function nextCustomerCode(
-  tx: Prisma.TransactionClient,
-  companyId: string,
-): Promise<string> {
-  const latest = await tx.customer.findFirst({
-    where: { companyId },
-    orderBy: { code: "desc" },
-    select: { code: true },
-  });
-  return nextCode("CLI", latest?.code);
-}
 
 export async function nextLoanCode(
   tx: Prisma.TransactionClient,
