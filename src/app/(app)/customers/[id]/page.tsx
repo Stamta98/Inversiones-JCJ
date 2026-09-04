@@ -46,22 +46,37 @@ function mapsUrl(latitude: number, longitude: number): string {
   return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
 }
 
+/**
+ * Un dato, con el rótulo encima del valor.
+ *
+ * Van de a dos por renglón: con el rótulo a un lado y el valor al otro, cada
+ * dato se comía una línea entera y la ficha no cabía en la pantalla. Los que
+ * traen texto largo — una dirección, un punto de referencia — piden el
+ * renglón completo.
+ */
 function DetailRow({
   label,
   value,
   href,
+  wide = false,
 }: {
   label: string;
   value: string;
   /** Con enlace el valor se toca: un teléfono se marca, no se transcribe. */
   href?: string;
+  wide?: boolean;
 }) {
   return (
-    <div className="flex justify-between gap-4 border-b border-border py-2 last:border-0">
-      <dt className="text-xs text-ink-muted">{label}</dt>
-      <dd className="text-right text-sm text-ink">
+    <div className={wide ? "col-span-2" : undefined}>
+      <dt className="text-[0.6875rem] tracking-wide text-ink-muted uppercase">
+        {label}
+      </dt>
+      <dd className="mt-0.5 text-sm break-words text-ink">
         {href ? (
-          <a href={href} className="font-medium text-brand-strong hover:underline">
+          <a
+            href={href}
+            className="font-medium text-brand-strong hover:underline"
+          >
             {value}
           </a>
         ) : (
@@ -70,6 +85,11 @@ function DetailRow({
       </dd>
     </div>
   );
+}
+
+/** La rejilla de los datos: dos por renglón. */
+function DetailGrid({ children }: { children: React.ReactNode }) {
+  return <dl className="grid grid-cols-2 gap-x-4 gap-y-3">{children}</dl>;
 }
 
 /** Un rótulo dentro de la ficha, para no dejar quince renglones seguidos. */
@@ -188,6 +208,45 @@ export default async function CustomerDetailPage({
     .filter((loan) => loan.status !== "CANCELLED")
     .reduce((total, loan) => total + Number(loan.principal), 0);
 
+  // Solo los que tienen algo: un atajo a un cuadro vacío es un viaje perdido.
+  const jumps = [
+    {
+      anchor: "prestamos",
+      label: t("customers.jumpLoans"),
+      icon: "hand-coins" as const,
+      tint: "bg-brand-soft text-brand-strong",
+      has: customer.loans.length > 0,
+    },
+    {
+      anchor: "abonos",
+      label: t("customers.jumpPayments"),
+      icon: "receipt" as const,
+      tint: "bg-positive-soft text-positive",
+      has: payments.length > 0,
+    },
+    {
+      anchor: "referencias",
+      label: t("customers.jumpReferences"),
+      icon: "users" as const,
+      tint: "bg-info-soft text-info",
+      has: customer.references.length > 0,
+    },
+    {
+      anchor: "adjuntos",
+      label: t("customers.jumpDocuments"),
+      icon: "image" as const,
+      tint: "bg-warning-soft text-warning",
+      has: idDocuments.length > 0,
+    },
+    {
+      anchor: "gestiones",
+      label: t("customers.jumpInteractions"),
+      icon: "headset" as const,
+      tint: "bg-surface-muted text-ink-muted",
+      has: customer.interactions.length > 0,
+    },
+  ].filter((jump) => jump.has);
+
   return (
     <>
       <PageHeader
@@ -196,6 +255,21 @@ export default async function CustomerDetailPage({
         // Todo lo que se hace con un cliente cabe detrás de los tres puntos,
         // como en el préstamo: en el teléfono el nombre se queda con su
         // ancho en vez de pelearlo con dos botones.
+        avatar={
+          customer.photoUrl ? (
+            // Same-origin, authenticated route; next/image adds nothing.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={customer.photoUrl}
+              alt=""
+              className="size-12 shrink-0 rounded-full border border-border object-cover"
+            />
+          ) : (
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-muted text-sm font-semibold text-ink-subtle ring-1 ring-border">
+              {`${customer.firstName[0] ?? ""}${customer.lastName[0] ?? ""}`.toUpperCase()}
+            </span>
+          )
+        }
         action={
           <CustomerMenu
             customerId={customer.id}
@@ -221,17 +295,41 @@ export default async function CustomerDetailPage({
         ) : null}
       </div>
 
+      {/* Atajos a lo que está más abajo. La ficha es larga y en el teléfono
+          llegar a los abonos eran cuatro deslizadas; el que no tiene nada
+          que mostrar no sale, para no mandar a un cuadro vacío. */}
+      {jumps.length > 0 ? (
+        <nav className="mt-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          {jumps.map((jump) => (
+            <a
+              key={jump.anchor}
+              href={`#${jump.anchor}`}
+              className="flex shrink-0 flex-col items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-[0.6875rem] font-medium text-ink-muted transition-colors hover:bg-surface-muted"
+            >
+              <span
+                className={`flex size-9 items-center justify-center rounded-full ${jump.tint}`}
+              >
+                <Icon name={jump.icon} size={16} />
+              </span>
+              {jump.label}
+            </a>
+          ))}
+        </nav>
+      ) : null}
+
       {/* Con cuántos préstamos ha pasado, cuántos tiene abiertos, cuánto se
           le ha entregado y cuánto debe: es la hoja de vida del cliente en
           cuatro números, y antes solo estaba el último. */}
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
+          compact
           label={t("customers.loansTotal")}
           value={String(customer.loans.length)}
           icon="hand-coins"
           tone="neutral"
         />
         <StatCard
+          compact
           label={t("customers.loansOpen")}
           value={String(openLoans.length)}
           hint={openLoans.length === 0 ? t("customers.noOpenLoans") : undefined}
@@ -239,6 +337,7 @@ export default async function CustomerDetailPage({
           tone={openLoans.length > 0 ? "positive" : "neutral"}
         />
         <StatCard
+          compact
           label={t("customers.lentTotal")}
           value={money(lentTotal)}
           hint={t("customers.lentTotalHint")}
@@ -246,6 +345,7 @@ export default async function CustomerDetailPage({
           tone="info"
         />
         <StatCard
+          compact
           label={t("loans.outstanding")}
           value={money(outstanding)}
           hint={
@@ -265,24 +365,9 @@ export default async function CustomerDetailPage({
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader title={t("customers.singular")} />
-          <CardBody className="flex flex-col items-center pb-2">
-            {customer.photoUrl ? (
-              // Same-origin, authenticated route; next/image adds nothing.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={customer.photoUrl}
-                alt={`${customer.firstName} ${customer.lastName}`}
-                className="size-28 rounded-full border border-border object-cover"
-              />
-            ) : (
-              <div className="flex size-28 items-center justify-center rounded-full border border-dashed border-border bg-surface-muted text-xs text-ink-subtle">
-                {t("customers.noPhoto")}
-              </div>
-            )}
-          </CardBody>
-          <CardBody className="pt-0">
+          <CardBody>
             <SectionLabel>{t("customers.identitySection")}</SectionLabel>
-            <dl>
+            <DetailGrid>
               <DetailRow
                 label={t("customers.documentNumber")}
                 value={customer.documentNumber ?? "—"}
@@ -313,10 +398,10 @@ export default async function CustomerDetailPage({
                 label={t("common.status")}
                 value={t(`customers.status.${customer.status}`)}
               />
-            </dl>
+            </DetailGrid>
 
             <SectionLabel>{t("customers.contactSection")}</SectionLabel>
-            <dl>
+            <DetailGrid>
               {/* El número se marca desde aquí: parado en la puerta nadie lo
                   copia a mano para llamar. */}
               <DetailRow
@@ -333,8 +418,9 @@ export default async function CustomerDetailPage({
                 label={t("customers.email")}
                 value={customer.email ?? "—"}
                 href={customer.email ? `mailto:${customer.email}` : undefined}
+                wide
               />
-            </dl>
+            </DetailGrid>
 
             {mobileDigits ? (
               <div className="mt-3 flex gap-2">
@@ -358,10 +444,11 @@ export default async function CustomerDetailPage({
             ) : null}
 
             <SectionLabel>{t("customers.homeSection")}</SectionLabel>
-            <dl>
+            <DetailGrid>
               <DetailRow
                 label={t("customers.address")}
                 value={customer.address ?? "—"}
+                wide
               />
               <DetailRow
                 label={t("customers.neighborhood")}
@@ -370,6 +457,7 @@ export default async function CustomerDetailPage({
               <DetailRow
                 label={t("customers.landmark")}
                 value={customer.landmark ?? "—"}
+                wide
               />
               <DetailRow
                 label={t("customers.city")}
@@ -381,7 +469,7 @@ export default async function CustomerDetailPage({
               />
               {/* Whether to believe the next promise is the question a
                   collector actually has about this customer. */}
-            </dl>
+            </DetailGrid>
 
             {customer.latitude !== null && customer.longitude !== null ? (
               <a
@@ -398,8 +486,9 @@ export default async function CustomerDetailPage({
             {/* De dónde salió la ficha y quién le cobra: con dos cobradores
                 en la calle son las primeras dos preguntas de la oficina. */}
             <SectionLabel>{t("customers.registrySection")}</SectionLabel>
-            <dl>
+            <DetailGrid>
               <DetailRow
+                wide
                 label={t("customers.customerSince")}
                 value={formatDateTime(
                   customer.createdAt,
@@ -421,9 +510,9 @@ export default async function CustomerDetailPage({
               />
               {/* Si nadie la ha tocado desde que se creó, decirlo dos veces
                   con la misma fecha no aporta. */}
-              {customer.updatedAt.getTime() !==
-              customer.createdAt.getTime() ? (
+              {customer.updatedAt.getTime() !== customer.createdAt.getTime() ? (
                 <DetailRow
+                  wide
                   label={t("customers.updatedAtLabel")}
                   value={formatDateTime(
                     customer.updatedAt,
@@ -435,6 +524,7 @@ export default async function CustomerDetailPage({
               {/* Si promete y cumple, o promete y no: lo que uno quiere saber
                   antes de creerle la próxima. */}
               <DetailRow
+                wide
                 label={t("promises.record")}
                 value={
                   promiseRecord.kept + promiseRecord.broken === 0
@@ -450,12 +540,12 @@ export default async function CustomerDetailPage({
                       )}`
                 }
               />
-            </dl>
+            </DetailGrid>
           </CardBody>
 
           <CardHeader title={t("customers.workSection")} />
           <CardBody>
-            <dl>
+            <DetailGrid>
               <DetailRow
                 label={t("customers.employmentType")}
                 value={
@@ -474,6 +564,7 @@ export default async function CustomerDetailPage({
                 <DetailRow
                   label={t("customers.employerName")}
                   value={customer.employerName ?? "—"}
+                  wide
                 />
               ) : null}
               <DetailRow
@@ -483,10 +574,12 @@ export default async function CustomerDetailPage({
               <DetailRow
                 label={t("customers.workAddress")}
                 value={customer.workAddress ?? "—"}
+                wide
               />
               <DetailRow
                 label={t("customers.workLandmark")}
                 value={customer.workLandmark ?? "—"}
+                wide
               />
               {/* Solo cuando la hay: la mayoría de clientes no trabaja con
                   vehículo y una fila con raya no dice nada. */}
@@ -504,7 +597,7 @@ export default async function CustomerDetailPage({
                     : "—"
                 }
               />
-            </dl>
+            </DetailGrid>
 
             {customer.workLatitude !== null &&
             customer.workLongitude !== null ? (
@@ -522,7 +615,7 @@ export default async function CustomerDetailPage({
 
           <CardHeader title={t("customers.paydaySection")} />
           <CardBody>
-            <dl>
+            <DetailGrid>
               <DetailRow
                 label={t("customers.paydayKind")}
                 value={
@@ -543,7 +636,7 @@ export default async function CustomerDetailPage({
                   value={String(customer.paydayDayOfMonth)}
                 />
               ) : null}
-            </dl>
+            </DetailGrid>
           </CardBody>
 
           {/* La nota se podía escribir desde que existe el formulario, pero
@@ -561,7 +654,7 @@ export default async function CustomerDetailPage({
         </Card>
 
         <div className="space-y-4 lg:col-span-2">
-          <Card>
+          <Card id="prestamos">
             <CardHeader title={t("customers.loansTab")} />
             {customer.loans.length === 0 ? (
               <EmptyState
@@ -608,7 +701,7 @@ export default async function CustomerDetailPage({
             )}
           </Card>
 
-          <Card>
+          <Card id="referencias">
             <CardHeader
               title={t("customers.referencesSection")}
               description={t("customers.referencesHint")}
@@ -682,7 +775,7 @@ export default async function CustomerDetailPage({
             )}
           </Card>
 
-          <Card>
+          <Card id="abonos">
             <CardHeader
               title={t("payments.history")}
               description={t("payments.historyHint")}
@@ -743,7 +836,7 @@ export default async function CustomerDetailPage({
             )}
           </Card>
 
-          <Card>
+          <Card id="gestiones">
             <CardHeader title={t("customers.interactionsTab")} />
             {customer.interactions.length === 0 ? (
               <EmptyState icon="headset" title={t("common.empty")} />

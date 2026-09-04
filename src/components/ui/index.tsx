@@ -91,20 +91,31 @@ export function PageHeader({
   title,
   description,
   action,
+  avatar,
 }: {
   title: string;
   description?: string;
   action?: ReactNode;
+  /**
+   * La foto, al lado del nombre. Suelta y centrada gastaba media pantalla
+   * del teléfono para decir lo mismo.
+   */
+  avatar?: ReactNode;
 }) {
   return (
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">
-          {title}
-        </h1>
-        {description ? (
-          <p className="mt-1 max-w-2xl text-sm text-ink-muted">{description}</p>
-        ) : null}
+      <div className="flex min-w-0 items-center gap-3">
+        {avatar}
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">
+            {title}
+          </h1>
+          {description ? (
+            <p className="mt-1 max-w-2xl text-sm text-ink-muted">
+              {description}
+            </p>
+          ) : null}
+        </div>
       </div>
       {action}
     </header>
@@ -269,32 +280,58 @@ export function StatCard({
   hint,
   tone = "neutral",
   icon,
+  compact = false,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: Tone;
   icon?: IconName;
+  /**
+   * Apretada, para las que van de a cuatro en el teléfono: cuatro cifras no
+   * pueden gastarse la pantalla entera antes de que se vea nada más.
+   */
+  compact?: boolean;
 }) {
   return (
-    <div className="rounded-[--radius-card] border border-border bg-surface p-4">
+    <div
+      className={cn(
+        "rounded-[--radius-card] border border-border bg-surface",
+        compact ? "p-3" : "p-4",
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-ink-muted">{label}</p>
         {icon ? (
           <span
             className={cn(
-              "flex size-7 items-center justify-center rounded-lg",
+              "flex items-center justify-center rounded-lg",
+              compact ? "size-6" : "size-7",
               TONE_CLASSES[tone],
             )}
           >
-            <Icon name={icon} size={14} />
+            <Icon name={icon} size={compact ? 12 : 14} />
           </span>
         ) : null}
       </div>
-      <p className="numeric mt-2 text-lg font-semibold tracking-tight text-ink sm:text-2xl">
+      <p
+        className={cn(
+          "numeric font-semibold tracking-tight text-ink",
+          compact ? "mt-0.5 text-base sm:text-lg" : "mt-2 text-lg sm:text-2xl",
+        )}
+      >
         {value}
       </p>
-      {hint ? <p className="mt-1 text-xs text-ink-subtle">{hint}</p> : null}
+      {hint ? (
+        <p
+          className={cn(
+            "text-ink-subtle",
+            compact ? "text-[0.6875rem] leading-tight" : "mt-1 text-xs",
+          )}
+        >
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }

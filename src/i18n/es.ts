@@ -401,6 +401,13 @@ export const es = {
     // En el menú de los tres puntos, donde no cabe el título largo.
     seeAttachments: "Ver adjuntos",
     newLoanForCustomer: "Crear préstamo",
+    // Los atajos de arriba: la ficha es larga y en el teléfono llegar a los
+    // abonos eran cuatro deslizadas.
+    jumpLoans: "Préstamos",
+    jumpPayments: "Abonos",
+    jumpReferences: "Referencias",
+    jumpDocuments: "Documentos",
+    jumpInteractions: "Gestiones",
 
     paydaySection: "Día de pago",
     paydayHint:
