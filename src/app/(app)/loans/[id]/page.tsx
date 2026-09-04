@@ -266,6 +266,12 @@ export default async function LoanDetailPage({
   // puede volver el fin del crédito una fecha del medio.
   const lastDueDate = collect.lastDueDate;
 
+  // Lo vencido hasta hoy y la mora que se le ha sumado: dos cifras que solo
+  // valen cuando existen, así que solo entonces ocupan una tarjeta.
+  const catchUp = openLoan ? fromCents(collect.overdueCents) : 0;
+  const lateFees = Number(loan.totalLateFees);
+  const extraStats = (catchUp > 0 ? 1 : 0) + (lateFees > 0 ? 1 : 0);
+
   // La barra va por plata, no por cuotas: un abono a medias también avanza.
   const dueTotal =
     Number(loan.totalPrincipal) +
@@ -459,7 +465,13 @@ export default async function LoanDetailPage({
         </form>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {/* Con mora o con atraso son seis cifras y no caben en una fila de
+          cuatro sin apretarse; en dos filas de tres se leen. */}
+      <div
+        className={`grid grid-cols-2 gap-3 ${
+          extraStats > 0 ? "lg:grid-cols-3" : "lg:grid-cols-4"
+        }`}
+      >
         <StatCard
           label={t("loans.principal")}
           value={money(Number(loan.principal))}
@@ -495,25 +507,52 @@ export default async function LoanDetailPage({
                     ? "loans.expiredDaysOne"
                     : "loans.expiredDays",
                 ).replace("{days}", String(daysExpired))
-              : overdueCount > 0 && collect.overdueSince
-                ? t("loans.oldestOverdue").replace(
-                    "{date}",
-                    formatDate(collect.overdueSince),
-                  )
-                : !openLoan
-                  ? `${t("loans.lateFeePart")}: ${money(Number(loan.totalLateFees))}`
-                  : collect.lastDueDate
-                    ? t("loans.expiresOn").replace(
-                        "{date}",
-                        formatDate(collect.lastDueDate),
-                      )
-                    : t("loans.upToDate")
+              : !openLoan
+                ? `${t("loans.lateFeePart")}: ${money(Number(loan.totalLateFees))}`
+                : // Desde cuándo viene debiendo lo dice la tarjeta de al lado;
+                  // aquí sirve más cuánto plazo le queda para arreglarlo.
+                  collect.lastDueDate
+                  ? t("loans.expiresOn").replace(
+                      "{date}",
+                      formatDate(collect.lastDueDate),
+                    )
+                  : t("loans.upToDate")
           }
           tone={overdueCount > 0 || daysExpired > 0 ? "danger" : "positive"}
           icon={
             overdueCount > 0 || daysExpired > 0 ? "alert-triangle" : "check"
           }
         />
+
+        {/* Lo que tendría que pagar hoy para quedar al corriente: es el
+            número que uno le dice en la puerta, y hasta ahora solo estaba
+            chiquito debajo del campo de cobro. */}
+        {catchUp > 0 ? (
+          <StatCard
+            label={t("loans.toCatchUp")}
+            value={money(catchUp)}
+            hint={
+              collect.overdueSince
+                ? t("loans.oldestOverdue").replace(
+                    "{date}",
+                    formatDate(collect.overdueSince),
+                  )
+                : undefined
+            }
+            tone="warning"
+            icon="clock"
+          />
+        ) : null}
+
+        {lateFees > 0 ? (
+          <StatCard
+            label={t("loans.lateFeeOwed")}
+            value={money(lateFees)}
+            hint={t(`loans.lateFeeModeLabel.${loan.lateFeeMode}`)}
+            tone="danger"
+            icon="alert-triangle"
+          />
+        ) : null}
       </div>
 
       {/* Lo que el cliente pregunta cuando abre la puerta: cuántas llevo,
@@ -574,6 +613,19 @@ export default async function LoanDetailPage({
               <span className="font-semibold text-ink">
                 {formatDate(startedOn)}
               </span>
+            </span>
+            <span className="px-1.5 text-ink-subtle">·</span>
+            <span className="whitespace-nowrap">
+              <span className="font-semibold text-ink">
+                {t("loans.termOf").replace(
+                  "{count}",
+                  String(loan.installments.length),
+                )}
+              </span>
+              {" · "}
+              {loan.frequency === "CUSTOM" && loan.customIntervalDays
+                ? `${t("loans.frequencyLabel.CUSTOM")} (${loan.customIntervalDays} d)`
+                : t(`loans.frequencyLabel.${loan.frequency}`)}
             </span>
             {lastDueDate ? (
               <>

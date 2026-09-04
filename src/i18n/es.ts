@@ -687,6 +687,11 @@ export const es = {
     // que uno hace bajando una ruta.
     previousLoan: "Préstamo anterior",
     nextLoan: "Préstamo siguiente",
+    // Lo que el cliente tendría que pagar hoy para quedar al corriente, y de
+    // cuántas cuotas y cada cuánto es el crédito.
+    toCatchUp: "Para ponerse al día",
+    lateFeeOwed: "Mora acumulada",
+    termOf: "{count} cuotas",
     // El avance del préstamo contado como lo cuenta el cliente: cuántas
     // cuotas lleva, cuántas le faltan y cuánta plata ya entregó.
     installmentsPaid: "Cuotas pagadas",
