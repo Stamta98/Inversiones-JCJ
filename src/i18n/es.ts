@@ -796,6 +796,26 @@ export const es = {
     // últimos, no los de hace tres meses.
     showAll: "Ver historial completo ({count} más)",
     showLess: "Ver solo los últimos",
+
+    // --- El resumen del día, que es la cuenta que se entrega en la noche ---
+    summary: {
+      handOver: "Total a entregar",
+      handOverHint: "Lo cobrado, menos lo prestado y los gastos del día.",
+      counts: "{payments} abonos · {loans} préstamos",
+      income: "De dónde salió lo cobrado",
+      collected: "Total cobrado",
+      methods: "Cómo lo pagaron",
+      movement: "Movimiento del día",
+      lent: "Prestado",
+      expenses: "Gastos",
+      refinanced: "Refinanciaciones",
+      renewed: "Renovaciones",
+      carried: "{count} · saldo trasladado",
+      handedOut: "{count} · entregado",
+      profit: "Ganancia del día",
+      profitHint: "Interés, mora y cargos cobrados, menos los gastos.",
+      nothing: "Todavía no hay movimiento hoy.",
+    },
     // El contador de cuotas al lado del monto: dos toques en vez de teclear.
     installmentCount: "cuotas",
     installmentCountOne: "cuota",

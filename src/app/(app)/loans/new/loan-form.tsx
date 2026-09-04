@@ -523,7 +523,15 @@ export function LoanForm({
               {!editando && cashBoxes.length > 0 ? (
                 <div className="sm:col-span-2 space-y-3">
                   <Field label={es.payments.cashBox} htmlFor="cashBoxId">
-                    <Select id="cashBoxId" name="cashBoxId" defaultValue="">
+                    {/* Con "Ninguno" por defecto, la plata salía sin que la
+                        caja se enterara y el resumen del día pedía entregar
+                        lo que ya se había entregado. El cobro ya venía con la
+                        caja puesta; el préstamo también. */}
+                    <Select
+                      id="cashBoxId"
+                      name="cashBoxId"
+                      defaultValue={cashBoxes[0]?.id ?? ""}
+                    >
                       <option value="">{es.common.none}</option>
                       {cashBoxes.map((cashBox) => (
                         <option key={cashBox.id} value={cashBox.id}>
