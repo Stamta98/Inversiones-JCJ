@@ -695,7 +695,6 @@ export const es = {
     // cuántas cuotas y cada cuánto es el crédito.
     toCatchUp: "Para ponerse al día",
     lateFeeOwed: "Mora acumulada",
-    termOf: "{count} cuotas",
     // El avance del préstamo contado como lo cuenta el cliente: cuántas
     // cuotas lleva, cuántas le faltan y cuánta plata ya entregó.
     installmentsPaid: "Cuotas pagadas",
@@ -704,9 +703,9 @@ export const es = {
     paidPercent: "{percent}% pagado",
     // De cuándo a cuándo va el crédito, que es lo que el cliente pregunta
     // cuando quiere saber cuánto le falta para quedar libre.
-    startedOn: "Inició el {date}",
-    endsOn: "Termina el {date}",
-    endedOn: "Terminó el {date}",
+    startLabel: "Inicio",
+    endLabel: "Vence",
+    endedLabel: "Terminó",
     nextDueOn: "Próxima cuota el {date}",
     installmentLate: "hace {days} d",
     installmentLateOne: "hace 1 d",

@@ -264,11 +264,16 @@ export default async function LoanDetailPage({
   // son de antes, y decir que "inició" después de su primera cuota — o
   // después de haberse acabado — no tiene sentido. La primera cuota manda.
   const registeredOn = loan.disbursedAt ?? loan.createdAt;
-  const startedOn =
+  const openedOn =
     loan.firstDueDate < registeredOn ? loan.firstDueDate : registeredOn;
   // La última por fecha, no la última de la lista: así ninguna reordenada
   // puede volver el fin del crédito una fecha del medio.
   const lastDueDate = collect.lastDueDate;
+  // Un préstamo saldado ya no vence: terminó el día en que se pagó.
+  const endsOn = loan.closingDate ?? lastDueDate;
+  // Y pase lo que pase con los datos, empezar después de haber terminado no
+  // se puede leer de ninguna manera.
+  const startedOn = endsOn && endsOn < openedOn ? endsOn : openedOn;
 
   // Lo vencido hasta hoy y la mora que se le ha sumado: dos cifras que solo
   // valen cuando existen, así que solo entonces ocupan una tarjeta.
@@ -601,42 +606,27 @@ export default async function LoanDetailPage({
             </span>
           </div>
 
-          {/* De cuándo a cuándo va: la fecha en que se entregó y la de la
-              última cuota, que es el día en que el cliente queda libre. */}
-          <p className="numeric mt-2 border-t border-border pt-2.5 text-center text-sm text-ink-muted">
-            <span className="whitespace-nowrap">
-              {t("loans.startedOn").replace("{date}", "")}
-              <span className="font-semibold text-ink">
+          {/* De cuándo a cuándo va, en dos columnas: en una sola línea, con
+              el rótulo delante de cada fecha, se salía del cuadro en el
+              teléfono. El rótulo arriba y la fecha debajo caben siempre. */}
+          <div className="mt-2 grid grid-cols-2 divide-x divide-border border-t border-border pt-2.5">
+            <div className="px-2 text-center">
+              <p className="text-[0.625rem] font-medium tracking-wide text-ink-muted uppercase">
+                {t("loans.startLabel")}
+              </p>
+              <p className="numeric text-sm font-bold text-ink">
                 {formatDate(startedOn)}
-              </span>
-            </span>
-            <span className="px-1.5 text-ink-subtle">·</span>
-            <span className="whitespace-nowrap">
-              <span className="font-semibold text-ink">
-                {t("loans.termOf").replace(
-                  "{count}",
-                  String(loan.installments.length),
-                )}
-              </span>
-              {" · "}
-              {loan.frequency === "CUSTOM" && loan.customIntervalDays
-                ? `${t("loans.frequencyLabel.CUSTOM")} (${loan.customIntervalDays} d)`
-                : t(`loans.frequencyLabel.${loan.frequency}`)}
-            </span>
-            {lastDueDate ? (
-              <>
-                <span className="px-1.5 text-ink-subtle">·</span>
-                <span className="whitespace-nowrap">
-                  {t(
-                    loan.closingDate ? "loans.endedOn" : "loans.endsOn",
-                  ).replace("{date}", "")}
-                  <span className="font-semibold text-ink">
-                    {formatDate(loan.closingDate ?? lastDueDate)}
-                  </span>
-                </span>
-              </>
-            ) : null}
-          </p>
+              </p>
+            </div>
+            <div className="px-2 text-center">
+              <p className="text-[0.625rem] font-medium tracking-wide text-ink-muted uppercase">
+                {t(loan.closingDate ? "loans.endedLabel" : "loans.endLabel")}
+              </p>
+              <p className="numeric text-sm font-bold text-ink">
+                {endsOn ? formatDate(endsOn) : "—"}
+              </p>
+            </div>
+          </div>
         </Card>
       ) : null}
 
