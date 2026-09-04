@@ -388,7 +388,11 @@ export default async function LoanDetailPage({
               <PaymentForm
                 loanId={loan.id}
                 suggestedAmount={suggestedAmount}
+                installmentAmount={fromCents(collect.installmentCents)}
+                maxAmount={Number(loan.outstanding)}
                 amountHint={amountHint}
+                currencyCode={context.currencyCode}
+                locale={context.locale}
                 cashBoxes={cashBoxes.map((cashBox) => ({
                   id: cashBox.id,
                   label: cashBox.name,

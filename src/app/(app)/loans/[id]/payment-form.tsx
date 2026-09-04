@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
+
 import { Alert, Button, Field, Input, Select } from "@/components/ui";
 import { es } from "@/i18n/es";
+import { formatCurrency } from "@/lib/format";
 import { useFormAction } from "@/lib/use-form-action";
 
 import {
@@ -18,31 +21,31 @@ const METHODS = [
   "OTHER",
 ] as const;
 
-function SubmitButton({ pending }: { pending: boolean }) {
-  return (
-    <Button
-      type="submit"
-      icon="receipt"
-      disabled={pending}
-      className="w-full sm:w-auto"
-    >
-      {pending ? es.common.saving : es.payments.new}
-    </Button>
-  );
-}
+const STEP_BUTTON =
+  "flex size-7 items-center justify-center rounded-md text-lg leading-none font-semibold text-ink transition-colors hover:bg-surface disabled:opacity-30";
 
 export function PaymentForm({
   loanId,
   suggestedAmount,
+  installmentAmount,
+  maxAmount,
   amountHint,
   cashBoxes,
+  currencyCode,
+  locale,
   decimalPlaces,
 }: {
   loanId: string;
   suggestedAmount: number;
+  /** La cuota, que es lo que suma o resta cada toque del contador. */
+  installmentAmount: number;
+  /** Lo que falta para saldar: cobrar más que eso no tiene sentido. */
+  maxAmount: number;
   /** De dónde salió el valor propuesto, dicho debajo del campo. */
   amountHint?: string;
   cashBoxes: Array<{ id: string; label: string }>;
+  currencyCode: string;
+  locale: string;
   /** Zero where the currency has no cents, so the field never suggests any. */
   decimalPlaces: number;
 }) {
@@ -51,6 +54,54 @@ export function PaymentForm({
     postPaymentAction,
     {},
   );
+
+  const show = (value: number) => (value > 0 ? value.toFixed(decimalPlaces) : "");
+
+  const [amount, setAmount] = useState(() => show(suggestedAmount));
+  // Cuántas cuotas cubre lo que hay en el campo. Null cuando el cobrador
+  // escribió un monto suyo: decir "1" ahí sería mentirle.
+  const [count, setCount] = useState<number | null>(
+    suggestedAmount > 0 && suggestedAmount === installmentAmount ? 1 : null,
+  );
+
+  // Después de cobrar, el servidor manda la cuota siguiente: el campo se pone
+  // en ella solo, en vez de quedarse con el número que ya se cobró.
+  const [proposed, setProposed] = useState(suggestedAmount);
+  if (proposed !== suggestedAmount) {
+    setProposed(suggestedAmount);
+    setAmount(show(suggestedAmount));
+    setCount(
+      suggestedAmount > 0 && suggestedAmount === installmentAmount ? 1 : null,
+    );
+  }
+
+  const value = Number(amount) || 0;
+  const canStep = installmentAmount > 0;
+  const atCeiling = maxAmount > 0 && value >= maxAmount;
+
+  const setInstallments = (next: number) => {
+    const whole = Math.max(1, next);
+    const total =
+      maxAmount > 0
+        ? Math.min(whole * installmentAmount, maxAmount)
+        : whole * installmentAmount;
+    setCount(whole);
+    setAmount(show(total));
+  };
+
+  // Desde un monto escrito a mano, el contador no sube desde cero: sube a la
+  // cuota entera que sigue y baja a la que ya está cubierta.
+  const step = (by: number) =>
+    setInstallments(
+      count !== null
+        ? count + by
+        : Math.max(
+            1,
+            by > 0
+              ? Math.ceil(value / installmentAmount)
+              : Math.floor(value / installmentAmount),
+          ),
+    );
 
   return (
     <form method="post" onSubmit={onSubmit} className="space-y-3">
@@ -70,18 +121,62 @@ export function PaymentForm({
           hint={amountHint}
           required
         >
-          <Input
-            id="amount"
-            name="amount"
-            type="number"
-            inputMode="decimal"
-            step={wholeUnits ? "1" : "0.01"}
-            min={wholeUnits ? "1" : "0.01"}
-            required
-            defaultValue={
-              suggestedAmount > 0 ? suggestedAmount.toFixed(decimalPlaces) : ""
-            }
-          />
+          <div className="flex items-stretch gap-2">
+            <Input
+              id="amount"
+              name="amount"
+              type="number"
+              inputMode="decimal"
+              step={wholeUnits ? "1" : "0.01"}
+              min={wholeUnits ? "1" : "0.01"}
+              required
+              className="flex-1"
+              value={amount}
+              onChange={(event) => {
+                setAmount(event.target.value);
+                setCount(null);
+              }}
+            />
+
+            {/* El cliente que paga dos cuotas es cosa de todos los días: se
+                tocan, no se teclean. */}
+            {canStep ? (
+              <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-surface-muted px-1">
+                <button
+                  type="button"
+                  className={STEP_BUTTON}
+                  aria-label={es.payments.oneLess}
+                  disabled={
+                    count !== null ? count <= 1 : value <= installmentAmount
+                  }
+                  onClick={() => step(-1)}
+                >
+                  −
+                </button>
+                <span className="w-10 text-center leading-tight">
+                  <span className="numeric block text-sm font-semibold text-ink">
+                    {count ?? "—"}
+                  </span>
+                  <span className="block text-[0.5625rem] text-ink-subtle">
+                    {count === null
+                      ? es.payments.customAmount
+                      : count === 1
+                        ? es.payments.installmentCountOne
+                        : es.payments.installmentCount}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className={STEP_BUTTON}
+                  aria-label={es.payments.oneMore}
+                  disabled={atCeiling}
+                  onClick={() => step(1)}
+                >
+                  +
+                </button>
+              </div>
+            ) : null}
+          </div>
         </Field>
 
         <Field label={es.payments.method} htmlFor="method">
@@ -127,7 +222,23 @@ export function PaymentForm({
 
       <p className="text-xs text-ink-subtle">{es.payments.allocationHint}</p>
 
-      <SubmitButton pending={pending} />
+      {/* El botón dice lo que se va a cobrar: en la puerta uno confirma
+          mirando el botón, no devolviéndose al campo. */}
+      <Button
+        type="submit"
+        icon="receipt"
+        disabled={pending}
+        className="w-full sm:w-auto"
+      >
+        {pending
+          ? es.common.saving
+          : value > 0
+            ? es.payments.collectAmount.replace(
+                "{amount}",
+                formatCurrency(value, currencyCode, locale, decimalPlaces),
+              )
+            : es.payments.new}
+      </Button>
     </form>
   );
 }

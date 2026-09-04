@@ -754,6 +754,13 @@ export const es = {
     amountOverdue: "Vencido hasta hoy: {amount} en {count} cuotas",
     amountOverdueOne: "Vencido hasta hoy: {amount} en 1 cuota",
     amountRest: "Es lo que falta para saldar: {amount}",
+    // El contador de cuotas al lado del monto: dos toques en vez de teclear.
+    installmentCount: "cuotas",
+    installmentCountOne: "cuota",
+    oneMore: "Una cuota más",
+    oneLess: "Una cuota menos",
+    customAmount: "Monto libre",
+    collectAmount: "Cobrar {amount}",
     allocation: "Aplicación del pago",
     allocationHint:
       "El pago se aplica a la cuota más antigua: primero mora, luego el cargo adicional, después el interés y por último el capital.",
