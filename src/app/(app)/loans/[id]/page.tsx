@@ -22,7 +22,7 @@ import { collectionSnapshot } from "@/core/loans/collection";
 import { canEditAtAll } from "@/core/loans/editable";
 import { fromCents, toCents } from "@/core/money";
 import type { LoanStatus } from "@/core/types";
-import { formatDate, initials } from "@/lib/format";
+import { formatDate, formatTime, initials } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import { LOAN_ORDER } from "@/server/services/ordering";
@@ -855,12 +855,10 @@ export default async function LoanDetailPage({
               <TableWrap>
                 <thead>
                   <tr>
-                    <Th>{t("payments.receiptNumber")}</Th>
                     <Th>{t("payments.paidAt")}</Th>
                     <Th>{t("payments.method")}</Th>
                     <Th align="right">{t("common.amount")}</Th>
                     <Th align="right">{t("loans.balanceAfter")}</Th>
-                    <Th align="center">{t("common.status")}</Th>
                     {canReverse ? <Th align="right">{""}</Th> : null}
                   </tr>
                 </thead>
@@ -912,24 +910,28 @@ export default async function LoanDetailPage({
                     const collector = payment.collectedById
                       ? collectors.get(payment.collectedById)
                       : null;
+                    const posted = payment.status === "POSTED";
 
                     return (
                       <tr key={payment.id}>
+                        {/* El día que se cobró y la hora en que quedó
+                            registrado; el recibo se abre desde aquí, que era
+                            lo único que hacía falta de su número. */}
                         <Td numeric>
                           <Link
                             href={`/payments/${payment.id}`}
-                            className="text-brand-strong hover:underline"
+                            className="font-medium text-brand-strong hover:underline"
                           >
-                            {payment.receiptNumber}
+                            {formatDate(payment.paidAt)}
                           </Link>
-                          {splitText ? (
-                            <span className="numeric mt-0.5 block text-[0.6875rem] text-ink-subtle">
-                              {splitText}
-                            </span>
-                          ) : null}
-                        </Td>
-                        <Td numeric>
-                          {formatDate(payment.paidAt)}
+                          {" "}
+                          <span className="numeric text-ink-muted">
+                            {formatTime(
+                              payment.createdAt,
+                              context.locale,
+                              context.timezone,
+                            )}
+                          </span>
                           {collector ? (
                             <span className="mt-0.5 block text-[0.6875rem] text-ink-subtle">
                               {t("payments.collectedByShort").replace(
@@ -941,23 +943,30 @@ export default async function LoanDetailPage({
                         </Td>
                         <Td>{t(`payments.methodLabel.${payment.method}`)}</Td>
                         <Td align="right" numeric>
-                          {money(Number(payment.amount))}
-                        </Td>
-                        <Td align="right" numeric className="text-ink-muted">
-                          {payment.status === "POSTED"
-                            ? money(balanceAfter)
-                            : "—"}
-                        </Td>
-                        <Td align="center">
-                          <Badge
-                            tone={
-                              payment.status === "REVERSED"
-                                ? "danger"
-                                : "positive"
+                          {/* Un abono anulado no entró: sin la columna de
+                              estado, se nota tachado. */}
+                          <span
+                            className={
+                              posted
+                                ? "font-medium"
+                                : "text-ink-subtle line-through"
                             }
                           >
-                            {t(`payments.statusLabel.${payment.status}`)}
-                          </Badge>
+                            {money(Number(payment.amount))}
+                          </span>
+                          {!posted ? (
+                            <span className="mt-0.5 block text-[0.6875rem] font-medium text-danger">
+                              {t(`payments.statusLabel.${payment.status}`)}
+                            </span>
+                          ) : null}
+                          {splitText ? (
+                            <span className="numeric mt-0.5 block text-[0.6875rem] text-ink-subtle">
+                              {splitText}
+                            </span>
+                          ) : null}
+                        </Td>
+                        <Td align="right" numeric className="text-ink-muted">
+                          {posted ? money(balanceAfter) : "—"}
                         </Td>
                         {canReverse ? (
                           <Td align="right">

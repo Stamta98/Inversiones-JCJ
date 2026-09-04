@@ -66,6 +66,7 @@ export function formatLongDate(
 export function formatDateTime(
   value: Date | string,
   locale = "es-DO",
+  timeZone?: string,
 ): string {
   const date = typeof value === "string" ? new Date(value) : value;
   return new Intl.DateTimeFormat(locale, {
@@ -74,6 +75,27 @@ export function formatDateTime(
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone,
+  }).format(date);
+}
+
+/**
+ * La hora sola, en la zona de la empresa.
+ *
+ * Las fechas de un cobro se guardan al mediodía UTC —  el día lo escoge la
+ * persona en un calendario, sin hora — así que la hora de verdad, la de
+ * cuando se registró, está en `createdAt`.
+ */
+export function formatTime(
+  value: Date | string,
+  locale = "es-DO",
+  timeZone?: string,
+): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+  return new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
   }).format(date);
 }
 
