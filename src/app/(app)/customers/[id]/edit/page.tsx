@@ -21,7 +21,6 @@ export default async function EditCustomerPage({
   const customer = await db.customer.findFirst({
     where: { id, companyId: context.companyId },
     include: {
-      references: { orderBy: { createdAt: "asc" } },
       attachments: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -84,9 +83,7 @@ export default async function EditCustomerPage({
             customer.monthlyIncome === null
               ? null
               : Number(customer.monthlyIncome),
-          paydayKind: customer.paydayKind,
-          paydayWeekday: customer.paydayWeekday,
-          paydayDayOfMonth: customer.paydayDayOfMonth,
+          creditLimit: Number(customer.creditLimit),
           vehiclePlate: customer.vehiclePlate,
           notes: customer.notes,
           photoUrl: customer.photoUrl,
@@ -96,12 +93,6 @@ export default async function EditCustomerPage({
           workLongitude: customer.workLongitude,
           idFrontUrl: documentUrl("ID_FRONT"),
           idBackUrl: documentUrl("ID_BACK"),
-          references: customer.references.map((reference) => ({
-            fullName: reference.fullName,
-            relationship: reference.relationship,
-            phone: reference.phone,
-            address: reference.address,
-          })),
         }}
       />
 

@@ -68,54 +68,11 @@ const optionalBirthDate = z
     message: t("customers.errors.birthDate"),
   });
 
-const optionalWholeNumber = z
-  .string()
-  .trim()
-  .optional()
-  .transform((value) => {
-    if (value === undefined || value.length === 0) return null;
-    const parsed = Number(value);
-    return Number.isInteger(parsed) ? parsed : null;
-  });
-
 /**
  * Reference rows arrive as parallel repeated fields, one per column. Rows
  * with no name at all are the empty slots the form always renders, and are
  * dropped rather than saved blank.
  */
-function readReferences(formData: FormData): Array<{
-  fullName: string;
-  relationship: string | null;
-  phone: string | null;
-  address: string | null;
-}> {
-  const names = formData.getAll("referenceName").map(String);
-  const relationships = formData.getAll("referenceRelationship").map(String);
-  const phones = formData.getAll("referencePhone").map(String);
-  const addresses = formData.getAll("referenceAddress").map(String);
-
-  const clean = (value: string | undefined) => {
-    const trimmed = (value ?? "").trim();
-    return trimmed.length === 0 ? null : trimmed;
-  };
-
-  return names
-    .map((name, index) => {
-      const phone = clean(phones[index]);
-      return {
-        fullName: name.trim(),
-        relationship: clean(relationships[index]),
-        // Same E.164 normalization as the customer's own number, so a
-        // reference can be called or messaged without re-parsing it.
-        phone: phone
-          ? (normalizePhoneNumber(phone, { defaultCountryCode: "1" }) ?? phone)
-          : null,
-        address: clean(addresses[index]),
-      };
-    })
-    .filter((reference) => reference.fullName.length > 0);
-}
-
 const customerSchema = z.object({
   photoUrl: storedFileUrl.refine((value) => value.length > 0, {
     message: t("customers.photoRequired"),
@@ -160,25 +117,21 @@ const customerSchema = z.object({
   vehiclePlate: optionalText,
   workLatitude: optionalCoordinate,
   workLongitude: optionalCoordinate,
-  paydayKind: z
-    .enum([
-      "DAILY",
-      "WEEKLY",
-      "BIWEEKLY",
-      "SEMIMONTHLY",
-      "MONTHLY",
-      "IRREGULAR",
-    ])
-    .nullable()
-    .catch(null),
-  paydayWeekday: optionalWholeNumber,
-  paydayDayOfMonth: optionalWholeNumber,
   monthlyIncome: z
     .string()
     .trim()
     .optional()
     .transform((value) =>
       value === undefined || value.length === 0 ? null : Number(value),
+    ),
+  // Hasta cuánto se le presta. Vacío es cero: el cliente entra sin cupo
+  // asignado y el dueño se lo pone cuando decida.
+  creditLimit: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) =>
+      value === undefined || value.length === 0 ? 0 : Number(value),
     ),
   notes: optionalText,
 });
@@ -212,7 +165,6 @@ export async function createCustomer(
   }
 
   const data = parsed.data;
-  const references = readReferences(formData);
   // El identificador del cliente es su número de documento, tal como quedó
   // al registrarlo. Un correlativo CLI-000012 no le dice nada a nadie:
   // cuando alguien pregunta por un cliente lo hace con la cédula en la mano.
@@ -258,13 +210,10 @@ export async function createCustomer(
           vehiclePlate: data.vehiclePlate,
           workLatitude: data.workLatitude,
           workLongitude: data.workLongitude,
-          paydayKind: data.paydayKind,
-          paydayWeekday: data.paydayWeekday,
-          paydayDayOfMonth: data.paydayDayOfMonth,
           monthlyIncome: data.monthlyIncome,
+          creditLimit: data.creditLimit,
           notes: data.notes,
           photoUrl: data.photoUrl,
-          references: { create: references },
           attachments: {
             create: [
               {
@@ -341,7 +290,6 @@ export async function updateCustomer(
   }
 
   const data = parsed.data;
-  const references = readReferences(formData);
 
   const existing = await db.customer.findFirst({
     where: { id: data.customerId, companyId: context.companyId },
@@ -379,10 +327,8 @@ export async function updateCustomer(
         workNeighborhood: data.workNeighborhood,
         workLandmark: data.workLandmark,
         vehiclePlate: data.vehiclePlate,
-        paydayKind: data.paydayKind,
-        paydayWeekday: data.paydayWeekday,
-        paydayDayOfMonth: data.paydayDayOfMonth,
         monthlyIncome: data.monthlyIncome,
+        creditLimit: data.creditLimit,
         notes: data.notes,
         // Solo se pisan si el usuario capturó valores nuevos.
         ...(data.photoUrl ? { photoUrl: data.photoUrl } : {}),
@@ -430,19 +376,6 @@ export async function updateCustomer(
           url: document.url,
           mimeType: "image/jpeg",
         },
-      });
-    }
-
-    // Las referencias se reemplazan completas: es lo que el formulario envía.
-    await tx.customerReference.deleteMany({
-      where: { customerId: data.customerId },
-    });
-    if (references.length > 0) {
-      await tx.customerReference.createMany({
-        data: references.map((reference) => ({
-          ...reference,
-          customerId: data.customerId,
-        })),
       });
     }
 

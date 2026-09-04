@@ -137,7 +137,6 @@ export default async function CustomerDetailPage({
           },
         },
       },
-      references: true,
       attachments: { orderBy: { createdAt: "asc" } },
       interactions: {
         orderBy: { occurredAt: "desc" },
@@ -231,13 +230,6 @@ export default async function CustomerDetailPage({
       icon: "receipt" as const,
       tint: "bg-positive-soft text-positive",
       has: payments.length > 0,
-    },
-    {
-      anchor: "referencias",
-      label: t("customers.jumpReferences"),
-      icon: "users" as const,
-      tint: "bg-info-soft text-info",
-      has: customer.references.length > 0,
     },
     {
       anchor: "adjuntos",
@@ -604,6 +596,16 @@ export default async function CustomerDetailPage({
                     : "—"
                 }
               />
+              {/* Cuánto gana y hasta cuánto se le presta, uno al lado del
+                  otro: es la cuenta que uno hace antes de decir que sí. */}
+              <DetailRow
+                label={t("customers.creditLimit")}
+                value={
+                  Number(customer.creditLimit) > 0
+                    ? money(Number(customer.creditLimit))
+                    : t("customers.creditLimitNone")
+                }
+              />
             </DetailGrid>
 
             {customer.workLatitude !== null &&
@@ -618,32 +620,6 @@ export default async function CustomerDetailPage({
                 {t("customers.openInMaps")}
               </a>
             ) : null}
-          </CardBody>
-
-          <CardHeader title={t("customers.paydaySection")} />
-          <CardBody>
-            <DetailGrid>
-              <DetailRow
-                label={t("customers.paydayKind")}
-                value={
-                  customer.paydayKind
-                    ? t(`customers.paydayKindLabel.${customer.paydayKind}`)
-                    : "—"
-                }
-              />
-              {customer.paydayWeekday !== null ? (
-                <DetailRow
-                  label={t("customers.paydayWeekday")}
-                  value={t(`loans.weekday.${customer.paydayWeekday}`)}
-                />
-              ) : null}
-              {customer.paydayDayOfMonth !== null ? (
-                <DetailRow
-                  label={t("customers.paydayDayOfMonth")}
-                  value={String(customer.paydayDayOfMonth)}
-                />
-              ) : null}
-            </DetailGrid>
           </CardBody>
 
           {/* La nota se podía escribir desde que existe el formulario, pero
@@ -687,48 +663,6 @@ export default async function CustomerDetailPage({
                   />
                 ))}
               </CardBody>
-            )}
-          </Card>
-
-          <Card id="referencias">
-            <CardHeader
-              title={t("customers.referencesSection")}
-              description={t("customers.referencesHint")}
-            />
-            {customer.references.length === 0 ? (
-              <EmptyState icon="users" title={t("customers.noReferences")} />
-            ) : (
-              <TableWrap>
-                <thead>
-                  <tr>
-                    <Th>{t("customers.referenceName")}</Th>
-                    <Th>{t("customers.referenceRelationship")}</Th>
-                    <Th>{t("customers.referencePhone")}</Th>
-                    <Th>{t("customers.referenceAddress")}</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {customer.references.map((reference) => (
-                    <tr key={reference.id}>
-                      <Td>{reference.fullName}</Td>
-                      <Td>{reference.relationship ?? "—"}</Td>
-                      <Td numeric>
-                        {reference.phone ? (
-                          <a
-                            href={`tel:${reference.phone}`}
-                            className="text-brand-strong hover:underline"
-                          >
-                            {reference.phone}
-                          </a>
-                        ) : (
-                          "—"
-                        )}
-                      </Td>
-                      <Td>{reference.address ?? "—"}</Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </TableWrap>
             )}
           </Card>
 

@@ -340,6 +340,9 @@ model Customer {
   photoUrl         String?
   /// Internal 0-100 score used to warn before granting new credit.
   creditScore      Int?
+  /// Hasta cuánto se le presta a este cliente. Cero es "sin cupo asignado":
+  /// no bloquea nada por sí solo, es el número que el dueño fija y mira.
+  creditLimit      Decimal        @default(0) @db.Decimal(18, 2)
   notes            String?
   /// Values for fields created through the module builder.
   customValues     Json           @default("{}")

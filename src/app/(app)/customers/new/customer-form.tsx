@@ -18,11 +18,8 @@ import { LocationField } from "@/components/ui/location-field";
 import { PhotoUpload } from "@/components/ui/photo-upload";
 
 import { GENDERS } from "@/core/customers/identity";
-import type { PaydayKind } from "@/core/customers/payday";
 import { NATIONALITY_SUGGESTIONS } from "@/core/locales/nationalities";
 
-import { PaydayFields } from "./payday-fields";
-import { ReferenceFields } from "./reference-fields";
 import { es } from "@/i18n/es";
 import { useFormAction } from "@/lib/use-form-action";
 
@@ -31,7 +28,6 @@ import {
   updateCustomer,
   type CustomerFormState,
 } from "../actions";
-import type { ReferenceValue } from "./reference-fields";
 
 /** Valores actuales del cliente, cuando el formulario se usa para editar. */
 export interface CustomerDefaults {
@@ -60,9 +56,7 @@ export interface CustomerDefaults {
   workLandmark: string | null;
   monthlyIncome: number | null;
   vehiclePlate: string | null;
-  paydayKind: string | null;
-  paydayWeekday: number | null;
-  paydayDayOfMonth: number | null;
+  creditLimit: number;
   notes: string | null;
   photoUrl: string | null;
   latitude: number | null;
@@ -71,7 +65,6 @@ export interface CustomerDefaults {
   workLongitude: number | null;
   idFrontUrl: string | null;
   idBackUrl: string | null;
-  references: ReferenceValue[];
 }
 
 /** Una foto ya guardada, en la forma que espera `PhotoUpload`. */
@@ -511,27 +504,30 @@ export function CustomerForm({
         </CardBody>
       </FormSection>
 
+      {/* Cuánto gana está arriba, en Trabajo; hasta cuánto se le presta va
+          aquí, que es la decisión del dueño y no un dato del cliente. */}
       <FormSection
-        icon="calendar"
-        title={es.customers.paydaySection}
-        hint={es.customers.paydayHint}
+        icon="wallet"
+        title={es.customers.creditLimitSection}
+        hint={es.customers.creditLimitHint}
       >
         <CardBody>
-          <PaydayFields
-            defaultKind={(customer?.paydayKind ?? "") as PaydayKind | ""}
-            defaultWeekday={customer?.paydayWeekday}
-            defaultDayOfMonth={customer?.paydayDayOfMonth}
-          />
-        </CardBody>
-      </FormSection>
-
-      <FormSection
-        icon="users"
-        title={es.customers.referencesSection}
-        hint={es.customers.referencesHint}
-      >
-        <CardBody>
-          <ReferenceFields defaultValues={customer?.references ?? []} />
+          <Field
+            label={es.customers.creditLimit}
+            htmlFor="creditLimit"
+            hint={es.customers.creditLimitFieldHint}
+          >
+            <Input
+              id="creditLimit"
+              name="creditLimit"
+              defaultValue={customer?.creditLimit ?? 0}
+              inputMode="decimal"
+              type="number"
+              step={decimalPlaces === 0 ? "1" : "0.01"}
+              min="0"
+              className="numeric"
+            />
+          </Field>
         </CardBody>
       </FormSection>
 

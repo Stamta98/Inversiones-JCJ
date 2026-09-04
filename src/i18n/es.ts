@@ -338,6 +338,13 @@ export const es = {
     workAddress: "Dirección del trabajo",
     workNeighborhood: "Barrio del trabajo",
     monthlyIncome: "Ingreso mensual",
+    // El cupo lo fija el dueño; en cero el cliente todavía no tiene.
+    creditLimitSection: "Cupo de préstamo",
+    creditLimitHint: "Hasta cuánto se le presta a este cliente.",
+    creditLimit: "Cupo",
+    creditLimitFieldHint:
+      "En cero significa que todavía no tiene cupo asignado.",
+    creditLimitNone: "Sin cupo asignado",
     employmentTypeLabel: {
       INDEPENDENT: "Independiente / negocio propio",
       EMPLOYEE: "Empleado de una empresa",
