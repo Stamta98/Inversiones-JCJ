@@ -42,3 +42,5 @@ next-env.d.ts
 # un Postgres local, a los fixtures de /tmp y a los ids de una semilla de
 # aquí, así que en otra copia del repositorio no servirían de nada.
 /check-*.mjs
+/shot-*.mjs
+/probe-*.mjs
