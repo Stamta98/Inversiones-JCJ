@@ -9,7 +9,6 @@ import {
   CardBody,
   CardHeader,
   LinkButton,
-  PageHeader,
   Select,
   StatCard,
   TableWrap,
@@ -22,7 +21,7 @@ import { collectionSnapshot } from "@/core/loans/collection";
 import { canEditAtAll } from "@/core/loans/editable";
 import { fromCents, toCents } from "@/core/money";
 import type { LoanStatus } from "@/core/types";
-import { formatDate } from "@/lib/format";
+import { formatDate, initials } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -190,20 +189,56 @@ export default async function LoanDetailPage({
       : 0;
 
   const displayStatus =
-    loan.status === "ACTIVE" && daysLate > 0
-      ? "IN_ARREARS"
-      : loan.status;
+    loan.status === "ACTIVE" && daysLate > 0 ? "IN_ARREARS" : loan.status;
 
   return (
     <>
-      <PageHeader
-        title={`${t("loans.singular")} ${loan.code}`}
-        description={`${loan.customer.firstName} ${loan.customer.lastName}`}
-        action={
-          <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
-            <Badge tone={LOAN_TONES[displayStatus] ?? "neutral"}>
-              {t(`loans.status.${displayStatus}`)}
-            </Badge>
+      {/* Arriba va el cliente, no el número del préstamo.
+          En la puerta uno reconoce a la persona: la cara y el nombre son lo
+          que dice si se está en la casa correcta. PRE-000007 no le dice nada
+          a nadie, así que va debajo y pequeño. */}
+      <Card className="mb-4 p-3">
+        <div className="flex items-center gap-3">
+          {loan.customer.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={loan.customer.photoUrl}
+              alt=""
+              className="size-14 shrink-0 rounded-full object-cover ring-2 ring-brand-soft"
+            />
+          ) : (
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-surface-muted text-sm font-semibold text-ink-subtle ring-2 ring-border">
+              {initials(`${loan.customer.firstName} ${loan.customer.lastName}`)}
+            </span>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg font-bold tracking-tight text-ink uppercase sm:text-xl">
+              <Link
+                href={`/customers/${loan.customer.id}`}
+                className="hover:underline"
+              >
+                {loan.customer.firstName} {loan.customer.lastName}
+              </Link>
+            </h1>
+            {/* El código del cliente ya está en su tarjeta más abajo: aquí
+                solo cabía cortado. */}
+            <p className="numeric mt-0.5 truncate text-xs text-ink-muted">
+              {t("loans.singular")} {loan.code}
+            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {daysLate > 0 ? (
+                <Badge tone="danger">
+                  {t("loans.arrearsDays").replace("{days}", String(daysLate))}
+                </Badge>
+              ) : null}
+              <Badge tone={LOAN_TONES[displayStatus] ?? "neutral"}>
+                {t(`loans.status.${displayStatus}`)}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="shrink-0 self-start">
             <LoanMenu
               loanId={loan.id}
               customerId={loan.customerId}
@@ -218,8 +253,8 @@ export default async function LoanDetailPage({
               canDelete={can(context, "loans.delete")}
             />
           </div>
-        }
-      />
+        </div>
+      </Card>
 
       {/* Ninguno de los dos préstamos se entiende solo: el viejo dice con qué
           quedó saldado y el nuevo de dónde viene el monto. */}
@@ -391,9 +426,7 @@ export default async function LoanDetailPage({
             {lastDueDate ? (
               <>
                 {" · "}
-                {t(
-                  loan.closingDate ? "loans.endedOn" : "loans.endsOn",
-                ).replace(
+                {t(loan.closingDate ? "loans.endedOn" : "loans.endsOn").replace(
                   "{date}",
                   formatDate(loan.closingDate ?? lastDueDate),
                 )}
@@ -512,15 +545,15 @@ export default async function LoanDetailPage({
         <CollapsibleCard
           title={t("loans.schedule")}
           description={[
-              t(`loans.method.${loan.interestMethod}`),
-              loan.frequency === "CUSTOM" && loan.customIntervalDays
-                ? `${t("loans.frequencyLabel.CUSTOM")} (${loan.customIntervalDays} días)`
-                : t(`loans.frequencyLabel.${loan.frequency}`),
-              loan.nonCollectionDays.length > 0
-                ? `${t("loans.nonCollectionDays")}: ${loan.nonCollectionDays
-                    .map((day) => t(`loans.weekday.${day}`))
-                    .join(", ")}`
-                : null,
+            t(`loans.method.${loan.interestMethod}`),
+            loan.frequency === "CUSTOM" && loan.customIntervalDays
+              ? `${t("loans.frequencyLabel.CUSTOM")} (${loan.customIntervalDays} días)`
+              : t(`loans.frequencyLabel.${loan.frequency}`),
+            loan.nonCollectionDays.length > 0
+              ? `${t("loans.nonCollectionDays")}: ${loan.nonCollectionDays
+                  .map((day) => t(`loans.weekday.${day}`))
+                  .join(", ")}`
+              : null,
           ]
             .filter(Boolean)
             .join(" · ")}
@@ -565,53 +598,52 @@ export default async function LoanDetailPage({
                         0,
                         daysBetween(startOfDay(installment.dueDate), today),
                       );
-                const status =
-                  lateDays > 0 ? "OVERDUE" : installment.status;
+                const status = lateDays > 0 ? "OVERDUE" : installment.status;
 
                 return (
-                <tr key={installment.id}>
-                  <Td numeric>{installment.number}</Td>
-                  <Td numeric>{formatDate(installment.dueDate)}</Td>
-                  <Td align="right" numeric>
-                    {money(Number(installment.principalAmount))}
-                  </Td>
-                  <Td align="right" numeric>
-                    {money(Number(installment.interestAmount))}
-                  </Td>
-                  {hasFinancedCharge ? (
+                  <tr key={installment.id}>
+                    <Td numeric>{installment.number}</Td>
+                    <Td numeric>{formatDate(installment.dueDate)}</Td>
                     <Td align="right" numeric>
-                      {Number(installment.chargeAmount) > 0
-                        ? money(Number(installment.chargeAmount))
+                      {money(Number(installment.principalAmount))}
+                    </Td>
+                    <Td align="right" numeric>
+                      {money(Number(installment.interestAmount))}
+                    </Td>
+                    {hasFinancedCharge ? (
+                      <Td align="right" numeric>
+                        {Number(installment.chargeAmount) > 0
+                          ? money(Number(installment.chargeAmount))
+                          : "—"}
+                      </Td>
+                    ) : null}
+                    <Td align="right" numeric>
+                      {Number(installment.lateFeeAmount) > 0
+                        ? money(Number(installment.lateFeeAmount))
                         : "—"}
                     </Td>
-                  ) : null}
-                  <Td align="right" numeric>
-                    {Number(installment.lateFeeAmount) > 0
-                      ? money(Number(installment.lateFeeAmount))
-                      : "—"}
-                  </Td>
-                  <Td align="right" numeric className="font-medium">
-                    {money(Number(installment.totalAmount))}
-                  </Td>
-                  <Td align="right" numeric>
-                    {money(Number(installment.paidAmount))}
-                  </Td>
-                  <Td align="center">
-                    <Badge tone={INSTALLMENT_TONES[status] ?? "neutral"}>
-                      {t(`loans.installmentStatus.${status}`)}
-                    </Badge>
-                    {lateDays > 0 ? (
-                      <span className="mt-0.5 block text-xs font-medium text-danger">
-                        {lateDays === 1
-                          ? t("loans.installmentLateOne")
-                          : t("loans.installmentLate").replace(
-                              "{days}",
-                              String(lateDays),
-                            )}
-                      </span>
-                    ) : null}
-                  </Td>
-                </tr>
+                    <Td align="right" numeric className="font-medium">
+                      {money(Number(installment.totalAmount))}
+                    </Td>
+                    <Td align="right" numeric>
+                      {money(Number(installment.paidAmount))}
+                    </Td>
+                    <Td align="center">
+                      <Badge tone={INSTALLMENT_TONES[status] ?? "neutral"}>
+                        {t(`loans.installmentStatus.${status}`)}
+                      </Badge>
+                      {lateDays > 0 ? (
+                        <span className="mt-0.5 block text-xs font-medium text-danger">
+                          {lateDays === 1
+                            ? t("loans.installmentLateOne")
+                            : t("loans.installmentLate").replace(
+                                "{days}",
+                                String(lateDays),
+                              )}
+                        </span>
+                      ) : null}
+                    </Td>
+                  </tr>
                 );
               })}
             </tbody>
