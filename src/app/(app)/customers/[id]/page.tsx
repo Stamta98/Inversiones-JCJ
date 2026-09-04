@@ -23,7 +23,7 @@ import {
 } from "@/core/collections/promise";
 import { ageOn } from "@/core/customers/identity";
 import { startOfDay } from "@/core/dates";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -44,12 +44,38 @@ function mapsUrl(latitude: number, longitude: number): string {
   return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: string;
+  /** Con enlace el valor se toca: un teléfono se marca, no se transcribe. */
+  href?: string;
+}) {
   return (
     <div className="flex justify-between gap-4 border-b border-border py-2 last:border-0">
       <dt className="text-xs text-ink-muted">{label}</dt>
-      <dd className="text-right text-sm text-ink">{value}</dd>
+      <dd className="text-right text-sm text-ink">
+        {href ? (
+          <a href={href} className="font-medium text-brand-strong hover:underline">
+            {value}
+          </a>
+        ) : (
+          value
+        )}
+      </dd>
     </div>
+  );
+}
+
+/** Un rótulo dentro de la ficha, para no dejar quince renglones seguidos. */
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <p className="mt-4 mb-1 text-[0.6875rem] font-semibold tracking-wide text-ink-muted uppercase first:mt-0">
+      {children}
+    </p>
   );
 }
 
@@ -104,6 +130,30 @@ export default async function CustomerDetailPage({
     where: { customerId: customer.id, companyId: context.companyId },
     select: { status: true },
   });
+
+  // Quién lo registró y quién le cobra: dos preguntas de todos los días en
+  // una oficina con varios cobradores, y ninguna se podía contestar desde la
+  // ficha. La primera vive en la bitácora; la segunda, en la última visita
+  // que se le hizo.
+  const [createdEntry, lastStop] = await Promise.all([
+    db.auditLog.findFirst({
+      where: {
+        companyId: context.companyId,
+        entityType: "Customer",
+        entityId: customer.id,
+        action: "customer.created",
+      },
+      orderBy: { createdAt: "asc" },
+      select: { user: { select: { fullName: true } } },
+    }),
+    db.routeStop.findFirst({
+      where: { customerId: customer.id, collectorId: { not: null } },
+      // La visita más reciente: RouteStop no lleva fecha propia, la del día
+      // es la de su ruta.
+      orderBy: { route: { scheduledFor: "desc" } },
+      select: { collector: { select: { fullName: true } } },
+    }),
+  ]);
   const promiseRecord = summarizePromises(
     promises.map((promise) => promise.status as PromiseStatus),
   );
@@ -126,6 +176,15 @@ export default async function CustomerDetailPage({
     (total, loan) => total + Number(loan.outstanding),
     0,
   );
+  // Todo lo que se le ha entregado a este cliente. Un préstamo anulado nunca
+  // salió de la caja, así que no cuenta como plata prestada.
+  // Solo dígitos, que es lo que aceptan tel: y wa.me.
+  const digits = (value: string | null) => value?.replace(/\D/g, "") || null;
+  const mobileDigits = digits(customer.mobilePhone);
+  const homeDigits = digits(customer.phone);
+  const lentTotal = customer.loans
+    .filter((loan) => loan.status !== "CANCELLED")
+    .reduce((total, loan) => total + Number(loan.principal), 0);
 
   return (
     <>
@@ -168,7 +227,30 @@ export default async function CustomerDetailPage({
         ) : null}
       </div>
 
+      {/* Con cuántos préstamos ha pasado, cuántos tiene abiertos, cuánto se
+          le ha entregado y cuánto debe: es la hoja de vida del cliente en
+          cuatro números, y antes solo estaba el último. */}
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          label={t("customers.loansTotal")}
+          value={String(customer.loans.length)}
+          icon="hand-coins"
+          tone="neutral"
+        />
+        <StatCard
+          label={t("customers.loansOpen")}
+          value={String(openLoans.length)}
+          hint={openLoans.length === 0 ? t("customers.noOpenLoans") : undefined}
+          icon="check"
+          tone={openLoans.length > 0 ? "positive" : "neutral"}
+        />
+        <StatCard
+          label={t("customers.lentTotal")}
+          value={money(lentTotal)}
+          hint={t("customers.lentTotalHint")}
+          icon="wallet"
+          tone="info"
+        />
         <StatCard
           label={t("loans.outstanding")}
           value={money(outstanding)}
@@ -205,6 +287,7 @@ export default async function CustomerDetailPage({
             )}
           </CardBody>
           <CardBody className="pt-0">
+            <SectionLabel>{t("customers.identitySection")}</SectionLabel>
             <dl>
               <DetailRow
                 label={t("customers.documentNumber")}
@@ -233,17 +316,55 @@ export default async function CustomerDetailPage({
                 value={customer.nationality ?? "—"}
               />
               <DetailRow
+                label={t("common.status")}
+                value={t(`customers.status.${customer.status}`)}
+              />
+            </dl>
+
+            <SectionLabel>{t("customers.contactSection")}</SectionLabel>
+            <dl>
+              {/* El número se marca desde aquí: parado en la puerta nadie lo
+                  copia a mano para llamar. */}
+              <DetailRow
                 label={t("customers.mobilePhone")}
                 value={customer.mobilePhone ?? "—"}
+                href={mobileDigits ? `tel:+${mobileDigits}` : undefined}
               />
               <DetailRow
                 label={t("customers.phone")}
                 value={customer.phone ?? "—"}
+                href={homeDigits ? `tel:+${homeDigits}` : undefined}
               />
               <DetailRow
                 label={t("customers.email")}
                 value={customer.email ?? "—"}
+                href={customer.email ? `mailto:${customer.email}` : undefined}
               />
+            </dl>
+
+            {mobileDigits ? (
+              <div className="mt-3 flex gap-2">
+                <LinkButton
+                  href={`tel:+${mobileDigits}`}
+                  variant="secondary"
+                  size="sm"
+                  icon="phone"
+                >
+                  {t("customers.callCustomer")}
+                </LinkButton>
+                <LinkButton
+                  href={`https://wa.me/${mobileDigits}`}
+                  variant="secondary"
+                  size="sm"
+                  icon="message-circle"
+                >
+                  {t("customers.whatsappCustomer")}
+                </LinkButton>
+              </div>
+            ) : null}
+
+            <SectionLabel>{t("customers.homeSection")}</SectionLabel>
+            <dl>
               <DetailRow
                 label={t("customers.address")}
                 value={customer.address ?? "—"}
@@ -264,12 +385,61 @@ export default async function CustomerDetailPage({
                 label={context.stateLabel}
                 value={customer.state ?? "—"}
               />
-              <DetailRow
-                label={t("common.status")}
-                value={t(`customers.status.${customer.status}`)}
-              />
               {/* Whether to believe the next promise is the question a
                   collector actually has about this customer. */}
+            </dl>
+
+            {customer.latitude !== null && customer.longitude !== null ? (
+              <a
+                href={mapsUrl(customer.latitude, customer.longitude)}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand-strong hover:underline"
+              >
+                <Icon name="map-pin" size={14} />
+                {t("customers.openInMaps")}
+              </a>
+            ) : null}
+
+            {/* De dónde salió la ficha y quién le cobra: con dos cobradores
+                en la calle son las primeras dos preguntas de la oficina. */}
+            <SectionLabel>{t("customers.registrySection")}</SectionLabel>
+            <dl>
+              <DetailRow
+                label={t("customers.customerSince")}
+                value={formatDateTime(
+                  customer.createdAt,
+                  context.locale,
+                  context.timezone,
+                )}
+              />
+              <DetailRow
+                label={t("customers.createdBy")}
+                value={
+                  createdEntry?.user?.fullName ?? t("customers.unknownUser")
+                }
+              />
+              <DetailRow
+                label={t("customers.collectorInCharge")}
+                value={
+                  lastStop?.collector?.fullName ?? t("customers.noCollector")
+                }
+              />
+              {/* Si nadie la ha tocado desde que se creó, decirlo dos veces
+                  con la misma fecha no aporta. */}
+              {customer.updatedAt.getTime() !==
+              customer.createdAt.getTime() ? (
+                <DetailRow
+                  label={t("customers.updatedAtLabel")}
+                  value={formatDateTime(
+                    customer.updatedAt,
+                    context.locale,
+                    context.timezone,
+                  )}
+                />
+              ) : null}
+              {/* Si promete y cumple, o promete y no: lo que uno quiere saber
+                  antes de creerle la próxima. */}
               <DetailRow
                 label={t("promises.record")}
                 value={
@@ -287,18 +457,6 @@ export default async function CustomerDetailPage({
                 }
               />
             </dl>
-
-            {customer.latitude !== null && customer.longitude !== null ? (
-              <a
-                href={mapsUrl(customer.latitude, customer.longitude)}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand-strong hover:underline"
-              >
-                <Icon name="map-pin" size={14} />
-                {t("customers.openInMaps")}
-              </a>
-            ) : null}
           </CardBody>
 
           <CardHeader title={t("customers.workSection")} />
@@ -393,6 +551,19 @@ export default async function CustomerDetailPage({
               ) : null}
             </dl>
           </CardBody>
+
+          {/* La nota se podía escribir desde que existe el formulario, pero
+              no se veía en ninguna parte: quedaba guardada y perdida. */}
+          {customer.notes ? (
+            <>
+              <CardHeader title={t("common.notes")} />
+              <CardBody>
+                <p className="text-sm whitespace-pre-line text-ink">
+                  {customer.notes}
+                </p>
+              </CardBody>
+            </>
+          ) : null}
         </Card>
 
         <div className="space-y-4 lg:col-span-2">

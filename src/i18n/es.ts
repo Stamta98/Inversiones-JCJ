@@ -380,6 +380,25 @@ export const es = {
       "No se pudo obtener la ubicación. Revisa los permisos del navegador.",
     locationUnsupported: "Este dispositivo no permite obtener la ubicación.",
     openInMaps: "Ver en el mapa",
+
+    // La ficha del cliente, por partes: buscar el barrio en una lista de
+    // quince renglones seguidos no se puede parado en la calle.
+    identitySection: "Identidad",
+    statsSection: "Estadísticas",
+    loansTotal: "Total de préstamos",
+    loansOpen: "Préstamos activos",
+    lentTotal: "Capital prestado",
+    lentTotalHint: "Todo lo que se le ha entregado",
+    registrySection: "Registro",
+    customerSince: "Cliente desde",
+    createdBy: "Registrado por",
+    updatedAtLabel: "Última actualización",
+    collectorInCharge: "Encargado de cobro",
+    noCollector: "Sin cobrador",
+    unknownUser: "No quedó registrado",
+    callCustomer: "Llamar",
+    whatsappCustomer: "WhatsApp",
+
     paydaySection: "Día de pago",
     paydayHint:
       "Sirve para proponer la fecha de la primera cuota justo después de que cobra.",
