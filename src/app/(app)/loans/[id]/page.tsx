@@ -173,6 +173,16 @@ export default async function LoanDetailPage({
     Number(loan.outstanding) > 0 &&
     ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status);
 
+  // La barra va por plata, no por cuotas: un abono a medias también avanza.
+  const dueTotal =
+    Number(loan.totalPrincipal) +
+    Number(loan.totalInterest) +
+    Number(loan.totalLateFees);
+  const paidPercent =
+    dueTotal > 0
+      ? Math.min(100, Math.round((Number(loan.totalPaid) / dueTotal) * 100))
+      : 0;
+
   const displayStatus =
     loan.status === "ACTIVE" && daysLate > 0
       ? "IN_ARREARS"
@@ -317,6 +327,58 @@ export default async function LoanDetailPage({
           icon={daysLate > 0 ? "alert-triangle" : "check"}
         />
       </div>
+
+      {/* Lo que el cliente pregunta cuando abre la puerta: cuántas llevo,
+          cuántas me faltan y cuánto he dado. */}
+      {loan.installments.length > 0 ? (
+        <Card className="mt-3 p-3">
+          <div className="grid grid-cols-3 divide-x divide-border">
+            {[
+              {
+                label: t("loans.installmentsPaid"),
+                value: `${collect.paidCount}/${loan.installments.length}`,
+                tone: "text-positive",
+              },
+              {
+                label: t("loans.installmentsLeft"),
+                value: String(loan.installments.length - collect.paidCount),
+                tone: "text-ink",
+              },
+              {
+                label: t("loans.paidSoFar"),
+                value: money(Number(loan.totalPaid)),
+                tone: "text-brand",
+              },
+            ].map((tile) => (
+              // En el teléfono "Cuotas pagadas" ocupa dos renglones y las
+              // otras uno: los números se alinean abajo para que se lean en
+              // fila y no escalonados.
+              <div
+                key={tile.label}
+                className="flex h-full flex-col justify-between px-2 text-center"
+              >
+                <p className="text-[0.625rem] font-medium tracking-wide text-ink-muted uppercase">
+                  {tile.label}
+                </p>
+                <p className={`numeric text-sm font-bold ${tile.tone}`}>
+                  {tile.value}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2.5 flex items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
+              <div
+                className="h-full rounded-full bg-positive"
+                style={{ width: `${paidPercent}%` }}
+              />
+            </div>
+            <span className="numeric text-[0.6875rem] font-semibold text-positive">
+              {t("loans.paidPercent").replace("{percent}", String(paidPercent))}
+            </span>
+          </div>
+        </Card>
+      ) : null}
 
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-3">
         {canCollect ? (

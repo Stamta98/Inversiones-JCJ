@@ -672,6 +672,12 @@ export const es = {
     overdueSinceOne: "Vencida desde el {date} · 1 cuota",
     overdueSinceMany: "Vencida desde el {date} · {count} cuotas",
     upToDate: "Al día",
+    // El avance del préstamo contado como lo cuenta el cliente: cuántas
+    // cuotas lleva, cuántas le faltan y cuánta plata ya entregó.
+    installmentsPaid: "Cuotas pagadas",
+    installmentsLeft: "Le faltan",
+    paidSoFar: "Ya ha pagado",
+    paidPercent: "{percent}% pagado",
     nextDueOn: "Próxima cuota el {date}",
     installmentLate: "hace {days} d",
     installmentLateOne: "hace 1 d",
