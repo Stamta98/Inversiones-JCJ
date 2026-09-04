@@ -105,8 +105,10 @@ export default async function EditCustomerPage({
         }}
       />
 
+      {/* El menú del cliente enlaza directo aquí, para no hacer buscar el
+          cuadro de eliminar al final de un formulario largo. */}
       {can(context, "customers.delete") && summary ? (
-        <Card className="mt-4 max-w-2xl">
+        <Card className="mt-4 max-w-2xl" id="eliminar">
           <CardHeader title={context.t("customers.delete")} />
           <DeleteCustomer
             customerId={customer.id}

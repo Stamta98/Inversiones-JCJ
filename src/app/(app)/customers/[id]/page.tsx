@@ -27,6 +27,8 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
+import { CustomerMenu } from "./customer-menu";
+
 export const dynamic = "force-dynamic";
 
 const LOAN_TONES: Record<string, Tone> = {
@@ -191,26 +193,18 @@ export default async function CustomerDetailPage({
       <PageHeader
         title={`${customer.firstName} ${customer.lastName}`}
         description={customer.code}
+        // Todo lo que se hace con un cliente cabe detrás de los tres puntos,
+        // como en el préstamo: en el teléfono el nombre se queda con su
+        // ancho en vez de pelearlo con dos botones.
         action={
-          <div className="flex flex-wrap gap-2">
-            {can(context, "customers.update") ? (
-              <LinkButton
-                href={`/customers/${customer.id}/edit`}
-                variant="secondary"
-                icon="pencil"
-              >
-                {t("common.edit")}
-              </LinkButton>
-            ) : null}
-            {can(context, "loans.create") ? (
-              <LinkButton
-                href={`/loans/new?customerId=${customer.id}`}
-                icon="plus"
-              >
-                {t("loans.new")}
-              </LinkButton>
-            ) : null}
-          </div>
+          <CustomerMenu
+            customerId={customer.id}
+            phone={mobileDigits ?? homeDigits}
+            canCreateLoan={can(context, "loans.create")}
+            canEdit={can(context, "customers.update")}
+            canDelete={can(context, "customers.delete")}
+            hasAttachments={idDocuments.length > 0}
+          />
         }
       />
 
@@ -656,7 +650,9 @@ export default async function CustomerDetailPage({
             )}
           </Card>
 
-          <Card>
+          {/* El menú de arriba trae aquí: "Ver adjuntos" tiene que aterrizar
+              en algún lado. */}
+          <Card id="adjuntos">
             <CardHeader
               title={t("customers.documentsSection")}
               description={t("customers.documentsHint")}

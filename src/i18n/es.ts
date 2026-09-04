@@ -398,6 +398,9 @@ export const es = {
     unknownUser: "No quedó registrado",
     callCustomer: "Llamar",
     whatsappCustomer: "WhatsApp",
+    // En el menú de los tres puntos, donde no cabe el título largo.
+    seeAttachments: "Ver adjuntos",
+    newLoanForCustomer: "Crear préstamo",
 
     paydaySection: "Día de pago",
     paydayHint:
