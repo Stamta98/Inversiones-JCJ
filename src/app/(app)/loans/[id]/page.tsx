@@ -630,9 +630,12 @@ export default async function LoanDetailPage({
         </Card>
       ) : null}
 
-      <div className="mt-4 grid items-start gap-4 lg:grid-cols-3">
+      {/* La tarjeta del cliente se fue: el nombre, la foto y la cédula ya
+          están arriba, y para llamarlo o escribirle están los tres puntos.
+          Repetirlo aquí era bajar dos pantallas para leer lo mismo. */}
+      <div className="mt-4">
         {canCollect ? (
-          <Card className="lg:col-span-2">
+          <Card>
             <CardHeader title={t("payments.new")} />
             <CardBody>
               <PaymentForm
@@ -652,27 +655,6 @@ export default async function LoanDetailPage({
             </CardBody>
           </Card>
         ) : null}
-
-        <Card className={canCollect ? "" : "lg:col-span-3"}>
-          <CardHeader title={t("customers.singular")} />
-          <CardBody className="space-y-2 text-sm">
-            <Link
-              href={`/customers/${loan.customer.id}`}
-              className="block font-medium text-brand-strong hover:underline"
-            >
-              {loan.customer.firstName} {loan.customer.lastName}
-            </Link>
-            <p className="text-ink-muted">{loan.customer.code}</p>
-            {loan.customer.mobilePhone ? (
-              <p className="numeric text-ink-muted">
-                {loan.customer.mobilePhone}
-              </p>
-            ) : null}
-            {loan.customer.address ? (
-              <p className="text-ink-muted">{loan.customer.address}</p>
-            ) : null}
-          </CardBody>
-        </Card>
       </div>
 
       {loan.charges.length > 0 ? (
