@@ -666,6 +666,15 @@ export const es = {
     lastPayment: "Últ. pago",
     noPayments: "Sin pagos",
     arrearsDays: "{days} d de atraso",
+    // El atraso contado como lo cuenta el cobrador: desde cuándo y cuántas
+    // cuotas se quedaron atrás.
+    overdueSince: "Vencida desde el {date}",
+    overdueSinceOne: "Vencida desde el {date} · 1 cuota",
+    overdueSinceMany: "Vencida desde el {date} · {count} cuotas",
+    upToDate: "Al día",
+    nextDueOn: "Próxima cuota el {date}",
+    installmentLate: "hace {days} d",
+    installmentLateOne: "hace 1 d",
     onTime: "Al día",
     filterAll: "Todos",
     filterOnTime: "Al día",
@@ -733,6 +742,12 @@ export const es = {
     reference: "Referencia",
     cashBox: "Caja / cuenta destino",
     collectedBy: "Cobrado por",
+    // De dónde sale el valor que aparece solo en el campo, para que nadie
+    // tenga que adivinarlo ni recalcularlo.
+    amountIsInstallment: "Es la cuota: {amount}",
+    amountOverdue: "Vencido hasta hoy: {amount} en {count} cuotas",
+    amountOverdueOne: "Vencido hasta hoy: {amount} en 1 cuota",
+    amountRest: "Es lo que falta para saldar: {amount}",
     allocation: "Aplicación del pago",
     allocationHint:
       "El pago se aplica a la cuota más antigua: primero mora, luego el cargo adicional, después el interés y por último el capital.",

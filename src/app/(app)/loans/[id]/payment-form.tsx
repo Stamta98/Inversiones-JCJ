@@ -34,11 +34,14 @@ function SubmitButton({ pending }: { pending: boolean }) {
 export function PaymentForm({
   loanId,
   suggestedAmount,
+  amountHint,
   cashBoxes,
   decimalPlaces,
 }: {
   loanId: string;
   suggestedAmount: number;
+  /** De dónde salió el valor propuesto, dicho debajo del campo. */
+  amountHint?: string;
   cashBoxes: Array<{ id: string; label: string }>;
   /** Zero where the currency has no cents, so the field never suggests any. */
   decimalPlaces: number;
@@ -61,7 +64,12 @@ export function PaymentForm({
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Field label={es.payments.amount} htmlFor="amount" required>
+        <Field
+          label={es.payments.amount}
+          htmlFor="amount"
+          hint={amountHint}
+          required
+        >
           <Input
             id="amount"
             name="amount"

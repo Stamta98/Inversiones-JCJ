@@ -84,6 +84,64 @@ describe("collectionSnapshot", () => {
     expect(snapshot.overdueCents).toBe(4_000_000);
   });
 
+  // El cliente pregunta "¿cuánto llevo atrasado?" y la respuesta se cuenta
+  // desde la cuota más vieja que se quedó sin pagar, no desde la última.
+  it("cuenta el atraso desde la cuota más vieja sin pagar", () => {
+    const snapshot = collectionSnapshot(
+      [installment(1, 3), installment(2, 8), installment(3, 12)],
+      TODAY,
+    );
+
+    expect(snapshot.daysLate).toBe(7);
+    expect(snapshot.overdueCount).toBe(2);
+    expect(snapshot.overdueSince).toEqual(new Date(2026, 8, 3));
+  });
+
+  // La de hoy todavía se cobra hoy: entra en lo que hay que cobrar, pero
+  // decirle al cliente que lleva un día de atraso sería mentirle.
+  it("la cuota de hoy no cuenta como atraso", () => {
+    const snapshot = collectionSnapshot([installment(1, 10)], TODAY);
+
+    expect(snapshot.daysLate).toBe(0);
+    expect(snapshot.overdueCount).toBe(0);
+    expect(snapshot.overdueSince).toBeNull();
+    expect(snapshot.overdueCents).toBe(4_000_000);
+  });
+
+  it("una cuota vencida pero ya cubierta no deja atraso", () => {
+    const snapshot = collectionSnapshot(
+      [
+        installment(1, 3, { paidCents: 4_000_000, status: "PARTIALLY_PAID" }),
+        installment(2, 12),
+      ],
+      TODAY,
+    );
+
+    expect(snapshot.daysLate).toBe(0);
+    expect(snapshot.overdueCount).toBe(0);
+  });
+
+  // Lo que se propone al cobrar es la cuota entera, la que el cliente conoce,
+  // aunque de esa cuota ya haya abonado una parte.
+  it("propone la cuota completa aunque ya tenga un abono", () => {
+    const snapshot = collectionSnapshot(
+      [installment(1, 12, { paidCents: 1_500_000, status: "PARTIALLY_PAID" })],
+      TODAY,
+    );
+
+    expect(snapshot.installmentCents).toBe(4_000_000);
+    expect(snapshot.nextAmountCents).toBe(2_500_000);
+  });
+
+  it("no propone cuota cuando ya no queda ninguna", () => {
+    const snapshot = collectionSnapshot(
+      [installment(1, 5, { status: "PAID" })],
+      TODAY,
+    );
+
+    expect(snapshot.installmentCents).toBe(0);
+  });
+
   it("aguanta un préstamo sin cuotas", () => {
     const snapshot = collectionSnapshot([], TODAY);
 

@@ -7,6 +7,7 @@
  * cobrar de más o de menos, así que van separados y con nombre distinto.
  */
 
+import { daysBetween, startOfDay } from "../dates";
 import { clampToZero, type Cents } from "../money";
 
 export interface CollectableInstallment {
@@ -25,9 +26,23 @@ export interface CollectionSnapshot {
   paidCount: number;
   /** Lo que debería estar pagado y no lo está. Cero si viene al día. */
   overdueCents: Cents;
+  /**
+   * Cuántas cuotas se quedaron atrás y desde cuándo, contando solo las que ya
+   * pasaron de fecha: la que vence hoy todavía se puede cobrar hoy, así que
+   * entra en lo que hay que cobrar pero no en el atraso.
+   */
+  overdueCount: number;
+  daysLate: number;
+  overdueSince: Date | null;
   /** La próxima cuota que toca, esté vencida o no. */
   nextDueDate: Date | null;
   nextAmountCents: Cents;
+  /**
+   * La cuota completa, sin descontar lo que ya se abonó a ella. Es el número
+   * que el cliente conoce — "yo pago cuatro mil" — y por eso es el que se
+   * propone al cobrar, aunque quede debiendo menos.
+   */
+  installmentCents: Cents;
   /**
    * Qué enseñar en grande: lo vencido si lo hay, si no la próxima cuota, y
    * nada cuando ya no queda nada por cobrar.
@@ -61,12 +76,24 @@ export function collectionSnapshot(
     ? clampToZero(next.totalCents - next.paidCents)
     : 0;
 
+  const today = startOfDay(asOf);
+  const late = open.filter(
+    (installment) =>
+      startOfDay(installment.dueDate) < today &&
+      clampToZero(installment.totalCents - installment.paidCents) > 0,
+  );
+  const overdueSince = late[0] ? startOfDay(late[0].dueDate) : null;
+
   if (open.length === 0) {
     return {
       paidCount,
       overdueCents: 0,
+      overdueCount: 0,
+      daysLate: 0,
+      overdueSince: null,
       nextDueDate: null,
       nextAmountCents: 0,
+      installmentCents: 0,
       kind: "settled",
       amountCents: 0,
     };
@@ -75,8 +102,12 @@ export function collectionSnapshot(
   return {
     paidCount,
     overdueCents,
+    overdueCount: late.length,
+    daysLate: overdueSince ? daysBetween(overdueSince, today) : 0,
+    overdueSince,
     nextDueDate: next?.dueDate ?? null,
     nextAmountCents,
+    installmentCents: next?.totalCents ?? 0,
     kind: overdueCents > 0 ? "overdue" : "upcoming",
     amountCents: overdueCents > 0 ? overdueCents : nextAmountCents,
   };

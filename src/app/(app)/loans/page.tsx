@@ -10,6 +10,7 @@ import {
   type Tone,
 } from "@/components/ui";
 import { SortableRows } from "@/components/ui/sortable-rows";
+import { addDays, startOfDay } from "@/core/dates";
 import { collectionSnapshot } from "@/core/loans/collection";
 import { fromCents, toCents } from "@/core/money";
 import { isManuallyOrdered } from "@/core/ordering";
@@ -39,15 +40,48 @@ const STATUS_TONES: Record<string, Tone> = {
  * La referencia usa siete botones de colores sin etiqueta y hay que
  * aprendérselos; con cuatro nombres se lee sin adivinar y se cubre lo mismo.
  */
-const FILTERS = {
-  all: {} as Prisma.LoanWhereInput,
-  onTime: { status: { in: ["ACTIVE", "APPROVED"] }, daysInArrears: 0 },
-  late: { daysInArrears: { gte: 1, lte: 30 } },
-  heavy: { daysInArrears: { gt: 30 } },
-  paid: { status: "PAID" },
-} satisfies Record<string, Prisma.LoanWhereInput>;
+/**
+ * El atraso se pregunta por las cuotas, no por la columna `daysInArrears`.
+ *
+ * Esa columna la escribe el trabajo de la madrugada, así que entre las doce
+ * de la noche y esa hora dice el atraso de ayer. Las tarjetas cuentan los
+ * días al abrir la lista, y si el filtro mirara la columna diría que no hay
+ * nadie en mora mientras las tarjetas muestran los días. Preguntando por la
+ * fecha de las cuotas las dos cosas dicen lo mismo a cualquier hora.
+ */
+function unpaidBefore(date: Date): Prisma.LoanWhereInput {
+  return {
+    installments: {
+      some: {
+        dueDate: { lt: date },
+        status: { notIn: ["PAID", "WAIVED"] },
+      },
+    },
+  };
+}
 
-type FilterKey = keyof typeof FILTERS;
+function buildFilters(today: Date) {
+  const heavyFrom = addDays(today, -30);
+  // De un anulado no se cobra, así que tampoco se atrasa por más cuotas sin
+  // pagar que le queden colgando.
+  const open: Prisma.LoanWhereInput = {
+    status: { in: ["ACTIVE", "IN_ARREARS", "APPROVED"] },
+  };
+  return {
+    all: {} as Prisma.LoanWhereInput,
+    onTime: {
+      status: { in: ["ACTIVE", "APPROVED"] },
+      NOT: unpaidBefore(today),
+    },
+    late: { ...open, ...unpaidBefore(today), NOT: unpaidBefore(heavyFrom) },
+    heavy: { ...open, ...unpaidBefore(heavyFrom) },
+    paid: { status: "PAID" },
+  } satisfies Record<string, Prisma.LoanWhereInput>;
+}
+
+type FilterKey = keyof ReturnType<typeof buildFilters>;
+
+const FILTER_KEYS: FilterKey[] = ["all", "onTime", "late", "heavy", "paid"];
 
 const FILTER_LABELS: Record<FilterKey, string> = {
   all: "loans.filterAll",
@@ -78,12 +112,15 @@ export default async function LoansPage({
 }) {
   const context = await requirePermission("loans.read");
   const { status } = await searchParams;
+  const now = new Date();
+  const today = startOfDay(now);
+  const filters = buildFilters(today);
   const filter: FilterKey =
-    status && status in FILTERS ? (status as FilterKey) : "all";
+    status && status in filters ? (status as FilterKey) : "all";
 
   const where: Prisma.LoanWhereInput = {
     companyId: context.companyId,
-    ...FILTERS[filter],
+    ...filters[filter],
   };
 
   const [loans, totals] = await Promise.all([
@@ -122,7 +159,6 @@ export default async function LoansPage({
   const { t, money } = context;
   const canOrder = can(context, "loans.update");
   const handOrdered = isManuallyOrdered(loans);
-  const now = new Date();
 
   const lent = Number(totals._sum.principal ?? 0);
   const collected = Number(totals._sum.totalPaid ?? 0);
@@ -181,7 +217,7 @@ export default async function LoansPage({
       </Card>
 
       <div className="mb-3 flex flex-wrap gap-1.5">
-        {(Object.keys(FILTERS) as FilterKey[]).map((key) => (
+        {FILTER_KEYS.map((key) => (
           <Link
             key={key}
             href={key === "all" ? "/loans" : `/loans?status=${key}`}
@@ -240,6 +276,14 @@ export default async function LoansPage({
             // cálculo por sí solo pediría cobrarlas. De un anulado no se cobra.
             const collectable =
               COLLECTABLE.has(loan.status) && snapshot.kind !== "settled";
+            // El atraso se cuenta al abrir la lista: un préstamo que nadie ha
+            // tocado en una semana ya lleva esa semana, diga lo que diga la
+            // columna guardada.
+            const daysLate = collectable ? snapshot.daysLate : 0;
+            const status =
+              loan.status === "ACTIVE" && daysLate > 0
+                ? "IN_ARREARS"
+                : loan.status;
             const dueLabel =
               snapshot.kind === "overdue"
                 ? t("loans.collectNow")
@@ -251,7 +295,7 @@ export default async function LoansPage({
               <Card
                 key={loan.id}
                 sortableId={loan.id}
-                className={`overflow-hidden border-l-4 ${severity(loan.status, loan.daysInArrears)}`}
+                className={`overflow-hidden border-l-4 ${severity(loan.status, daysLate)}`}
               >
                 <Link
                   href={`/loans/${loan.id}`}
@@ -268,18 +312,18 @@ export default async function LoansPage({
                       <span className="font-semibold text-ink">
                         {snapshot.paidCount}/{loan.installments.length}
                       </span>
-                      {loan.daysInArrears > 0 ? (
+                      {daysLate > 0 ? (
                         <span className="font-semibold text-danger">
                           {" · "}
                           {t("loans.arrearsDays").replace(
                             "{days}",
-                            String(loan.daysInArrears),
+                            String(daysLate),
                           )}
                         </span>
                       ) : null}
                     </span>
-                    <Badge tone={STATUS_TONES[loan.status] ?? "neutral"}>
-                      {t(`loans.status.${loan.status}`)}
+                    <Badge tone={STATUS_TONES[status] ?? "neutral"}>
+                      {t(`loans.status.${status}`)}
                     </Badge>
                   </span>
 

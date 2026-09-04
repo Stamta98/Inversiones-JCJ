@@ -17,7 +17,10 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
+import { daysBetween, startOfDay } from "@/core/dates";
+import { collectionSnapshot } from "@/core/loans/collection";
 import { canEditAtAll } from "@/core/loans/editable";
+import { fromCents, toCents } from "@/core/money";
 import type { LoanStatus } from "@/core/types";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
@@ -103,17 +106,52 @@ export default async function LoanDetailPage({
     )}`,
   ].join("\n");
 
-  const nextOpen = loan.installments.find(
-    (installment) =>
-      installment.status !== "PAID" && installment.status !== "WAIVED",
+  // El atraso se cuenta al abrir la página, no cuando alguien cobró por
+  // última vez: un préstamo que nadie ha tocado en una semana lleva esa semana
+  // de atraso, aunque en la base todavía diga cero.
+  const now = new Date();
+  const today = startOfDay(now);
+  const collect = collectionSnapshot(
+    loan.installments.map((installment) => ({
+      number: installment.number,
+      dueDate: installment.dueDate,
+      totalCents: toCents(Number(installment.totalAmount)),
+      paidCents: toCents(Number(installment.paidAmount)),
+      status: installment.status,
+    })),
+    now,
   );
-  const suggestedAmount = nextOpen
-    ? Number(nextOpen.totalAmount) - Number(nextOpen.paidAmount)
-    : 0;
 
-  const canCollect =
-    can(context, "payments.create") &&
-    ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status);
+  // Lo que se propone cobrar es la cuota entera — el número que el cliente
+  // conoce — sin pasarse de lo que falta para saldar el préstamo.
+  const outstandingCents = toCents(Number(loan.outstanding));
+  const suggestedCents = Math.min(collect.installmentCents, outstandingCents);
+  const suggestedAmount = fromCents(suggestedCents);
+
+  const amountHint =
+    suggestedCents <= 0
+      ? undefined
+      : collect.overdueCount > 0
+        ? t(
+            collect.overdueCount === 1
+              ? "payments.amountOverdueOne"
+              : "payments.amountOverdue",
+          )
+            .replace("{amount}", money(fromCents(collect.overdueCents)))
+            .replace("{count}", String(collect.overdueCount))
+        : suggestedCents < collect.installmentCents
+          ? t("payments.amountRest").replace("{amount}", money(suggestedAmount))
+          : t("payments.amountIsInstallment").replace(
+              "{amount}",
+              money(suggestedAmount),
+            );
+
+  // De un préstamo anulado o ya saldado no se cobra, y tampoco se atrasa:
+  // las cuotas que le queden sin pagar no son mora de nadie.
+  const openLoan = ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status);
+  const daysLate = openLoan ? collect.daysLate : 0;
+
+  const canCollect = can(context, "payments.create") && openLoan;
   const canReverse = can(context, "payments.delete");
 
   // Una cuota que valga más que capital más interés sin decir por qué se lee
@@ -135,6 +173,11 @@ export default async function LoanDetailPage({
     Number(loan.outstanding) > 0 &&
     ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status);
 
+  const displayStatus =
+    loan.status === "ACTIVE" && daysLate > 0
+      ? "IN_ARREARS"
+      : loan.status;
+
   return (
     <>
       <PageHeader
@@ -142,8 +185,8 @@ export default async function LoanDetailPage({
         description={`${loan.customer.firstName} ${loan.customer.lastName}`}
         action={
           <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
-            <Badge tone={LOAN_TONES[loan.status] ?? "neutral"}>
-              {t(`loans.status.${loan.status}`)}
+            <Badge tone={LOAN_TONES[displayStatus] ?? "neutral"}>
+              {t(`loans.status.${displayStatus}`)}
             </Badge>
             <LoanMenu
               loanId={loan.id}
@@ -251,10 +294,27 @@ export default async function LoanDetailPage({
         />
         <StatCard
           label={t("loans.daysInArrears")}
-          value={String(loan.daysInArrears)}
-          hint={`${t("loans.lateFeePart")}: ${money(Number(loan.totalLateFees))}`}
-          tone={loan.daysInArrears > 0 ? "danger" : "positive"}
-          icon={loan.daysInArrears > 0 ? "alert-triangle" : "check"}
+          value={String(daysLate)}
+          hint={
+            daysLate > 0 && collect.overdueSince
+              ? t(
+                  collect.overdueCount === 1
+                    ? "loans.overdueSinceOne"
+                    : "loans.overdueSinceMany",
+                )
+                  .replace("{date}", formatDate(collect.overdueSince))
+                  .replace("{count}", String(collect.overdueCount))
+              : !openLoan
+                ? `${t("loans.lateFeePart")}: ${money(Number(loan.totalLateFees))}`
+                : collect.nextDueDate
+                  ? t("loans.nextDueOn").replace(
+                      "{date}",
+                      formatDate(collect.nextDueDate),
+                    )
+                  : t("loans.upToDate")
+          }
+          tone={daysLate > 0 ? "danger" : "positive"}
+          icon={daysLate > 0 ? "alert-triangle" : "check"}
         />
       </div>
 
@@ -266,6 +326,7 @@ export default async function LoanDetailPage({
               <PaymentForm
                 loanId={loan.id}
                 suggestedAmount={suggestedAmount}
+                amountHint={amountHint}
                 cashBoxes={cashBoxes.map((cashBox) => ({
                   id: cashBox.id,
                   label: cashBox.name,
@@ -399,7 +460,26 @@ export default async function LoanDetailPage({
               </tr>
             </thead>
             <tbody>
-              {loan.installments.map((installment) => (
+              {loan.installments.map((installment) => {
+                // Igual que arriba: la fila dice el atraso de hoy, no el del
+                // día en que se registró el último cobro.
+                const settled =
+                  installment.status === "PAID" ||
+                  installment.status === "WAIVED";
+                const owed =
+                  Number(installment.totalAmount) -
+                  Number(installment.paidAmount);
+                const lateDays =
+                  !openLoan || settled || owed <= 0
+                    ? 0
+                    : Math.max(
+                        0,
+                        daysBetween(startOfDay(installment.dueDate), today),
+                      );
+                const status =
+                  lateDays > 0 ? "OVERDUE" : installment.status;
+
+                return (
                 <tr key={installment.id}>
                   <Td numeric>{installment.number}</Td>
                   <Td numeric>{formatDate(installment.dueDate)}</Td>
@@ -428,14 +508,23 @@ export default async function LoanDetailPage({
                     {money(Number(installment.paidAmount))}
                   </Td>
                   <Td align="center">
-                    <Badge
-                      tone={INSTALLMENT_TONES[installment.status] ?? "neutral"}
-                    >
-                      {t(`loans.installmentStatus.${installment.status}`)}
+                    <Badge tone={INSTALLMENT_TONES[status] ?? "neutral"}>
+                      {t(`loans.installmentStatus.${status}`)}
                     </Badge>
+                    {lateDays > 0 ? (
+                      <span className="mt-0.5 block text-xs font-medium text-danger">
+                        {lateDays === 1
+                          ? t("loans.installmentLateOne")
+                          : t("loans.installmentLate").replace(
+                              "{days}",
+                              String(lateDays),
+                            )}
+                      </span>
+                    ) : null}
                   </Td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </TableWrap>
         </CollapsibleCard>
