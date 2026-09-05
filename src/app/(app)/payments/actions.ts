@@ -9,6 +9,7 @@ import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import {
   PaymentError,
+  collectCharge,
   deletePayment,
   postPayment,
   reversePayment,
@@ -19,6 +20,12 @@ import {
 const paymentSchema = z.object({
   loanId: z.string().min(1),
   amount: z.coerce.number().positive(),
+  /**
+   * Qué se está cobrando. Un cargo adicional entra a la caja pero no es un
+   * abono: no se reparte entre las cuotas ni baja lo que el cliente debe.
+   */
+  concept: z.enum(["INSTALLMENT", "CHARGE"]).default("INSTALLMENT"),
+  chargeName: z.string().optional(),
   method: z
     .enum(["CASH", "BANK_TRANSFER", "CARD", "CHECK", "MOBILE_WALLET", "OTHER"])
     .default("CASH"),
@@ -52,6 +59,31 @@ export async function postPaymentAction(
   const data = parsed.data;
 
   try {
+    // El cargo que se cobra aparte no pasa por el reparto entre cuotas: se
+    // registra como lo que es, plata que entró por un cargo.
+    if (data.concept === "CHARGE") {
+      const charge = await collectCharge({
+        companyId: context.companyId,
+        loanId: data.loanId,
+        name: data.chargeName ?? "",
+        amount: data.amount,
+        cashBoxId: data.cashBoxId || "",
+        collectedAt: data.paidAt
+          ? new Date(`${data.paidAt}T12:00:00.000Z`)
+          : undefined,
+        collectedById: context.userId,
+      });
+
+      revalidatePath(`/loans/${data.loanId}`);
+      revalidatePath("/payments");
+      revalidatePath("/cash");
+      revalidatePath("/dashboard");
+
+      return {
+        success: t("payments.chargeCollected").replace("{name}", charge.name),
+      };
+    }
+
     const result = await postPayment({
       companyId: context.companyId,
       loanId: data.loanId,
@@ -165,7 +197,9 @@ export async function updatePaymentAction(
       paymentId: payment.id,
       amount: data.amount,
       method: data.method as PaymentMethod,
-      paidAt: data.paidAt ? new Date(`${data.paidAt}T12:00:00.000Z`) : undefined,
+      paidAt: data.paidAt
+        ? new Date(`${data.paidAt}T12:00:00.000Z`)
+        : undefined,
       reference: data.reference || null,
       notes: data.notes || null,
       userId: context.userId,

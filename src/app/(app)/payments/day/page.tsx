@@ -189,6 +189,7 @@ export default async function DayDetailPage({
             id: true,
             amount: true,
             description: true,
+            chargeName: true,
             loan: {
               select: {
                 id: true,
@@ -240,7 +241,11 @@ export default async function DayDetailPage({
         ? `${movement.loan.customer.firstName} ${movement.loan.customer.lastName}`
         : (movement.description ?? ""),
       code: movement.loan?.code ?? "",
-      how: t("payments.summary.chargeDeducted"),
+      // Con nombre, el cargo se le cobró al cliente aparte de la cuota; sin
+      // nombre, es el que se le descontó al entregarle la plata.
+      how: movement.chargeName
+        ? `${t("payments.summary.chargeApart")} · ${movement.chargeName}`
+        : t("payments.summary.chargeDeducted"),
       amount: Math.abs(Number(movement.amount)),
     })),
     ...chargePayments.map((payment) => ({

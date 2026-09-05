@@ -693,6 +693,11 @@ export const es = {
       },
       saved: "Cargos guardados.",
       empty2: "Este préstamo no tiene cargos adicionales.",
+      // Los que se cobraron en la puerta, aparte de la cuota: ya entraron a
+      // la caja, así que se muestran pero no se editan desde aquí.
+      apartTitle: "Cargos cobrados aparte",
+      apartHint:
+        "Plata que ya entró a la caja por un cargo. No baja lo que el cliente debe.",
       removeConfirm:
         "Al quitarlo se rehacen las cuotas y la caja se mueve por lo que se le había descontado al cliente.",
       // Cambiar un cargo mueve las cuotas y la caja: hay que decirlo antes,
@@ -909,8 +914,9 @@ export const es = {
       // el otro va llegando repartido en las cuotas.
       chargeDeducted: "Descontado al entregar",
       chargeInstallment: "Cobrado en la cuota",
+      chargeApart: "Cobrado aparte",
       chargesHint:
-        "Lo que dejaron los cargos ese día: los que se descontaron al entregar y la parte de cargo de lo que se cobró.",
+        "Lo que dejaron los cargos ese día: los que se descontaron al entregar, los que se cobraron aparte y la parte de cargo de lo que se cobró.",
       detailEmpty: "No hay nada de esto registrado ese día.",
       detailTotal: "Total del día",
       back: "Volver al resumen",
@@ -987,6 +993,23 @@ export const es = {
       "Se vuelve a aplicar sobre las cuotas y la caja se mueve solo por la diferencia. El recibo sigue siendo el mismo.",
     updated: "Cobro actualizado.",
     reversed: "Anulado",
+    // Qué se está cobrando: la cuota del préstamo, o un cargo que se le cobra
+    // al cliente aparte y que no baja lo que debe.
+    concept: "¿Qué le estás cobrando?",
+    conceptLabel: {
+      INSTALLMENT: "Cuota del préstamo",
+      CHARGE: "Cargo adicional",
+    },
+    conceptHint: {
+      INSTALLMENT:
+        "Se reparte entre lo vencido: primero la mora, después el cargo, el interés y por último el capital.",
+      CHARGE:
+        "Entra a la caja como cargo cobrado. No baja lo que el cliente debe ni toca las cuotas.",
+    },
+    chargeName: "Nombre del cargo",
+    chargeNamePlaceholder: "Papelería",
+    chargeCollected: "Cargo cobrado: {name}",
+    collectCharge: "Cobrar {amount} de cargo",
     methodLabel: {
       CASH: "Efectivo",
       BANK_TRANSFER: "Transferencia",
@@ -1009,6 +1032,9 @@ export const es = {
         "Este cobro es el saldo que se pasó a otro préstamo, no plata que entró. Para deshacerlo, anula el préstamo con el que se refinanció.",
       nothingToApply: "Este préstamo no tiene cuotas pendientes.",
       reversed: "Este cobro está anulado. Elimínalo y registra uno nuevo.",
+      chargeName: "Ponle un nombre al cargo: papelería, estudio, lo que sea.",
+      chargeCashBox:
+        "Escoge la caja donde entra la plata del cargo. Sin caja no hay dónde meterla.",
     },
   },
 

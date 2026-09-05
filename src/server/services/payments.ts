@@ -45,7 +45,9 @@ export class PaymentError extends Error {
       | "loanNotActive"
       | "nothingToApply"
       | "settlesRefinance"
-      | "reversed",
+      | "reversed"
+      | "chargeName"
+      | "chargeCashBox",
   ) {
     super(message);
     this.name = "PaymentError";
@@ -548,4 +550,101 @@ export async function deletePayment(
   });
 
   await db.$transaction((tx) => refreshLoan(tx, payment.loanId));
+}
+
+/**
+ * Un cargo que se le cobra al cliente aparte de la cuota.
+ *
+ * En la calle pasa todos los días: se le cobran los 10.000 de la papelería o
+ * del estudio y esa plata no es un abono — no baja lo que debe ni toca las
+ * cuotas. Entra a la caja como lo que es, un cargo cobrado, y por eso no crea
+ * un recibo de cobro sino un movimiento de caja con el nombre del cargo.
+ *
+ * El cargo que se descuenta al entregar la plata usa el mismo tipo de
+ * movimiento pero sin nombre: así los dos suman en «Cargos adicionales» del
+ * resumen y aun así se distingue de dónde salió cada uno.
+ */
+export async function collectCharge(input: {
+  companyId: string;
+  loanId: string;
+  name: string;
+  amount: number;
+  /** La plata tiene que entrar a algún lado: sin caja no hay dónde. */
+  cashBoxId: string;
+  collectedAt?: Date;
+  collectedById?: string | null;
+}): Promise<{ name: string; amount: number }> {
+  const name = input.name.trim().replace(/\s+/g, " ");
+  if (name.length === 0) {
+    throw new PaymentError("A charge needs a name", "chargeName");
+  }
+  if (!(input.amount > 0)) {
+    throw new PaymentError("Amount must be greater than zero", "amount");
+  }
+
+  const collectedAt = input.collectedAt ?? new Date();
+
+  await db.$transaction(async (tx) => {
+    // El préstamo tiene que ser de esta empresa y estar vivo: a un borrador o
+    // a uno anulado no se le cobra nada.
+    const loan = await tx.loan.findFirst({
+      where: { id: input.loanId, companyId: input.companyId },
+      select: { id: true, code: true, status: true },
+    });
+    if (!loan) {
+      throw new PaymentError("Loan not found", "loanNotActive");
+    }
+    if (
+      loan.status === "DRAFT" ||
+      loan.status === "CANCELLED" ||
+      loan.status === "PENDING_APPROVAL"
+    ) {
+      throw new PaymentError("Loan is not active", "loanNotActive");
+    }
+
+    const cashBox = await tx.cashBox.findFirst({
+      where: { id: input.cashBoxId, companyId: input.companyId },
+      select: { id: true, balance: true },
+    });
+    if (!cashBox) {
+      throw new PaymentError("A charge needs a cash box", "chargeCashBox");
+    }
+
+    const balanceAfter = Number(cashBox.balance) + input.amount;
+    await tx.cashBox.update({
+      where: { id: cashBox.id },
+      data: { balance: balanceAfter },
+    });
+
+    await tx.cashMovement.create({
+      data: {
+        cashBoxId: cashBox.id,
+        kind: "CHARGE_COLLECTED",
+        amount: input.amount,
+        balanceAfter,
+        description: `${name} · ${loan.code}`,
+        chargeName: name,
+        loanId: loan.id,
+        createdById: input.collectedById ?? null,
+        createdAt: collectedAt,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        companyId: input.companyId,
+        userId: input.collectedById ?? null,
+        action: "charge.collected",
+        entityType: "Loan",
+        entityId: loan.id,
+        metadata: {
+          name,
+          amount: input.amount,
+          collectedAt: collectedAt.toISOString(),
+        },
+      },
+    });
+  });
+
+  return { name, amount: input.amount };
 }

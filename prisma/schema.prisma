@@ -760,6 +760,10 @@ model CashMovement {
   amount       Decimal          @db.Decimal(18, 2)
   balanceAfter Decimal          @db.Decimal(18, 2)
   description  String?
+  /// El nombre del cargo, cuando el movimiento es un cargo que se le cobró al
+  /// cliente aparte de la cuota. Sirve además para distinguirlo del cargo que
+  /// se descuenta al entregar la plata, que no lleva nombre aquí.
+  chargeName   String?
   /// El préstamo que movió esta plata, cuando lo hubo. Sin esto, borrar un
   /// préstamo dejaría su desembolso suelto en la caja y el saldo mintiendo.
   loanId       String?

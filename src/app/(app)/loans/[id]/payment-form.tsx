@@ -58,6 +58,14 @@ export function PaymentForm({
   const show = (value: number) =>
     value > 0 ? value.toFixed(decimalPlaces) : "";
 
+  // Qué se está cobrando. Un cargo adicional es plata que entra pero no baja
+  // lo que el cliente debe, así que el formulario cambia de forma: no hay
+  // contador de cuotas ni tope, y en cambio hay que decir de qué es el cargo.
+  const [concept, setConcept] = useState<"INSTALLMENT" | "CHARGE">(
+    "INSTALLMENT",
+  );
+  const cobrandoCargo = concept === "CHARGE";
+
   const [amount, setAmount] = useState(() => show(suggestedAmount));
   // Cuántas cuotas cubre lo que hay en el campo. Null cuando el cobrador
   // escribió un monto suyo: decir "1" ahí sería mentirle.
@@ -77,8 +85,10 @@ export function PaymentForm({
   }
 
   const value = Number(amount) || 0;
-  const canStep = installmentAmount > 0;
-  const atCeiling = maxAmount > 0 && value >= maxAmount;
+  // El contador de cuotas y el tope son de la cuota: un cargo no tiene ni lo
+  // uno ni lo otro, se cobra lo que se acordó.
+  const canStep = installmentAmount > 0 && !cobrandoCargo;
+  const atCeiling = !cobrandoCargo && maxAmount > 0 && value >= maxAmount;
 
   const setInstallments = (next: number) => {
     const whole = Math.max(1, next);
@@ -116,11 +126,52 @@ export function PaymentForm({
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
+        {/* Lo primero, porque cambia lo que significa todo lo de abajo. */}
+        <div className="sm:col-span-2">
+          <Field
+            label={es.payments.concept}
+            htmlFor="concept"
+            hint={es.payments.conceptHint[concept]}
+          >
+            <Select
+              id="concept"
+              name="concept"
+              value={concept}
+              onChange={(event) => {
+                const next = event.target.value as "INSTALLMENT" | "CHARGE";
+                setConcept(next);
+                // Al pasar a cargo el campo queda en blanco: la cuota que
+                // proponía no tiene nada que ver con lo que vale el cargo.
+                setCount(null);
+                setAmount(next === "CHARGE" ? "" : show(suggestedAmount));
+              }}
+            >
+              <option value="INSTALLMENT">
+                {es.payments.conceptLabel.INSTALLMENT}
+              </option>
+              <option value="CHARGE">{es.payments.conceptLabel.CHARGE}</option>
+            </Select>
+          </Field>
+        </div>
+
+        {cobrandoCargo ? (
+          <div className="sm:col-span-2">
+            <Field label={es.payments.chargeName} htmlFor="chargeName" required>
+              <Input
+                id="chargeName"
+                name="chargeName"
+                placeholder={es.payments.chargeNamePlaceholder}
+                required
+              />
+            </Field>
+          </div>
+        ) : null}
+
         <div className="sm:col-span-2">
           <Field
             label={es.payments.amount}
             htmlFor="amount"
-            hint={amountHint}
+            hint={cobrandoCargo ? undefined : amountHint}
             required
           >
             <div className="flex items-stretch gap-2">
@@ -182,15 +233,20 @@ export function PaymentForm({
           </Field>
         </div>
 
-        <Field label={es.payments.method} htmlFor="method">
-          <Select id="method" name="method" defaultValue="CASH">
-            {METHODS.map((method) => (
-              <option key={method} value={method}>
-                {es.payments.methodLabel[method]}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        {/* La forma de pago es de un abono. Un cargo no la guarda en ninguna
+            parte —lo que dice dónde cayó la plata es la caja que se escoge—,
+            así que no se pregunta lo que después se iba a botar. */}
+        {cobrandoCargo ? null : (
+          <Field label={es.payments.method} htmlFor="method">
+            <Select id="method" name="method" defaultValue="CASH">
+              {METHODS.map((method) => (
+                <option key={method} value={method}>
+                  {es.payments.methodLabel[method]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
 
         <Field label={es.payments.paidAt} htmlFor="paidAt">
           <Input
@@ -202,13 +258,22 @@ export function PaymentForm({
         </Field>
 
         {cashBoxes.length > 0 ? (
-          <Field label={es.payments.cashBox} htmlFor="cashBoxId">
+          <Field
+            label={es.payments.cashBox}
+            htmlFor="cashBoxId"
+            required={cobrandoCargo}
+          >
             <Select
               id="cashBoxId"
               name="cashBoxId"
               defaultValue={cashBoxes[0].id}
+              required={cobrandoCargo}
             >
-              <option value="">{es.common.none}</option>
+              {/* Un cargo tiene que entrar a alguna caja: sin ella no hay
+                  dónde meter la plata que se acaba de recibir. */}
+              {cobrandoCargo ? null : (
+                <option value="">{es.common.none}</option>
+              )}
               {cashBoxes.map((cashBox) => (
                 <option key={cashBox.id} value={cashBox.id}>
                   {cashBox.label}
@@ -219,7 +284,9 @@ export function PaymentForm({
         ) : null}
       </div>
 
-      <p className="text-xs text-ink-subtle">{es.payments.allocationHint}</p>
+      {cobrandoCargo ? null : (
+        <p className="text-xs text-ink-subtle">{es.payments.allocationHint}</p>
+      )}
 
       {/* El botón dice lo que se va a cobrar: en la puerta uno confirma
           mirando el botón, no devolviéndose al campo. */}
@@ -232,7 +299,10 @@ export function PaymentForm({
         {pending
           ? es.common.saving
           : value > 0
-            ? es.payments.collectAmount.replace(
+            ? (cobrandoCargo
+                ? es.payments.collectCharge
+                : es.payments.collectAmount
+              ).replace(
                 "{amount}",
                 formatCurrency(value, currencyCode, locale, decimalPlaces),
               )

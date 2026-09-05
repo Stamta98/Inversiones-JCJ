@@ -70,54 +70,67 @@ export default async function LoanDetailPage({
   const context = await requirePermission("loans.read");
   const { id } = await params;
 
-  const [loan, cashBoxes, applied, paymentCount, ordered] = await Promise.all([
-    db.loan.findFirst({
-      where: { id, companyId: context.companyId },
-      include: {
-        customer: true,
-        installments: { orderBy: { number: "asc" } },
-        payments: {
-          orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
-          take: 50,
-          include: { allocations: true },
+  const [loan, cashBoxes, applied, paymentCount, ordered, chargesApart] =
+    await Promise.all([
+      db.loan.findFirst({
+        where: { id, companyId: context.companyId },
+        include: {
+          customer: true,
+          installments: { orderBy: { number: "asc" } },
+          payments: {
+            orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
+            take: 50,
+            include: { allocations: true },
+          },
+          // A refinance splits one debt across two loans; each has to say so or
+          // the money looks like it came from nowhere and went nowhere.
+          charges: { orderBy: { createdAt: "asc" } },
+          parentLoan: { select: { id: true, code: true } },
+          renewals: {
+            where: { status: { not: "CANCELLED" } },
+            select: { id: true, code: true },
+            take: 1,
+          },
         },
-        // A refinance splits one debt across two loans; each has to say so or
-        // the money looks like it came from nowhere and went nowhere.
-        charges: { orderBy: { createdAt: "asc" } },
-        parentLoan: { select: { id: true, code: true } },
-        renewals: {
-          where: { status: { not: "CANCELLED" } },
-          select: { id: true, code: true },
-          take: 1,
+      }),
+      db.cashBox.findMany({
+        where: { companyId: context.companyId, isActive: true },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
+      // El reparto de todo lo pagado, no solo de los recibos que se alcanzan a
+      // ver: son las cuatro cifras que resumen para dónde se fue la plata.
+      db.paymentAllocation.aggregate({
+        where: { payment: { loanId: id, status: "POSTED" } },
+        _sum: {
+          principalAmount: true,
+          interestAmount: true,
+          chargeAmount: true,
+          lateFeeAmount: true,
         },
-      },
-    }),
-    db.cashBox.findMany({
-      where: { companyId: context.companyId, isActive: true },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    // El reparto de todo lo pagado, no solo de los recibos que se alcanzan a
-    // ver: son las cuatro cifras que resumen para dónde se fue la plata.
-    db.paymentAllocation.aggregate({
-      where: { payment: { loanId: id, status: "POSTED" } },
-      _sum: {
-        principalAmount: true,
-        interestAmount: true,
-        chargeAmount: true,
-        lateFeeAmount: true,
-      },
-    }),
-    db.payment.count({ where: { loanId: id } }),
-    // Los ids en el orden en que se ve la lista, para saber cuál sigue y cuál
-    // va antes. Solo ids: es lo que hace falta y pesa nada.
-    db.loan.findMany({
-      where: { companyId: context.companyId },
-      orderBy: LOAN_ORDER,
-      select: { id: true },
-      take: 1000,
-    }),
-  ]);
+      }),
+      db.payment.count({ where: { loanId: id } }),
+      // Los ids en el orden en que se ve la lista, para saber cuál sigue y cuál
+      // va antes. Solo ids: es lo que hace falta y pesa nada.
+      db.loan.findMany({
+        where: { companyId: context.companyId },
+        orderBy: LOAN_ORDER,
+        select: { id: true },
+        take: 1000,
+      }),
+      // Los cargos que se le cobraron al cliente aparte de la cuota. No son un
+      // abono ni bajan lo que debe, así que no están entre los recibos; sin
+      // esto no quedarían a la vista en ninguna parte de su préstamo.
+      db.cashMovement.findMany({
+        where: {
+          loanId: id,
+          kind: "CHARGE_COLLECTED",
+          chargeName: { not: null },
+        },
+        select: { id: true, amount: true, chargeName: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
 
   if (!loan) notFound();
 
@@ -678,6 +691,40 @@ export default async function LoanDetailPage({
           }
         />
       </div>
+
+      {/* Los cargos que se le cobraron aparte, con la fecha de cada uno. Esa
+          plata ya entró a la caja y no baja lo que el cliente debe: va en su
+          propia lista, no mezclada con los cargos del préstamo. */}
+      {chargesApart.length > 0 ? (
+        <div className="mt-4">
+          <Card>
+            <CardHeader
+              title={t("loans.charges.apartTitle")}
+              description={t("loans.charges.apartHint")}
+            />
+            <CardBody className="divide-y divide-border py-0">
+              {chargesApart.map((charge) => (
+                <div
+                  key={charge.id}
+                  className="flex items-center justify-between gap-3 py-2.5"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-ink">
+                      {charge.chargeName}
+                    </span>
+                    <span className="numeric block text-xs text-ink-muted">
+                      {formatDate(charge.createdAt)}
+                    </span>
+                  </span>
+                  <span className="numeric shrink-0 text-sm font-bold text-brand-strong">
+                    {money(Number(charge.amount))}
+                  </span>
+                </div>
+              ))}
+            </CardBody>
+          </Card>
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <Card>
