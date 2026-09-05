@@ -27,7 +27,6 @@ import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import { countActiveReports } from "@/server/services/credit";
 
-import { LoanRow } from "@/components/loans/loan-row";
 
 import { PhotoZoom } from "@/components/ui/photo-zoom";
 
@@ -101,14 +100,19 @@ export default async function CustomerDetailPage({
 }) {
   const context = await requirePermission("customers.read");
   const { id } = await params;
-  const now = new Date();
 
   const customer = await db.customer.findFirst({
     where: { id, companyId: context.companyId },
     include: {
+      // Solo los cuatro números de arriba: la lista de préstamos se fue a su
+      // propia pantalla, y con ella la necesidad de traer aquí cada cuota de
+      // cada préstamo de toda la vida del cliente.
       loans: {
         orderBy: { createdAt: "desc" },
-        include: {
+        select: {
+          status: true,
+          principal: true,
+          outstanding: true,
           // Las cuotas que ya pasaron de fecha y siguen sin pagar: eso es lo
           // que está atrasado, contado hoy.
           _count: {
@@ -120,23 +124,6 @@ export default async function CustomerDetailPage({
                 },
               },
             },
-          },
-          // Lo que la tarjeta necesita para decir cuántas cuotas van y
-          // cuánto hay que pedir hoy.
-          installments: {
-            select: {
-              number: true,
-              dueDate: true,
-              totalAmount: true,
-              paidAmount: true,
-              status: true,
-            },
-          },
-          payments: {
-            where: { status: "POSTED" },
-            orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
-            take: 1,
-            select: { paidAt: true },
           },
         },
       },
@@ -195,10 +182,6 @@ export default async function CustomerDetailPage({
   );
 
   const { t, money } = context;
-  const idDocuments = customer.attachments.filter(
-    (attachment) =>
-      attachment.kind === "ID_FRONT" || attachment.kind === "ID_BACK",
-  );
   // Lo que este cliente debe hoy, sumando solo los préstamos que siguen
   // abiertos: uno saldado ya no debe nada y uno anulado nunca se cobró.
   const openLoans = customer.loans.filter((loan) =>
@@ -222,31 +205,40 @@ export default async function CustomerDetailPage({
     .filter((loan) => loan.status !== "CANCELLED")
     .reduce((total, loan) => total + Number(loan.principal), 0);
 
+  // Los atajos de arriba. Préstamos y documentos abren su propia pantalla:
+  // el historial de alguien que lleva años puede ser largo, y las fotos de
+  // la cédula pesan; metidos en la ficha había que pasarlos de largo cada
+  // vez para llegar a lo demás. Los otros dos siguen bajando aquí mismo.
+  //
   // Solo los que tienen algo: un atajo a un cuadro vacío es un viaje perdido.
   const jumps = [
     {
-      anchor: "prestamos",
+      key: "prestamos",
+      href: `/customers/${customer.id}/loans`,
       label: t("customers.jumpLoans"),
       icon: "hand-coins" as const,
       tint: "bg-brand-soft text-brand-strong",
       has: customer.loans.length > 0,
     },
     {
-      anchor: "abonos",
+      key: "abonos",
+      href: "#abonos",
       label: t("customers.jumpPayments"),
       icon: "receipt" as const,
       tint: "bg-positive-soft text-positive",
       has: payments.length > 0,
     },
     {
-      anchor: "adjuntos",
+      key: "adjuntos",
+      href: `/customers/${customer.id}/documents`,
       label: t("customers.jumpDocuments"),
       icon: "image" as const,
       tint: "bg-warning-soft text-warning",
-      has: idDocuments.length > 0,
+      has: customer.attachments.length > 0,
     },
     {
-      anchor: "gestiones",
+      key: "gestiones",
+      href: "#gestiones",
       label: t("customers.jumpInteractions"),
       icon: "headset" as const,
       tint: "bg-surface-muted text-ink-muted",
@@ -284,7 +276,7 @@ export default async function CustomerDetailPage({
             canCreateLoan={can(context, "loans.create")}
             canEdit={can(context, "customers.update")}
             canDelete={can(context, "customers.delete")}
-            hasAttachments={idDocuments.length > 0}
+            hasAttachments={customer.attachments.length > 0}
             canReport={
               can(context, "credit.create") &&
               Boolean(customer.documentNumber)
@@ -350,8 +342,8 @@ export default async function CustomerDetailPage({
         <nav className="mt-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {jumps.map((jump) => (
             <a
-              key={jump.anchor}
-              href={`#${jump.anchor}`}
+              key={jump.key}
+              href={jump.href}
               className="flex shrink-0 flex-col items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-[0.6875rem] font-medium text-ink-muted transition-colors hover:bg-surface-muted"
             >
               <span
@@ -686,72 +678,6 @@ export default async function CustomerDetailPage({
         </Card>
 
         <div className="space-y-4 lg:col-span-2">
-          <Card id="prestamos">
-            <CardHeader title={t("customers.loansTab")} />
-            {customer.loans.length === 0 ? (
-              <EmptyState
-                icon="hand-coins"
-                title={t("loans.emptyTitle")}
-                hint={t("loans.emptyHint")}
-              />
-            ) : (
-              // Las mismas tarjetas de la lista de préstamos. La tabla de
-              // cuatro columnas se salía por la derecha del teléfono y el
-              // saldo quedaba fuera de la pantalla; la tarjeta cabe y además
-              // dice cuántas cuotas van, cuántas están atrasadas y cuánto
-              // hay que pedirle hoy. El nombre no se repite: es su ficha.
-              <CardBody className="space-y-2">
-                {customer.loans.map((loan) => (
-                  <LoanRow
-                    key={loan.id}
-                    loan={loan}
-                    now={now}
-                    t={t}
-                    money={money}
-                    locale={context.locale}
-                  />
-                ))}
-              </CardBody>
-            )}
-          </Card>
-
-          {/* El menú de arriba trae aquí: "Ver adjuntos" tiene que aterrizar
-              en algún lado. */}
-          <Card id="adjuntos">
-            <CardHeader
-              title={t("customers.documentsSection")}
-              description={t("customers.documentsHint")}
-            />
-            {idDocuments.length === 0 ? (
-              <EmptyState icon="image" title={t("common.empty")} />
-            ) : (
-              <CardBody className="grid gap-4 sm:grid-cols-2">
-                {idDocuments.map((document) => (
-                  <figure key={document.id}>
-                    {/* Recortada no se le lee el número al documento, que es
-                        para lo que se le tomó la foto. Se abre encima, sin
-                        sacar a nadie de la aplicación a otra pestaña. */}
-                    <PhotoZoom
-                      src={document.url}
-                      alt={document.name}
-                      caption={
-                        document.kind === "ID_FRONT"
-                          ? t("customers.idFront")
-                          : t("customers.idBack")
-                      }
-                      className="aspect-[16/10] w-full rounded-xl border border-border object-cover"
-                    />
-                    <figcaption className="mt-1.5 text-xs text-ink-muted">
-                      {document.kind === "ID_FRONT"
-                        ? t("customers.idFront")
-                        : t("customers.idBack")}
-                    </figcaption>
-                  </figure>
-                ))}
-              </CardBody>
-            )}
-          </Card>
-
           <Card id="abonos">
             <CardHeader
               title={t("payments.history")}

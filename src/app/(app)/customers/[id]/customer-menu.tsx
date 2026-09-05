@@ -133,7 +133,11 @@ export function CustomerMenu({
             )}
 
             {hasAttachments ? (
-              <a className={item} href="#adjuntos" onClick={() => setOpen(false)}>
+              <a
+                className={item}
+                href={`/customers/${customerId}/documents`}
+                onClick={() => setOpen(false)}
+              >
                 <Icon name="image" size={16} className="text-ink-subtle" />
                 {es.customers.seeAttachments}
               </a>
