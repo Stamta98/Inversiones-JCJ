@@ -28,6 +28,8 @@ import { db } from "@/server/db";
 
 import { LoanRow } from "@/components/loans/loan-row";
 
+import { PhotoZoom } from "@/components/ui/photo-zoom";
+
 import { CustomerMenu } from "./customer-menu";
 
 export const dynamic = "force-dynamic";
@@ -256,11 +258,12 @@ export default async function CustomerDetailPage({
         // ancho en vez de pelearlo con dos botones.
         avatar={
           customer.photoUrl ? (
-            // Same-origin, authenticated route; next/image adds nothing.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            // Del tamaño de una moneda no se le reconoce la cara: se toca y
+            // se abre grande.
+            <PhotoZoom
               src={customer.photoUrl}
               alt=""
+              caption={`${customer.firstName} ${customer.lastName}`}
               className="size-12 shrink-0 rounded-full border border-border object-cover"
             />
           ) : (
@@ -679,14 +682,19 @@ export default async function CustomerDetailPage({
               <CardBody className="grid gap-4 sm:grid-cols-2">
                 {idDocuments.map((document) => (
                   <figure key={document.id}>
-                    <a href={document.url} target="_blank" rel="noreferrer">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={document.url}
-                        alt={document.name}
-                        className="aspect-[16/10] w-full rounded-xl border border-border object-cover"
-                      />
-                    </a>
+                    {/* Recortada no se le lee el número al documento, que es
+                        para lo que se le tomó la foto. Se abre encima, sin
+                        sacar a nadie de la aplicación a otra pestaña. */}
+                    <PhotoZoom
+                      src={document.url}
+                      alt={document.name}
+                      caption={
+                        document.kind === "ID_FRONT"
+                          ? t("customers.idFront")
+                          : t("customers.idBack")
+                      }
+                      className="aspect-[16/10] w-full rounded-xl border border-border object-cover"
+                    />
                     <figcaption className="mt-1.5 text-xs text-ink-muted">
                       {document.kind === "ID_FRONT"
                         ? t("customers.idFront")

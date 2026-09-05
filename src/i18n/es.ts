@@ -14,6 +14,8 @@ export const es = {
     saving: "Guardando…",
     cancel: "Cancelar",
     close: "Cerrar",
+    // Al tocar una foto: se abre grande, que es para lo que uno la toca.
+    zoom: "Ampliar la foto",
     create: "Crear",
     edit: "Editar",
     delete: "Eliminar",
