@@ -60,6 +60,7 @@ export default async function PaymentsPage({
     byMethod,
     disbursed,
     chargesAtDisbursement,
+    chargesInPayments,
     expenses,
     newLoans,
     carried,
@@ -114,6 +115,13 @@ export default async function PaymentsPage({
       _sum: { amount: true },
       _count: true,
     }),
+    // El cargo que se reparte entre las cuotas no llega de una: va entrando
+    // con cada abono. Agrupado por abono para poder decir cuántos fueron.
+    db.paymentAllocation.groupBy({
+      by: ["paymentId"],
+      where: { payment: collectedToday, chargeAmount: { gt: 0 } },
+      _sum: { chargeAmount: true },
+    }),
     // El gasto se cuenta desde el gasto, no desde la caja: uno registrado sin
     // caja igual salió del bolsillo, y el detalle lo lista aunque el cuadro
     // dijera cero.
@@ -160,9 +168,7 @@ export default async function PaymentsPage({
   const lent = Math.abs(Number(disbursed._sum.amount ?? 0));
   // Lo que se le descontó al cliente al entregarle: salió con el desembolso y
   // volvió de una, así que es plata que se quedó en la caja.
-  const chargesTaken = Math.abs(
-    Number(chargesAtDisbursement._sum.amount ?? 0),
-  );
+  const chargesTaken = Math.abs(Number(chargesAtDisbursement._sum.amount ?? 0));
   const spent = Math.abs(Number(expenses._sum.amount ?? 0));
   const handOver = collected + chargesTaken - lent - spent;
 
@@ -174,9 +180,14 @@ export default async function PaymentsPage({
   // pagó más de lo que debía.
   const surplus =
     collected - (principalPaid + interestPaid + lateFeePaid + chargePaid);
+  // Lo que los cargos dejaron en el día, venga como venga: el que se
+  // descontó al entregar la plata y la parte de cargo de lo que se cobró.
+  // Las dos son plata que entró hoy por el mismo concepto.
+  const chargesEarned = chargesTaken + chargePaid;
+  const chargesCount = chargesAtDisbursement._count + chargesInPayments.length;
+
   // Lo que deja el día: el capital vuelve, no se gana. Los gastos sí salen.
-  const profit =
-    interestPaid + lateFeePaid + chargePaid + chargesTaken - spent;
+  const profit = interestPaid + lateFeePaid + chargePaid + chargesTaken - spent;
 
   // Refinanciar no mueve plata: traslada un saldo. Renovar traslada el saldo
   // y entrega la diferencia. Ninguna de las dos es "prestar" lo que dice el
@@ -287,9 +298,9 @@ export default async function PaymentsPage({
         </span>
       </form>
 
-      {/* Lo que se movió hoy, en cuatro cuadros: cada uno con su monto y
-          cuántos fueron. Prestar, renovar, refinanciar y gastar son cuatro
-          cosas distintas y ninguna se entiende sumada con las otras. */}
+      {/* Lo que se movió hoy, cada cosa en su cuadro con su monto y cuántas
+          fueron. Prestar, renovar, refinanciar, gastar y cobrar cargos son
+          cinco cosas distintas y ninguna se entiende sumada con las otras. */}
       <div className="mb-3 grid grid-cols-2 gap-3">
         {[
           {
@@ -302,6 +313,7 @@ export default async function PaymentsPage({
             many: "payments.summary.countLoans",
             box: "border-info-soft bg-info-soft/60",
             text: "text-info",
+            wide: false,
           },
           {
             label: t("loans.renewal.kindMenu.RENEWAL"),
@@ -313,6 +325,7 @@ export default async function PaymentsPage({
             many: "payments.summary.countRenewals",
             box: "border-positive-soft bg-positive-soft/60",
             text: "text-positive",
+            wide: false,
           },
           {
             label: t("loans.renewal.kindMenu.REFINANCE"),
@@ -324,6 +337,7 @@ export default async function PaymentsPage({
             many: "payments.summary.countRefinances",
             box: "border-warning-soft bg-warning-soft/60",
             text: "text-warning",
+            wide: false,
           },
           {
             label: t("payments.summary.expenses"),
@@ -335,12 +349,30 @@ export default async function PaymentsPage({
             many: "payments.summary.countExpenses",
             box: "border-danger-soft bg-danger-soft/60",
             text: "text-danger",
+            wide: false,
+          },
+          // Los cargos van solos en la última fila y ocupan el ancho: son
+          // cinco cuadros en dos columnas y dejar uno a medias, con el hueco
+          // al lado, se ve como si faltara algo.
+          {
+            label: t("payments.summary.tileCharges"),
+            kind: "CHARGE",
+            icon: "wallet" as const,
+            value: chargesEarned,
+            count: chargesCount,
+            one: "payments.summary.countChargesOne",
+            many: "payments.summary.countCharges",
+            box: "border-brand-soft bg-brand-soft/60",
+            text: "text-brand-strong",
+            wide: true,
           },
         ].map((tile) => (
           <Link
             key={tile.label}
             href={`/payments/day?kind=${tile.kind}&date=${selected}`}
-            className={`rounded-[--radius-card] border p-3 transition-shadow hover:shadow-md ${tile.box}`}
+            className={`rounded-[--radius-card] border p-3 transition-shadow hover:shadow-md ${tile.box} ${
+              tile.wide ? "col-span-2" : ""
+            }`}
           >
             <p
               className={`flex items-center gap-1.5 text-sm font-semibold ${tile.text}`}

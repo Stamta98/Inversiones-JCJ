@@ -17,8 +17,8 @@ import { db } from "@/server/db";
 
 export const dynamic = "force-dynamic";
 
-/** Los cuatro cuadros del resumen abren aquí, cada uno con lo suyo. */
-const KINDS = ["NEW", "RENEWAL", "REFINANCE", "EXPENSE"] as const;
+/** Los cuadros del resumen abren aquí, cada uno con lo suyo. */
+const KINDS = ["NEW", "RENEWAL", "REFINANCE", "EXPENSE", "CHARGE"] as const;
 type Kind = (typeof KINDS)[number];
 
 const TITLES: Record<Kind, string> = {
@@ -26,6 +26,7 @@ const TITLES: Record<Kind, string> = {
   RENEWAL: "payments.summary.detailRenewals",
   REFINANCE: "payments.summary.detailRefinances",
   EXPENSE: "payments.summary.detailExpenses",
+  CHARGE: "payments.summary.detailCharges",
 };
 
 const LOAN_TONES: Record<string, Tone> = {
@@ -46,7 +47,12 @@ function Fact({
   label,
   value,
 }: {
-  icon: "credit-card" | "trending-down" | "calendar" | "clock" | "alert-triangle";
+  icon:
+    | "credit-card"
+    | "trending-down"
+    | "calendar"
+    | "clock"
+    | "alert-triangle";
   tint: string;
   label: string;
   value: string;
@@ -88,7 +94,7 @@ export default async function DayDetailPage({
   const { t, money } = context;
 
   const loans =
-    kind === "EXPENSE"
+    kind === "EXPENSE" || kind === "CHARGE"
       ? []
       : await db.loan.findMany({
           where: {
@@ -104,7 +110,11 @@ export default async function DayDetailPage({
             parentLoan: {
               select: {
                 payments: {
-                  where: { method: "REFINANCE", status: "POSTED", paidAt: today },
+                  where: {
+                    method: "REFINANCE",
+                    status: "POSTED",
+                    paidAt: today,
+                  },
                   select: { amount: true },
                 },
               },
@@ -125,6 +135,87 @@ export default async function DayDetailPage({
         })
       : [];
 
+  // Los cargos que se descontaron al entregar la plata: entraron a la caja
+  // ese mismo día y ya quedaron cobrados.
+  const chargeMovements =
+    kind === "CHARGE"
+      ? await db.cashMovement.findMany({
+          where: {
+            cashBox: { companyId: context.companyId },
+            kind: "CHARGE_COLLECTED",
+            createdAt: today,
+          },
+          select: {
+            id: true,
+            amount: true,
+            description: true,
+            loan: {
+              select: {
+                id: true,
+                code: true,
+                customer: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
+
+  // El cargo que se repartió entre las cuotas no llega de una: va entrando
+  // con cada abono, y ese pedazo también es cargo cobrado ese día.
+  const chargePayments =
+    kind === "CHARGE"
+      ? await db.payment.findMany({
+          where: {
+            companyId: context.companyId,
+            status: "POSTED",
+            // Un traspaso de refinanciación no es plata que entró.
+            method: { not: "REFINANCE" },
+            paidAt: today,
+            allocations: { some: { chargeAmount: { gt: 0 } } },
+          },
+          select: {
+            id: true,
+            loan: {
+              select: {
+                id: true,
+                code: true,
+                customer: { select: { firstName: true, lastName: true } },
+              },
+            },
+            allocations: { select: { chargeAmount: true } },
+          },
+          orderBy: { paidAt: "desc" },
+        })
+      : [];
+
+  // Los dos orígenes en una sola lista: para quien cierra el día son lo
+  // mismo, cargos que se cobraron.
+  const charges = [
+    ...chargeMovements.map((movement) => ({
+      id: movement.id,
+      loanId: movement.loan?.id ?? null,
+      // Si el préstamo se borró, queda lo que dijo la caja ese día.
+      who: movement.loan
+        ? `${movement.loan.customer.firstName} ${movement.loan.customer.lastName}`
+        : (movement.description ?? ""),
+      code: movement.loan?.code ?? "",
+      how: t("payments.summary.chargeDeducted"),
+      amount: Math.abs(Number(movement.amount)),
+    })),
+    ...chargePayments.map((payment) => ({
+      id: payment.id,
+      loanId: payment.loan.id,
+      who: `${payment.loan.customer.firstName} ${payment.loan.customer.lastName}`,
+      code: payment.loan.code,
+      how: t("payments.summary.chargeInstallment"),
+      amount: payment.allocations.reduce(
+        (sum, allocation) => sum + Number(allocation.chargeAmount),
+        0,
+      ),
+    })),
+  ].filter((charge) => charge.amount > 0);
+
   const carriedOn = (loan: (typeof loans)[number]) =>
     (loan.parentLoan?.payments ?? []).reduce(
       (total, payment) => total + Number(payment.amount),
@@ -132,21 +223,28 @@ export default async function DayDetailPage({
     );
 
   const total =
-    kind === "EXPENSE"
-      ? expenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
-      : loans.reduce((sum, loan) => {
-          const carried = carriedOn(loan);
-          return (
-            sum +
-            (kind === "REFINANCE"
-              ? carried
-              : kind === "RENEWAL"
-                ? Math.max(0, Number(loan.principal) - carried)
-                : Number(loan.principal))
-          );
-        }, 0);
+    kind === "CHARGE"
+      ? charges.reduce((sum, charge) => sum + charge.amount, 0)
+      : kind === "EXPENSE"
+        ? expenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
+        : loans.reduce((sum, loan) => {
+            const carried = carriedOn(loan);
+            return (
+              sum +
+              (kind === "REFINANCE"
+                ? carried
+                : kind === "RENEWAL"
+                  ? Math.max(0, Number(loan.principal) - carried)
+                  : Number(loan.principal))
+            );
+          }, 0);
 
-  const empty = kind === "EXPENSE" ? expenses.length === 0 : loans.length === 0;
+  const empty =
+    kind === "CHARGE"
+      ? charges.length === 0
+      : kind === "EXPENSE"
+        ? expenses.length === 0
+        : loans.length === 0;
 
   return (
     <>
@@ -175,6 +273,42 @@ export default async function DayDetailPage({
             hint={t("payments.summary.detailEmpty")}
           />
         </Card>
+      ) : kind === "CHARGE" ? (
+        <>
+          <p className="mb-2 text-xs text-ink-muted">
+            {t("payments.summary.chargesHint")}
+          </p>
+          <div className="space-y-2">
+            {charges.map((charge) => (
+              <Card key={charge.id} className="p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    {/* El nombre lleva a su préstamo: de ahí salió el cargo. */}
+                    {charge.loanId ? (
+                      <Link
+                        href={`/loans/${charge.loanId}`}
+                        className="block truncate text-sm font-semibold text-ink hover:underline"
+                      >
+                        {charge.who}
+                      </Link>
+                    ) : (
+                      <span className="block truncate text-sm font-semibold text-ink">
+                        {charge.who}
+                      </span>
+                    )}
+                    <span className="numeric block truncate text-xs text-ink-muted">
+                      {charge.code ? `${charge.code} · ` : ""}
+                      {charge.how}
+                    </span>
+                  </span>
+                  <span className="numeric shrink-0 text-sm font-bold text-brand-strong">
+                    {money(charge.amount)}
+                  </span>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
       ) : kind === "EXPENSE" ? (
         <div className="space-y-2">
           {expenses.map((expense) => (
@@ -225,7 +359,9 @@ export default async function DayDetailPage({
                 <CardBody className="space-y-3">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Badge tone="info">{loan.code}</Badge>
-                    <Badge tone={LOAN_TONES[loan.status as LoanStatus] ?? "neutral"}>
+                    <Badge
+                      tone={LOAN_TONES[loan.status as LoanStatus] ?? "neutral"}
+                    >
                       {t(`loans.status.${loan.status}`)}
                     </Badge>
                     {kind !== "NEW" ? (

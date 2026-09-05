@@ -44,7 +44,8 @@ export const es = {
     details: "Detalle",
     actions: "Acciones",
     // --- Ordenar la lista a mano ---
-    dragHint: "Arrastra una fila para organizarla. En el celular, mantenla pulsada primero.",
+    dragHint:
+      "Arrastra una fila para organizarla. En el celular, mantenla pulsada primero.",
     resetOrder: "Volver al orden automático",
     orderedByHand: "Esta lista está ordenada a mano.",
     export: "Exportar",
@@ -108,7 +109,8 @@ export const es = {
 
   signUp: {
     title: "Crea tu financiera",
-    subtitle: "Unos datos y empiezas a trabajar. El resto se configura después.",
+    subtitle:
+      "Unos datos y empiezas a trabajar. El resto se configura después.",
     companyName: "Nombre de la financiera",
     companyNameHint: "Como lo conocen tus clientes.",
     country: "¿En qué país operas?",
@@ -278,8 +280,7 @@ export const es = {
     },
     moduleBuilder: {
       label: "Constructor de módulos",
-      description:
-        "Crea tus propios módulos y campos sin programar nada.",
+      description: "Crea tus propios módulos y campos sin programar nada.",
     },
     settings: {
       label: "Configuración",
@@ -374,13 +375,15 @@ export const es = {
     },
     personalSection: "Datos personales",
     mainSection: "Datos principales",
-    mainSectionHint: "Lo mínimo para registrarlo. El resto se puede llenar después.",
+    mainSectionHint:
+      "Lo mínimo para registrarlo. El resto se puede llenar después.",
     generalSection: "Datos generales",
     generalSectionHint: "Fecha de nacimiento, sexo y nacionalidad.",
     contactSection: "Contacto",
     contactSectionHint: "Teléfono fijo y correo electrónico.",
     homeSectionHint: "Dirección, barrio, punto de referencia y ubicación.",
-    workSectionHint: "De qué vive, dónde trabaja, con qué vehículo y cuánto gana.",
+    workSectionHint:
+      "De qué vive, dónde trabaja, con qué vehículo y cuánto gana.",
     notesHint: "Cualquier cosa que quieras recordar de este cliente.",
     homeSection: "Dónde vive",
     landmark: "Punto de referencia",
@@ -501,7 +504,8 @@ export const es = {
     principal: "Monto prestado",
     // --- Comprobante del préstamo ---
     documentTitle: "Comprobante de préstamo",
-    documentHint: "El papel que firma y se lleva el cliente, con todas las cuotas.",
+    documentHint:
+      "El papel que firma y se lleva el cliente, con todas las cuotas.",
     downloadPdf: "Descargar el PDF",
     sharePdf: "Enviar por WhatsApp",
     documentPage: "Página {current} de {total}",
@@ -526,8 +530,10 @@ export const es = {
       PER_PERIOD: "por cuota",
     },
     rateBasisHint: {
-      TOTAL: "100.000 al 20% son 20.000 de interés, se cobren en 30 días o en 6 meses.",
-      PER_PERIOD: "Cada cuota cobra ese porcentaje. Es lo que se quiere decir con «5% mensual» a 12 meses.",
+      TOTAL:
+        "100.000 al 20% son 20.000 de interés, se cobren en 30 días o en 6 meses.",
+      PER_PERIOD:
+        "Cada cuota cobra ese porcentaje. Es lo que se quiere decir con «5% mensual» a 12 meses.",
     },
     interestMethod: "Modalidad de interés",
     frequency: "Frecuencia de pago",
@@ -854,7 +860,8 @@ export const es = {
     // --- El resumen del día, que es la cuenta que se entrega en la noche ---
     summary: {
       handOver: "Total a entregar",
-      handOverHint: "Lo cobrado y los cargos, menos lo prestado y los gastos del día.",
+      handOverHint:
+        "Lo cobrado y los cargos, menos lo prestado y los gastos del día.",
       counts: "{payments} abonos · {loans} préstamos",
       income: "De dónde salió lo cobrado",
       collected: "Total cobrado",
@@ -878,12 +885,24 @@ export const es = {
       countRefinancesOne: "1 refinanciación",
       countExpenses: "{count} gastos",
       countExpensesOne: "1 gasto",
+      // Los cargos no son un préstamo ni un gasto: es lo que el negocio se
+      // gana aparte del interés, y hasta ahora había que buscarlo adentro.
+      tileCharges: "Cargos adicionales",
+      countCharges: "{count} cargos",
+      countChargesOne: "1 cargo",
       none: "Ninguno",
       // La pantalla que se abre al tocar un cuadro.
       detailLoans: "Préstamos",
       detailRenewals: "Renovaciones",
       detailRefinances: "Refinanciaciones",
       detailExpenses: "Gastos",
+      detailCharges: "Cargos adicionales",
+      // De dónde salió cada cargo: uno se cobró de una al entregar la plata,
+      // el otro va llegando repartido en las cuotas.
+      chargeDeducted: "Descontado al entregar",
+      chargeInstallment: "Cobrado en la cuota",
+      chargesHint:
+        "Lo que dejaron los cargos ese día: los que se descontaron al entregar y la parte de cargo de lo que se cobró.",
       detailEmpty: "No hay nada de esto registrado ese día.",
       detailTotal: "Total del día",
       back: "Volver al resumen",
@@ -1038,18 +1057,21 @@ export const es = {
     visitResult: "¿Qué pasó en la visita?",
     visitSaved: "Visita registrada.",
     notes: "Nota de la visita",
-    notesHint: "Lo que quieras recordar: quién atendió, qué dijo, cuándo volver.",
+    notesHint:
+      "Lo que quieras recordar: quién atendió, qué dijo, cuándo volver.",
 
     // --- Cobrar ---
     collect: "Cobrar",
     collecting: "Cobrando…",
-    collectHint: "Se registra el recibo, se aplica a las cuotas y entra a la caja.",
+    collectHint:
+      "Se registra el recibo, se aplica a las cuotas y entra a la caja.",
     collectedReceipt: "Cobrado. Recibo {receipt}.",
     alreadyCollected: "Ya cobrado",
 
     // --- Visitas ---
     addStop: "Agregar una visita",
-    addStopHint: "Un préstamo que quieres incluir aunque no lo haya puesto el sistema.",
+    addStopHint:
+      "Un préstamo que quieres incluir aunque no lo haya puesto el sistema.",
     stopAdded: "Visita agregada a la ruta.",
     removeStop: "Quitar de la ruta",
     moveUp: "Subir",
@@ -1096,7 +1118,8 @@ export const es = {
       noStops:
         "No hay nada que cobrar con ese criterio ese día. Prueba con otro día o con otro filtro.",
       notFound: "No se encontró la ruta o la visita.",
-      routeClosed: "La ruta está cerrada. Vuelve a abrirla para poder cambiarla.",
+      routeClosed:
+        "La ruta está cerrada. Vuelve a abrirla para poder cambiarla.",
       alreadyOnRoute: "Ese préstamo ya está en la ruta.",
       amount: "El monto debe ser mayor que cero.",
       loanNotActive: "El préstamo no está activo.",
@@ -1459,8 +1482,7 @@ export const es = {
     modulesHint:
       "Activa solo lo que uses. Los módulos base no se pueden desactivar.",
     moduleRequired: "Este módulo es obligatorio.",
-    moduleDependency:
-      "Necesitas activar «{module}» antes de usar este módulo.",
+    moduleDependency: "Necesitas activar «{module}» antes de usar este módulo.",
     moduleDependents:
       "Si desactivas este módulo también se desactivará: {modules}.",
     newUserTitle: "Nuevo usuario",
@@ -1468,8 +1490,7 @@ export const es = {
     userFullName: "Nombre completo",
     userEmail: "Correo electrónico",
     userUsername: "Nombre de usuario",
-    userUsernameHint:
-      "Con este nombre o con el correo va a entrar al sistema.",
+    userUsernameHint: "Con este nombre o con el correo va a entrar al sistema.",
     userPhone: "Teléfono",
     userPassword: "Contraseña",
     userPasswordHint: "Mínimo 8 caracteres.",
