@@ -70,7 +70,7 @@ export function CardHeader({
           <p className="mt-0.5 text-xs text-ink-muted">{description}</p>
         ) : null}
       </div>
-      {action}
+      {action ? <div className="shrink-0">{action}</div> : null}
     </header>
   );
 }
@@ -103,8 +103,12 @@ export function PageHeader({
   avatar?: ReactNode;
 }) {
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-3">
+    // Sin salto de línea: con un nombre largo, el grupo del nombre ocupaba el
+    // ancho entero y mandaba el botón al renglón de abajo. Ahora el nombre se
+    // parte en dos líneas dentro de su columna y el botón se queda a la
+    // derecha, que es donde el pulgar lo busca.
+    <header className="mb-5 flex items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         {avatar}
         <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">
