@@ -570,6 +570,10 @@ export const es = {
     frequency: "Frecuencia de pago",
     termCount: "Cantidad de cuotas",
     firstDueDate: "Fecha de la primera cuota",
+    // El día que se entrega la plata no se cobra: la primera cuota va un
+    // período después, y se mueve sola al cambiar la frecuencia.
+    firstDueHint:
+      "El día que entregas la plata no se cobra: la primera cuota cae un período después. Puedes cambiarla.",
     disbursedAt: "Fecha de desembolso",
     lateFee: "Mora",
     lateFeeMode: "Cálculo de la mora",

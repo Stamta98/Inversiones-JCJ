@@ -162,6 +162,39 @@ export function nextCollectionDay(
   throw new NoCollectionDayError();
 }
 
+/**
+ * Cuándo cae la primera cuota de un préstamo entregado hoy.
+ *
+ * El día que se entrega la plata no se cobra: se cobra un período después.
+ * Diario prestado hoy es mañana; semanal prestado el sábado es el sábado de la
+ * otra semana; mensual es el mismo día del mes que viene. Y si ese día cae en
+ * uno en que no se sale a cobrar, se corre al siguiente que sí.
+ */
+export function firstDueAfter(
+  disbursedAt: Date,
+  frequency: PaymentFrequency,
+  options: {
+    customIntervalDays?: number;
+    nonCollectionDays?: readonly number[];
+  } = {},
+): Date {
+  const oneLater = advanceByFrequency(
+    startOfDay(disbursedAt),
+    frequency,
+    1,
+    options.customIntervalDays ?? 1,
+  );
+
+  // Un pago único no tiene "período siguiente": se cobra al día siguiente, que
+  // es lo mismo que cobrarlo cuando toque, pero nunca el mismo día.
+  const target =
+    oneLater.getTime() === startOfDay(disbursedAt).getTime()
+      ? addDays(startOfDay(disbursedAt), 1)
+      : oneLater;
+
+  return nextCollectionDay(target, options.nonCollectionDays ?? []);
+}
+
 /** How many payment periods fit in a year. Used to annualize a rate. */
 export function periodsPerYear(frequency: PaymentFrequency): number {
   switch (frequency) {

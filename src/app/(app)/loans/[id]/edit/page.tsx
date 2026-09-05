@@ -120,11 +120,6 @@ export default async function EditLoanPage({
             {
               id: loan.customerId,
               label: `${loan.customer.code} — ${loan.customer.firstName} ${loan.customer.lastName}`,
-              payday: {
-                kind: loan.customer.paydayKind,
-                weekday: loan.customer.paydayWeekday,
-                dayOfMonth: loan.customer.paydayDayOfMonth,
-              },
             },
           ]}
           cashBoxes={cashBoxes.map((cashBox) => ({
