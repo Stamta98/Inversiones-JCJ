@@ -299,10 +299,25 @@ export default async function PaymentsPage({
       </form>
 
       {/* Lo que se movió hoy, cada cosa en su cuadro con su monto y cuántas
-          fueron. Prestar, renovar, refinanciar, gastar y cobrar cargos son
-          cinco cosas distintas y ninguna se entiende sumada con las otras. */}
+          fueron: ninguna se entiende sumada con las otras. Lo cobrado va
+          arriba y de lado a lado porque es de donde sale todo lo demás, y los
+          cargos abajo, cerrando con lo que el día dejó de más. */}
       <div className="mb-3 grid grid-cols-2 gap-3">
         {[
+          {
+            label: t("payments.summary.collected"),
+            kind: "COLLECTED",
+            icon: "credit-card" as const,
+            value: collected,
+            count: todayTotal._count,
+            one: "payments.summary.countPaymentsOne",
+            many: "payments.summary.countPayments",
+            // Blanco y con borde marcado: es un total, no una categoría más.
+            // Los cuadros de color son las cosas que se cuentan aparte.
+            box: "border-border-strong bg-surface",
+            text: "text-ink",
+            wide: true,
+          },
           {
             label: t("payments.summary.tileLoans"),
             kind: "NEW",

@@ -890,6 +890,10 @@ export const es = {
       tileCharges: "Cargos adicionales",
       countCharges: "{count} cargos",
       countChargesOne: "1 cargo",
+      // Lo cobrado es el número grande del día: va arriba de todo y de lado a
+      // lado, porque es de donde sale todo lo demás.
+      countPayments: "{count} abonos",
+      countPaymentsOne: "1 abono",
       none: "Ninguno",
       // La pantalla que se abre al tocar un cuadro.
       detailLoans: "Préstamos",
@@ -897,6 +901,10 @@ export const es = {
       detailRefinances: "Refinanciaciones",
       detailExpenses: "Gastos",
       detailCharges: "Cargos adicionales",
+      detailCollected: "Lo cobrado del día",
+      collectedHint:
+        "Cada abono del día: quién pagó, cuánto entró y cuánto le queda debiendo.",
+      collectedNoBalance: "Queda al día",
       // De dónde salió cada cargo: uno se cobró de una al entregar la plata,
       // el otro va llegando repartido en las cuotas.
       chargeDeducted: "Descontado al entregar",

@@ -18,7 +18,14 @@ import { db } from "@/server/db";
 export const dynamic = "force-dynamic";
 
 /** Los cuadros del resumen abren aquí, cada uno con lo suyo. */
-const KINDS = ["NEW", "RENEWAL", "REFINANCE", "EXPENSE", "CHARGE"] as const;
+const KINDS = [
+  "NEW",
+  "RENEWAL",
+  "REFINANCE",
+  "EXPENSE",
+  "CHARGE",
+  "COLLECTED",
+] as const;
 type Kind = (typeof KINDS)[number];
 
 const TITLES: Record<Kind, string> = {
@@ -27,6 +34,7 @@ const TITLES: Record<Kind, string> = {
   REFINANCE: "payments.summary.detailRefinances",
   EXPENSE: "payments.summary.detailExpenses",
   CHARGE: "payments.summary.detailCharges",
+  COLLECTED: "payments.summary.detailCollected",
 };
 
 const LOAN_TONES: Record<string, Tone> = {
@@ -94,7 +102,7 @@ export default async function DayDetailPage({
   const { t, money } = context;
 
   const loans =
-    kind === "EXPENSE" || kind === "CHARGE"
+    kind === "EXPENSE" || kind === "CHARGE" || kind === "COLLECTED"
       ? []
       : await db.loan.findMany({
           where: {
@@ -132,6 +140,38 @@ export default async function DayDetailPage({
             cashBox: { select: { name: true } },
           },
           orderBy: { spentAt: "desc" },
+        })
+      : [];
+
+  // Cada abono del día, con el préstamo al que entró: es lo que se cobró y,
+  // al lado, lo que a ese préstamo le sigue faltando. Un traspaso de
+  // refinanciación no se cobró, se trasladó: no cuenta como plata que entró.
+  const collected =
+    kind === "COLLECTED"
+      ? await db.payment.findMany({
+          where: {
+            companyId: context.companyId,
+            status: "POSTED",
+            method: { not: "REFINANCE" },
+            paidAt: today,
+          },
+          select: {
+            id: true,
+            amount: true,
+            method: true,
+            paidAt: true,
+            receiptNumber: true,
+            loan: {
+              select: {
+                id: true,
+                code: true,
+                status: true,
+                outstanding: true,
+                customer: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
+          orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
         })
       : [];
 
@@ -223,28 +263,32 @@ export default async function DayDetailPage({
     );
 
   const total =
-    kind === "CHARGE"
-      ? charges.reduce((sum, charge) => sum + charge.amount, 0)
-      : kind === "EXPENSE"
-        ? expenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
-        : loans.reduce((sum, loan) => {
-            const carried = carriedOn(loan);
-            return (
-              sum +
-              (kind === "REFINANCE"
-                ? carried
-                : kind === "RENEWAL"
-                  ? Math.max(0, Number(loan.principal) - carried)
-                  : Number(loan.principal))
-            );
-          }, 0);
+    kind === "COLLECTED"
+      ? collected.reduce((sum, payment) => sum + Number(payment.amount), 0)
+      : kind === "CHARGE"
+        ? charges.reduce((sum, charge) => sum + charge.amount, 0)
+        : kind === "EXPENSE"
+          ? expenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
+          : loans.reduce((sum, loan) => {
+              const carried = carriedOn(loan);
+              return (
+                sum +
+                (kind === "REFINANCE"
+                  ? carried
+                  : kind === "RENEWAL"
+                    ? Math.max(0, Number(loan.principal) - carried)
+                    : Number(loan.principal))
+              );
+            }, 0);
 
   const empty =
-    kind === "CHARGE"
-      ? charges.length === 0
-      : kind === "EXPENSE"
-        ? expenses.length === 0
-        : loans.length === 0;
+    kind === "COLLECTED"
+      ? collected.length === 0
+      : kind === "CHARGE"
+        ? charges.length === 0
+        : kind === "EXPENSE"
+          ? expenses.length === 0
+          : loans.length === 0;
 
   return (
     <>
@@ -273,6 +317,50 @@ export default async function DayDetailPage({
             hint={t("payments.summary.detailEmpty")}
           />
         </Card>
+      ) : kind === "COLLECTED" ? (
+        <>
+          <p className="mb-2 text-xs text-ink-muted">
+            {t("payments.summary.collectedHint")}
+          </p>
+          <div className="space-y-2">
+            {collected.map((payment) => (
+              <Card key={payment.id} className="p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    <Link
+                      href={`/loans/${payment.loan.id}`}
+                      className="block truncate text-sm font-semibold text-ink hover:underline"
+                    >
+                      {payment.loan.customer.firstName}{" "}
+                      {payment.loan.customer.lastName}
+                    </Link>
+                    <span className="numeric block truncate text-xs text-ink-muted">
+                      {payment.loan.code} ·{" "}
+                      {t(`payments.methodLabel.${payment.method}`)} ·{" "}
+                      {payment.receiptNumber}
+                    </span>
+                  </span>
+                  <span className="numeric shrink-0 text-sm font-bold text-positive">
+                    {money(Number(payment.amount))}
+                  </span>
+                </div>
+
+                {/* Lo que se cobró no dice nada solo: al lado va lo que a ese
+                    préstamo le sigue faltando, que es por lo que se vuelve. */}
+                <p className="mt-2 flex justify-between gap-3 border-t border-border pt-2 text-xs">
+                  <span className="text-ink-muted">
+                    {t("loans.outstanding")}
+                  </span>
+                  <span className="numeric font-semibold text-ink">
+                    {Number(payment.loan.outstanding) > 0
+                      ? money(Number(payment.loan.outstanding))
+                      : t("payments.summary.collectedNoBalance")}
+                  </span>
+                </p>
+              </Card>
+            ))}
+          </div>
+        </>
       ) : kind === "CHARGE" ? (
         <>
           <p className="mb-2 text-xs text-ink-muted">
