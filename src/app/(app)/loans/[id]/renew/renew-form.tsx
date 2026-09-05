@@ -80,22 +80,25 @@ export function RenewForm({
   currencyCode,
   locale,
   decimalPlaces,
-  initialKind = "REFINANCE",
+  kind = "REFINANCE",
 }: {
   loan: RenewableLoan;
   cashBoxes: CashBoxOption[];
   currencyCode: string;
   locale: string;
   decimalPlaces: number;
-  /** Con cuál de las dos abre, para que el menú entre derecho a la que se pidió. */
-  initialKind?: RenewalKind;
+  /**
+   * Cuál de las dos se va a hacer. Se escoge en el menú del préstamo, no
+   * aquí: quien entró a refinanciar viene a refinanciar, y poner las dos
+   * al lado solo daba ocasión de tocar la que no era.
+   */
+  kind?: RenewalKind;
 }) {
   const { state, pending, onSubmit } = useFormAction<LoanFormState>(
     renewLoanAction,
     {},
   );
 
-  const [kind, setKind] = useState<RenewalKind>(initialKind);
   const [principal, setPrincipal] = useState(String(loan.principal));
   const [interestRate, setInterestRate] = useState(String(loan.interestRate));
   const [rateBasis, setRateBasis] = useState<RateBasis>(loan.rateBasis);
@@ -202,37 +205,16 @@ export function RenewForm({
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <div className="space-y-4">
+          {/* Lo que se va a hacer, dicho y no preguntado: se escogió en el
+              menú del préstamo. Para cambiar de idea se sale y se entra por
+              la otra, que es una decisión de las que conviene volver a
+              tomar a propósito. */}
           <Card>
-            <CardHeader title={es.loans.renewal.kind} />
-            <CardBody className="space-y-3">
-              <div className="grid gap-2 sm:grid-cols-2">
-                {(["REFINANCE", "RENEWAL"] as RenewalKind[]).map((option) => (
-                  <label
-                    key={option}
-                    className={
-                      "cursor-pointer rounded-xl border p-3 text-sm transition-colors " +
-                      (kind === option
-                        ? "border-brand bg-brand-soft text-brand"
-                        : "border-border text-ink hover:border-brand")
-                    }
-                  >
-                    <input
-                      type="radio"
-                      name="kindChoice"
-                      value={option}
-                      checked={kind === option}
-                      onChange={() => setKind(option)}
-                      className="sr-only"
-                    />
-                    <span className="block font-semibold">
-                      {es.loans.renewal.kindLabel[option]}
-                    </span>
-                    <span className="mt-1 block text-xs text-ink-muted">
-                      {es.loans.renewal.kindHint[option]}
-                    </span>
-                  </label>
-                ))}
-              </div>
+            <CardHeader title={es.loans.renewal.kindLabel[kind]} />
+            <CardBody>
+              <p className="text-sm text-ink-muted">
+                {es.loans.renewal.kindHint[kind]}
+              </p>
             </CardBody>
           </Card>
 

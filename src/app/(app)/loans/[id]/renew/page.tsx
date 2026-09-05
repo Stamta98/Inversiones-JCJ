@@ -24,7 +24,7 @@ export default async function RenewLoanPage({
   // El menú del préstamo entra derecho a lo que se va a hacer, pero la
   // dirección la puede escribir cualquiera: lo que no se reconozca abre en
   // refinanciación, que es la opción que no mueve plata.
-  const initialKind: RenewalKind = kind === "RENEWAL" ? "RENEWAL" : "REFINANCE";
+  const renewalKind: RenewalKind = kind === "RENEWAL" ? "RENEWAL" : "REFINANCE";
 
   const loan = await loadRenewable(context.companyId, id);
   if (!loan) notFound();
@@ -35,8 +35,10 @@ export default async function RenewLoanPage({
     select: { id: true, name: true },
   });
 
+  // El título dice cuál de las dos, no las dos: la pantalla hace una sola
+  // cosa y desde arriba tiene que saberse cuál.
   const title = context
-    .t("loans.renewal.title")
+    .t(`loans.renewal.titleOf.${renewalKind}`)
     .replace("{code}", loan.code);
 
   return (
@@ -51,7 +53,7 @@ export default async function RenewLoanPage({
         <Alert tone="info">{context.t("loans.errors.noBalance")}</Alert>
       ) : (
         <RenewForm
-          initialKind={initialKind}
+          kind={renewalKind}
           loan={{
             id: loan.id,
             code: loan.code,

@@ -838,10 +838,12 @@ export const es = {
     // --- Refinanciación y renovación ---
     renewal: {
       action: "Refinanciar o renovar",
-      title: "Refinanciar o renovar el préstamo {code}",
+      titleOf: {
+        REFINANCE: "Refinanciar el préstamo {code}",
+        RENEWAL: "Renovar el préstamo {code}",
+      },
       subtitle:
         "El saldo que queda se pasa a un préstamo nuevo. El préstamo viejo queda saldado.",
-      kind: "¿Qué vas a hacer?",
       kindLabel: {
         REFINANCE: "Refinanciar",
         RENEWAL: "Renovar",
