@@ -1515,7 +1515,10 @@ export const es = {
     modulesTitle: "Módulos del sistema",
     modulesHint:
       "Activa solo lo que uses. Los módulos base no se pueden desactivar.",
-    moduleRequired: "Este módulo es obligatorio.",
+    // Va en una insignia al lado del módulo, donde los demás tienen su botón:
+    // dice de una por qué a ese no se le puede dar. La frase larga de antes no
+    // cabía en el teléfono y salía cortada contra el borde.
+    moduleRequired: "Siempre activo",
     moduleDependency: "Necesitas activar «{module}» antes de usar este módulo.",
     moduleDependents:
       "Si desactivas este módulo también se desactivará: {modules}.",
@@ -1551,6 +1554,41 @@ export const es = {
       "Cambia cualquier texto del sistema por el que use tu empresa. Deja el campo vacío para volver al original.",
     labelOriginal: "Texto original",
     labelCustom: "Tu texto",
+    // La pantalla va por partes, y cada parte con su nombre: antes era un
+    // solo rollo de cinco pantallas donde todo pesaba igual.
+    accessTitle: "Quién entra",
+    accessHint: "Las personas que usan el sistema y lo que cada una puede hacer.",
+    companySectionHint:
+      "El nombre, la moneda y la hora con que se hacen los recibos y los contratos.",
+    language: "Idioma",
+    decimalsShort: "Decimales",
+    // Los módulos, agrupados por lo que hacen. Catorce en una sola lista no se
+    // leen; en cuatro grupos se sabe dónde buscar.
+    moduleCategory: {
+      core: "Lo básico",
+      operations: "La operación del día",
+      communication: "Mensajes y llamadas",
+      customization: "A tu medida",
+    },
+    moduleCategoryHint: {
+      core: "Lo que hace funcionar el negocio. No se puede apagar.",
+      operations: "Rutas, promesas, caja, gastos y reportes.",
+      communication: "Plantillas, llamadas y mensajes automáticos.",
+      customization: "Para armar tus propios módulos y campos.",
+    },
+    // Los textos que se pueden cambiar, por temas. Ordenados por su clave
+    // interna salían dos «Clientes» seguidos y nadie sabía cuál era cuál.
+    labelGroup: {
+      business: "El nombre del negocio",
+      words: "Las palabras del día a día",
+      menu: "Los nombres del menú",
+    },
+    labelGroupHint: {
+      business: "Sale arriba a la izquierda y en los recibos.",
+      words: "Cómo le dices tú a un préstamo, a un cliente, a la cuota.",
+      menu: "Los nombres que se ven en el menú y en la barra de abajo.",
+    },
+    labelUnchanged: "Sin cambiar",
   },
 
   roles: {
