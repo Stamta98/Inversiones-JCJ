@@ -60,6 +60,7 @@ export default async function PaymentsPage({
     byMethod,
     disbursed,
     chargesAtDisbursement,
+    chargesApart,
     chargesInPayments,
     expenses,
     newLoans,
@@ -111,6 +112,21 @@ export default async function PaymentsPage({
         cashBox: { companyId: context.companyId },
         kind: "CHARGE_COLLECTED",
         createdAt: day,
+        // Sin nombre: es el que se netea al entregar la plata. El que se le
+        // cobró al cliente aparte lleva nombre y va en su propio renglón —
+        // juntos, el renglón decía «al entregar» de plata que no fue así.
+        chargeName: null,
+      },
+      _sum: { amount: true },
+      _count: true,
+    }),
+    // El cargo que se le cobró al cliente aparte de la cuota, en la puerta.
+    db.cashMovement.aggregate({
+      where: {
+        cashBox: { companyId: context.companyId },
+        kind: "CHARGE_COLLECTED",
+        createdAt: day,
+        chargeName: { not: null },
       },
       _sum: { amount: true },
       _count: true,
@@ -168,7 +184,13 @@ export default async function PaymentsPage({
   const lent = Math.abs(Number(disbursed._sum.amount ?? 0));
   // Lo que se le descontó al cliente al entregarle: salió con el desembolso y
   // volvió de una, así que es plata que se quedó en la caja.
-  const chargesTaken = Math.abs(Number(chargesAtDisbursement._sum.amount ?? 0));
+  const chargesDeducted = Math.abs(
+    Number(chargesAtDisbursement._sum.amount ?? 0),
+  );
+  // Y lo que se le cobró aparte, que también entró a la caja pero por otra
+  // puerta: se suma igual, se muestra aparte.
+  const chargesApartTaken = Math.abs(Number(chargesApart._sum.amount ?? 0));
+  const chargesTaken = chargesDeducted + chargesApartTaken;
   const spent = Math.abs(Number(expenses._sum.amount ?? 0));
   const handOver = collected + chargesTaken - lent - spent;
 
@@ -184,10 +206,25 @@ export default async function PaymentsPage({
   // descontó al entregar la plata y la parte de cargo de lo que se cobró.
   // Las dos son plata que entró hoy por el mismo concepto.
   const chargesEarned = chargesTaken + chargePaid;
-  const chargesCount = chargesAtDisbursement._count + chargesInPayments.length;
+  const chargesCount =
+    chargesAtDisbursement._count + chargesApart._count + chargesInPayments.length;
 
   // Lo que deja el día: el capital vuelve, no se gana. Los gastos sí salen.
   const profit = interestPaid + lateFeePaid + chargePaid + chargesTaken - spent;
+
+  // De qué se compone lo que entró por abonos. Se arma aquí y no dentro del
+  // dibujo para que el «sin abonos» de al lado sea una sola pregunta.
+  const noPayments = todayTotal._count === 0;
+  const incomeRows = [
+    { label: t("loans.principalPart"), value: principalPaid },
+    { label: t("loans.interestPart"), value: interestPaid },
+    { label: t("loans.lateFeePart"), value: lateFeePaid },
+    { label: t("loans.charges.installmentPart"), value: chargePaid },
+    // Cuando alguien paga más de lo que debía, ese sobrante no entró a ninguna
+    // cuota. Sin esta línea las cuatro de arriba no suman el total y la cuenta
+    // del día parece cuadrada cuando no lo está.
+    ...(surplus > 0 ? [{ label: t("payments.unapplied"), value: surplus }] : []),
+  ];
 
   // Refinanciar no mueve plata: traslada un saldo. Renovar traslada el saldo
   // y entrega la diferencia. Ninguna de las dos es "prestar" lo que dice el
@@ -430,9 +467,20 @@ export default async function PaymentsPage({
           {t("payments.summary.handOverHint")}
         </p>
         <p className="numeric mt-2 border-t border-border pt-2 text-xs text-ink-muted">
+          {/* «1 préstamos» no se dice. */}
           {t("payments.summary.counts")
-            .replace("{payments}", String(todayTotal._count))
-            .replace("{loans}", String(newLoans.length))}
+            .replace(
+              "{payments} abonos",
+              todayTotal._count === 1
+                ? t("payments.summary.countsPaymentOne")
+                : `${todayTotal._count} abonos`,
+            )
+            .replace(
+              "{loans} préstamos",
+              newLoans.length === 1
+                ? t("payments.summary.countsLoanOne")
+                : `${newLoans.length} préstamos`,
+            )}
         </p>
       </Card>
 
@@ -451,31 +499,32 @@ export default async function PaymentsPage({
       ) : (
         <div className="mb-4 grid items-start gap-3 lg:grid-cols-3">
           <Card>
-            <CardHeader title={t("payments.summary.income")} />
+            <CardHeader
+              title={t("payments.summary.income")}
+              description={t("payments.summary.incomeHint")}
+            />
             <CardBody className="space-y-1.5 text-sm">
-              {[
-                { label: t("loans.principalPart"), value: principalPaid },
-                { label: t("loans.interestPart"), value: interestPaid },
-                { label: t("loans.lateFeePart"), value: lateFeePaid },
-                {
-                  label: t("loans.charges.installmentPart"),
-                  value: chargePaid,
-                },
-                // Cuando alguien paga más de lo que debía, ese sobrante no
-                // entró a ninguna cuota. Sin esta línea las cuatro de arriba
-                // no suman el total y la cuenta del día parece cuadrada
-                // cuando no lo está.
-                ...(surplus > 0
-                  ? [{ label: t("payments.unapplied"), value: surplus }]
-                  : []),
-              ].map((row) => (
-                <p key={row.label} className="flex justify-between gap-3">
-                  <span className="text-ink-muted">{row.label}</span>
-                  <span className="numeric font-medium text-ink">
-                    {money(row.value)}
-                  </span>
+              {/* Cuatro ceros en fila se leen como si faltara algo, y llevan a
+                  buscar aquí el cargo que se descontó al entregar, que no es
+                  de aquí. Sin abonos se dice con palabras. */}
+              {noPayments ? (
+                <p className="text-ink-muted">
+                  {t(
+                    isToday
+                      ? "payments.summary.incomeNone"
+                      : "payments.summary.incomeNoneThatDay",
+                  )}
                 </p>
-              ))}
+              ) : (
+                incomeRows.map((row) => (
+                  <p key={row.label} className="flex justify-between gap-3">
+                    <span className="text-ink-muted">{row.label}</span>
+                    <span className="numeric font-medium text-ink">
+                      {money(row.value)}
+                    </span>
+                  </p>
+                ))
+              )}
               <p className="flex justify-between gap-3 border-t border-border pt-1.5">
                 <span className="font-medium text-ink">
                   {t("payments.summary.collected")}
@@ -488,7 +537,10 @@ export default async function PaymentsPage({
           </Card>
 
           <Card>
-            <CardHeader title={t("payments.summary.methods")} />
+            <CardHeader
+              title={t("payments.summary.methods")}
+              description={t("payments.summary.methodsHint")}
+            />
             <CardBody className="space-y-1.5 text-sm">
               {paidWith.length === 0 ? (
                 <p className="text-ink-muted">{t("common.none")}</p>
@@ -508,7 +560,10 @@ export default async function PaymentsPage({
           </Card>
 
           <Card>
-            <CardHeader title={t("payments.summary.movement")} />
+            <CardHeader
+              title={t("payments.summary.movement")}
+              description={t("payments.summary.movementHint")}
+            />
             <CardBody className="space-y-1.5 text-sm">
               <p className="flex justify-between gap-3">
                 <span className="text-ink-muted">
@@ -518,19 +573,29 @@ export default async function PaymentsPage({
                   {money(lent)}
                 </span>
               </p>
-              {/* Lo que se le descontó al cliente al entregarle: no entra por
-                  un abono, así que sin este renglón no aparecía en ninguna
-                  parte y la resta de arriba quedaba coja. */}
-              {chargesTaken > 0 ? (
-                <p className="flex justify-between gap-3">
-                  <span className="text-ink-muted">
-                    {t("payments.summary.chargesTaken")}
-                  </span>
-                  <span className="numeric font-medium text-positive">
-                    {money(chargesTaken)}
-                  </span>
-                </p>
-              ) : null}
+              {/* Los cargos que entraron por fuera de los abonos, cada uno
+                  por su nombre: el que se netea al entregar la plata y el que
+                  se le cobró al cliente aparte. Juntos en un solo renglón que
+                  decía «al entregar», la mitad de la cifra era mentira. */}
+              {[
+                {
+                  label: t("payments.summary.chargesTaken"),
+                  value: chargesDeducted,
+                },
+                {
+                  label: t("payments.summary.chargesApartLine"),
+                  value: chargesApartTaken,
+                },
+              ]
+                .filter((row) => row.value > 0)
+                .map((row) => (
+                  <p key={row.label} className="flex justify-between gap-3">
+                    <span className="text-ink-muted">{row.label}</span>
+                    <span className="numeric font-medium text-positive">
+                      {money(row.value)}
+                    </span>
+                  </p>
+                ))}
               <p className="flex justify-between gap-3 border-t border-border pt-1.5">
                 <span className="font-medium text-ink">
                   {t("payments.summary.profit")}

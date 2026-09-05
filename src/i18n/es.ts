@@ -723,7 +723,10 @@ export const es = {
       handedOverHint: "El monto prestado menos los cargos que le descuentas.",
       deductedTotal: "Cargos descontados",
       financedTotal: "Cargos en las cuotas",
-      installmentPart: "Cargo",
+      // «Cargo» a secas se confundía con «Cargos al entregar» de la tarjeta de
+      // al lado, que es otra plata: este es el pedazo de cargo que venía
+      // dentro de la cuota que el cliente acaba de pagar.
+      installmentPart: "Cargo de la cuota",
       collected: "Cargos cobrados",
     },
     // --- Contactar al cliente desde el préstamo ---
@@ -876,6 +879,8 @@ export const es = {
       handOverHint:
         "Lo cobrado y los cargos, menos lo prestado y los gastos del día.",
       counts: "{payments} abonos · {loans} préstamos",
+      countsPaymentOne: "1 abono",
+      countsLoanOne: "1 préstamo",
       income: "De dónde salió lo cobrado",
       collected: "Total cobrado",
       methods: "Cómo lo pagaron",
@@ -950,8 +955,17 @@ export const es = {
       amountCarried: "trasladado",
       // El cargo descontado al entregar: entró a la caja el mismo día.
       chargesTaken: "Cargos al entregar",
+      chargesApartLine: "Cargos cobrados aparte",
       profit: "Ganancia del día",
       profitHint: "Interés, mora y cargos cobrados, menos los gastos.",
+      // Las tres tarjetas de abajo miran cosas distintas, y con nombres
+      // parecidos se confunden: cada una dice de entrada qué está mirando.
+      incomeHint:
+        "Cómo se repartió lo que entró por abonos. Los cargos que se descuentan al entregar no entran aquí: esos van en el movimiento del día.",
+      incomeNone: "Hoy no ha entrado ningún abono.",
+      incomeNoneThatDay: "Ese día no entró ningún abono.",
+      movementHint: "Lo que salió y lo que entró por fuera de los abonos.",
+      methodsHint: "De qué manera entró lo que se cobró.",
       nothing: "Todavía no hay movimiento hoy.",
       // Mirando otro día, "hoy" sería mentira: ese día ya pasó.
       nothingThatDay: "Ese día no hubo movimiento.",
