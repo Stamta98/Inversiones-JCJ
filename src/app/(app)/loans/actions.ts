@@ -15,6 +15,7 @@ import {
 } from "@/core/types";
 import { t } from "@/i18n";
 import { requirePermission } from "@/server/auth/context";
+import { db } from "@/server/db";
 import {
   LoanServiceError,
   cancelLoan,
@@ -54,6 +55,8 @@ const loanSchema = z.object({
 
 export interface LoanFormState {
   error?: string;
+  /** Cuando la pantalla se queda donde está y hay que confirmar que guardó. */
+  success?: string;
 }
 
 /**
@@ -231,6 +234,76 @@ export async function updateLoanAction(
   revalidatePath("/loans");
   revalidatePath("/cash");
   redirect(`/loans/${data.loanId}`);
+}
+
+/**
+ * Cambiar los cargos desde la ficha del préstamo, sin pasar por editarlo.
+ *
+ * Los cargos no viven aparte del plan: uno financiado se reparte entre las
+ * cuotas y uno descontado ya movió la caja el día que se entregó. Por eso se
+ * le vuelven a mandar al servicio las condiciones que el préstamo ya tiene —
+ * sin tocar ninguna — para que rehaga el plan con los cargos nuevos, vuelva a
+ * aplicar lo cobrado y mueva la caja por la diferencia. Cambiarlos a mano en
+ * la tabla dejaría las cuotas diciendo una cosa y la caja otra.
+ */
+export async function updateLoanChargesAction(
+  _previous: LoanFormState,
+  formData: FormData,
+): Promise<LoanFormState> {
+  const context = await requirePermission("loans.update");
+  const loanId = String(formData.get("loanId") ?? "");
+  if (!loanId) return { error: t("common.error") };
+
+  const loan = await db.loan.findFirst({
+    where: { id: loanId, companyId: context.companyId },
+    select: {
+      principal: true,
+      interestRate: true,
+      rateBasis: true,
+      interestMethod: true,
+      frequency: true,
+      customIntervalDays: true,
+      nonCollectionDays: true,
+      termCount: true,
+      firstDueDate: true,
+      lateFeeMode: true,
+      lateFeeValue: true,
+      gracePeriodDays: true,
+    },
+  });
+  if (!loan) return { error: t("loans.errors.notFound") };
+
+  try {
+    await updateLoan({
+      companyId: context.companyId,
+      loanId,
+      terms: {
+        principal: Number(loan.principal),
+        interestRate: Number(loan.interestRate),
+        rateBasis: loan.rateBasis as never,
+        interestMethod: loan.interestMethod as never,
+        frequency: loan.frequency as never,
+        customIntervalDays: loan.customIntervalDays,
+        nonCollectionDays: loan.nonCollectionDays,
+        termCount: loan.termCount,
+        firstDueDate: loan.firstDueDate,
+        lateFeeMode: loan.lateFeeMode as never,
+        lateFeeValue: Number(loan.lateFeeValue),
+        gracePeriodDays: loan.gracePeriodDays,
+        decimalPlaces: context.decimalPlaces,
+      },
+      charges: readCharges(formData),
+      decimalPlaces: context.decimalPlaces,
+      updatedById: context.userId,
+    });
+  } catch (error) {
+    return { error: loanErrorMessage(error) };
+  }
+
+  revalidatePath(`/loans/${loanId}`);
+  revalidatePath("/loans");
+  revalidatePath("/cash");
+  return { success: t("loans.charges.saved") };
 }
 
 /** Turns a service or schedule failure into a message the user can read. */

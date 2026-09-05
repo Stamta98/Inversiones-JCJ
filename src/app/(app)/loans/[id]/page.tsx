@@ -32,6 +32,7 @@ import { ShareDocument } from "@/components/ui/share-document";
 
 import { DeletePaymentButton } from "../../payments/delete-payment-button";
 import { HistoryMore } from "./history-more";
+import { LoanCharges } from "./loan-charges";
 import { LoanMenu } from "./loan-menu";
 import { disburseLoanAction } from "../actions";
 import { PaymentForm } from "./payment-form";
@@ -243,10 +244,6 @@ export default async function LoanDetailPage({
   const hasFinancedCharge = loan.installments.some(
     (installment) => Number(installment.chargeAmount) > 0,
   );
-  const deductedCharges = loan.charges
-    .filter((charge) => charge.mode === "DEDUCTED")
-    .reduce((total, charge) => total + Number(charge.amount), 0);
-
   // Only an open loan with a balance can be carried onto another, and only
   // once: a second refinance would leave the customer owing the same money
   // twice. The service checks this again, since a URL can be typed by hand.
@@ -658,42 +655,29 @@ export default async function LoanDetailPage({
         ) : null}
       </div>
 
-      {loan.charges.length > 0 ? (
-        <div className="mt-4">
-          <Card>
-            <CardHeader
-              title={t("loans.charges.title")}
-              description={
-                deductedCharges > 0
-                  ? `${t("loans.charges.handedOver")}: ${money(
-                      Number(loan.principal) - deductedCharges,
-                    )}`
-                  : undefined
-              }
-            />
-            <TableWrap dense>
-              <thead>
-                <tr>
-                  <Th>{t("loans.charges.name")}</Th>
-                  <Th>{t("loans.charges.mode")}</Th>
-                  <Th align="right">{t("loans.charges.amount")}</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {loan.charges.map((charge) => (
-                  <tr key={charge.id}>
-                    <Td>{charge.name}</Td>
-                    <Td>{t(`loans.charges.modeLabel.${charge.mode}`)}</Td>
-                    <Td align="right" numeric className="font-medium">
-                      {money(Number(charge.amount))}
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </TableWrap>
-          </Card>
-        </div>
-      ) : null}
+      {/* Los cargos se leen mucho más de lo que se corrigen, así que la
+          tarjeta muestra la tabla y guarda el formulario detrás de un botón.
+          Cambiar uno rehace el plan y mueve la caja: eso lo hace el
+          servidor, no la tabla. */}
+      <div className="mt-4">
+        <LoanCharges
+          loanId={loan.id}
+          charges={loan.charges.map((charge) => ({
+            id: charge.id,
+            name: charge.name,
+            amount: Number(charge.amount),
+            mode: charge.mode,
+          }))}
+          principal={Number(loan.principal)}
+          currencyCode={context.currencyCode}
+          locale={context.locale}
+          decimalPlaces={context.decimalPlaces}
+          canEdit={
+            can(context, "loans.update") &&
+            canEditAtAll(loan.status as LoanStatus)
+          }
+        />
+      </div>
 
       <div className="mt-4">
         <Card>

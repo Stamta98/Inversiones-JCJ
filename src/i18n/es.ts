@@ -685,6 +685,13 @@ export const es = {
         DEDUCTED: "Se lo descuento al entregar",
         FINANCED: "Se lo sumo a las cuotas",
       },
+      saved: "Cargos guardados.",
+      edit: "Cambiar los cargos",
+      empty2: "Este préstamo no tiene cargos adicionales.",
+      // Cambiar un cargo mueve las cuotas y la caja: hay que decirlo antes,
+      // no después.
+      editHint:
+        "Al guardar se rehace el plan de cuotas con los cargos nuevos, se vuelve a aplicar lo que ya se cobró y la caja se mueve por la diferencia de lo descontado.",
       modeHint: {
         DEDUCTED:
           "Si prestas 100.000 y el cargo es 5.000, le entregas 95.000. Debe los 120.000 de siempre y el cargo ya quedó cobrado.",
