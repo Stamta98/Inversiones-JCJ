@@ -153,7 +153,10 @@ export async function createLoan(input: CreateLoanInput): Promise<string> {
           customIntervalDays: input.customIntervalDays ?? null,
           nonCollectionDays: input.nonCollectionDays ?? [],
           termCount: schedule.installments.length,
-          firstDueDate: input.firstDueDate,
+          // La del plan, no la que se escogió en el formulario: si el día
+          // elegido cae en uno que no se cobra, la cuota se corre y el
+          // préstamo tiene que decir el día en que de verdad se cobra.
+          firstDueDate: schedule.installments[0]?.dueDate ?? input.firstDueDate,
           disbursedAt: input.disburseNow ? now : null,
           status: input.disburseNow ? "ACTIVE" : "DRAFT",
           lateFeeMode,
@@ -338,7 +341,8 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
               customIntervalDays: input.terms.customIntervalDays ?? null,
               nonCollectionDays: input.terms.nonCollectionDays ?? [],
               termCount: schedule.installments.length,
-              firstDueDate: input.terms.firstDueDate,
+              firstDueDate:
+                schedule.installments[0]?.dueDate ?? input.terms.firstDueDate,
               lateFeeMode: input.terms.lateFeeMode ?? "NONE",
               lateFeeValue: input.terms.lateFeeValue ?? 0,
               gracePeriodDays: input.terms.gracePeriodDays ?? 0,

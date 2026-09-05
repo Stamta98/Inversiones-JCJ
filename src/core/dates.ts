@@ -39,6 +39,30 @@ export function parseDay(value: string | undefined | null): Date | null {
   return parsed;
 }
 
+/**
+ * El día de calendario en que ocurrió algo, visto desde la oficina.
+ *
+ * `disbursedAt`, `createdAt` o `closingDate` no son días: son instantes, la
+ * hora exacta en que se hizo. Guardados en UTC, un préstamo entregado a las
+ * ocho de la noche en Colombia queda con fecha del día siguiente, y así se
+ * pintaba en la pantalla: "inició" un día después de que salió la plata.
+ *
+ * Esto los baja al día que la persona vio en el reloj de la pared, devuelto
+ * a medianoche UTC para que se pueda comparar y pintar igual que una fecha
+ * de cuota, que sí se guarda como día suelto.
+ */
+export function dayIn(date: Date, timeZone: string): Date {
+  // "en-CA" da el año-mes-día en ese orden y con guiones, que es justo lo
+  // que hay que volver a leer.
+  const day = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone,
+  }).format(date);
+  return new Date(`${day}T00:00:00.000Z`);
+}
+
 /** El día como se escribe en una dirección: "2026-08-05". */
 export function dayParam(date: Date): string {
   return date.toISOString().slice(0, 10);

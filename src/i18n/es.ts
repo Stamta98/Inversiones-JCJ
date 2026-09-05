@@ -812,6 +812,8 @@ export const es = {
     startLabel: "Inicio",
     endLabel: "Vence",
     endedLabel: "Terminó",
+    firstDueShort: "1ª cuota",
+    installmentsOf: "{count} cuotas ({frequency})",
     nextDueOn: "Próxima cuota el {date}",
     installmentLate: "hace {days} d",
     installmentLateOne: "hace 1 d",

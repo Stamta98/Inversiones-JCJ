@@ -45,6 +45,12 @@ export interface CollectionSnapshot {
    */
   lastDueDate: Date | null;
   daysExpired: number;
+  /**
+   * El día en que empieza el cobro — la primera cuota — sacado de las cuotas
+   * y no del campo del préstamo: cuando el día escogido cae en uno que no se
+   * cobra, el plan la corre, y la de verdad es la del plan.
+   */
+  firstDueDate: Date | null;
   /** La próxima cuota que toca, esté vencida o no. */
   nextDueDate: Date | null;
   nextAmountCents: Cents;
@@ -95,6 +101,13 @@ export function collectionSnapshot(
         : last,
     null,
   );
+  const firstDueDate = installments.reduce<Date | null>(
+    (first, installment) =>
+      first === null || startOfDay(installment.dueDate) < first
+        ? startOfDay(installment.dueDate)
+        : first,
+    null,
+  );
   const late = open.filter(
     (installment) =>
       startOfDay(installment.dueDate) < today &&
@@ -110,6 +123,7 @@ export function collectionSnapshot(
       daysLate: 0,
       overdueSince: null,
       lastDueDate,
+      firstDueDate,
       daysExpired: 0,
       nextDueDate: null,
       nextAmountCents: 0,
@@ -126,6 +140,7 @@ export function collectionSnapshot(
     daysLate: overdueSince ? daysBetween(overdueSince, today) : 0,
     overdueSince,
     lastDueDate,
+    firstDueDate,
     // Solo cuenta mientras quede algo por cobrar: un crédito saldado no se
     // vence, se acabó.
     daysExpired:

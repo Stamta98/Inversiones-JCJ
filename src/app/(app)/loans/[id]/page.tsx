@@ -17,7 +17,7 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
-import { daysBetween, startOfDay } from "@/core/dates";
+import { dayIn, daysBetween, startOfDay } from "@/core/dates";
 import { collectionSnapshot } from "@/core/loans/collection";
 import { canEditAtAll } from "@/core/loans/editable";
 import { fromCents, toCents } from "@/core/money";
@@ -270,21 +270,40 @@ export default async function LoanDetailPage({
   // El préstamo empieza el día en que se entregó la plata; mientras no se
   // haya entregado, el día en que se creó.
   //
+  // La entrega no es un día sino una hora exacta, y guardada en UTC un
+  // préstamo entregado de noche en Colombia caía en el día siguiente: decía
+  // que inició el 11 una plata que salió el 10. Por eso se baja primero al
+  // día del reloj de la oficina, y solo entonces se compara con las cuotas,
+  // que sí son días sueltos.
+  //
   // Salvo cuando se pasó a la app un préstamo que ya venía andando en la
   // calle: ahí la fecha de entrega es el día en que se digitó y las cuotas
   // son de antes, y decir que "inició" después de su primera cuota — o
   // después de haberse acabado — no tiene sentido. La primera cuota manda.
-  const registeredOn = loan.disbursedAt ?? loan.createdAt;
-  const openedOn =
-    loan.firstDueDate < registeredOn ? loan.firstDueDate : registeredOn;
+  const registeredOn = dayIn(
+    loan.disbursedAt ?? loan.createdAt,
+    context.timezone,
+  );
+  // La primera por fecha, igual que la última: es el día en que empieza el
+  // cobro, y es lo que explica cuándo se acaba.
+  const firstDueDate = collect.firstDueDate ?? startOfDay(loan.firstDueDate);
+  const openedOn = firstDueDate < registeredOn ? firstDueDate : registeredOn;
   // La última por fecha, no la última de la lista: así ninguna reordenada
   // puede volver el fin del crédito una fecha del medio.
   const lastDueDate = collect.lastDueDate;
-  // Un préstamo saldado ya no vence: terminó el día en que se pagó.
-  const endsOn = loan.closingDate ?? lastDueDate;
+  // Un préstamo saldado ya no vence: terminó el día en que se pagó — y ese
+  // cierre también es una hora, así que va por el mismo camino.
+  const endsOn = loan.closingDate
+    ? dayIn(loan.closingDate, context.timezone)
+    : lastDueDate;
   // Y pase lo que pase con los datos, empezar después de haber terminado no
   // se puede leer de ninguna manera.
   const startedOn = endsOn && endsOn < openedOn ? endsOn : openedOn;
+  // La primera cuota solo se dice cuando no es el mismo día en que empezó:
+  // repetir la fecha de arriba no le aclara nada a nadie.
+  const showFirstDue =
+    firstDueDate.getTime() !== startedOn.getTime() &&
+    (!endsOn || firstDueDate < endsOn);
 
   // Lo vencido hasta hoy y la mora que se le ha sumado: dos cifras que solo
   // valen cuando existen, así que solo entonces ocupan una tarjeta.
@@ -634,6 +653,15 @@ export default async function LoanDetailPage({
               <p className="numeric text-sm font-bold text-ink">
                 {formatDate(startedOn)}
               </p>
+              {/* El día en que empieza el cobro, debajo del día en que salió
+                  la plata: sin él no se entiende por qué el crédito se acaba
+                  el día que se acaba, y esa es justo la cuenta que la gente
+                  hace de cabeza en la calle. */}
+              {showFirstDue ? (
+                <p className="numeric text-[0.625rem] text-ink-muted">
+                  {t("loans.firstDueShort")} {formatDate(firstDueDate)}
+                </p>
+              ) : null}
             </div>
             <div className="px-2 text-center">
               <p className="text-[0.625rem] font-medium tracking-wide text-ink-muted uppercase">
@@ -641,6 +669,16 @@ export default async function LoanDetailPage({
               </p>
               <p className="numeric text-sm font-bold text-ink">
                 {endsOn ? formatDate(endsOn) : "—"}
+              </p>
+              {/* Cuántas cuotas caben entre las dos fechas: es lo que vuelve
+                  comprobable el día del final en vez de pedir que se crea. */}
+              <p className="numeric text-[0.625rem] text-ink-muted">
+                {t("loans.installmentsOf")
+                  .replace("{count}", String(loan.installments.length))
+                  .replace(
+                    "{frequency}",
+                    t(`loans.frequencyLabel.${loan.frequency}`),
+                  )}
               </p>
             </div>
           </div>
@@ -719,7 +757,10 @@ export default async function LoanDetailPage({
                       {charge.chargeName}
                     </span>
                     <span className="numeric block text-xs text-ink-muted">
-                      {formatDate(charge.createdAt)}
+                      {/* Cobrado a una hora, no en un día suelto: se baja al
+                          día de la oficina para que un cargo cobrado de
+                          noche no aparezca con la fecha de mañana. */}
+                      {formatDate(dayIn(charge.createdAt, context.timezone))}
                     </span>
                   </span>
                   <span className="numeric shrink-0 text-sm font-bold text-brand-strong">

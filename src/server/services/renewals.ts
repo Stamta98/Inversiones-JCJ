@@ -305,7 +305,7 @@ export async function renewLoan(
           customIntervalDays: input.customIntervalDays ?? null,
           nonCollectionDays: input.nonCollectionDays ?? [],
           termCount: schedule.installments.length,
-          firstDueDate: input.firstDueDate,
+          firstDueDate: schedule.installments[0]?.dueDate ?? input.firstDueDate,
           // A refinance or a renewal only means anything once it happens:
           // leaving it as a draft would settle the old loan against nothing.
           disbursedAt: now,
