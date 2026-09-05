@@ -11,7 +11,6 @@ import {
   Field,
   Input,
   Select,
-  Textarea,
 } from "@/components/ui";
 import {
   ChargesField,
@@ -70,7 +69,6 @@ export interface LoanDefaults {
   lateFeeMode: LateFeeMode;
   lateFeeValue: number;
   gracePeriodDays: number;
-  notes: string | null;
   charges: Array<{ name: string; amount: number; mode: ChargeMode }>;
 }
 
@@ -572,16 +570,6 @@ export function LoanForm({
                   </label>
                 </div>
               ) : null}
-
-              <div className="sm:col-span-2">
-                <Field label={es.common.notes} htmlFor="notes">
-                  <Textarea
-                    id="notes"
-                    name="notes"
-                    defaultValue={loan?.notes ?? ""}
-                  />
-                </Field>
-              </div>
             </CardBody>
           </Card>
 

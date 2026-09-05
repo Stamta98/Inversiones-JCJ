@@ -136,7 +136,6 @@ export async function createLoanAction(
       gracePeriodDays: data.gracePeriodDays,
       decimalPlaces: context.decimalPlaces,
       charges: readCharges(formData),
-      notes: data.notes || null,
       disburseNow: data.disburseNow === "on",
       cashBoxId: data.cashBoxId || null,
       createdById: context.userId,
@@ -206,7 +205,6 @@ export async function updateLoanAction(
     await updateLoan({
       companyId: context.companyId,
       loanId: data.loanId,
-      notes: data.notes || null,
       terms: {
         principal: data.principal,
         interestRate: data.interestRate,

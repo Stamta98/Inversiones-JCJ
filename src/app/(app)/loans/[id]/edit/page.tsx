@@ -109,7 +109,6 @@ export default async function EditLoanPage({
             lateFeeMode: loan.lateFeeMode,
             lateFeeValue: Number(loan.lateFeeValue),
             gracePeriodDays: loan.gracePeriodDays,
-            notes: loan.notes,
             charges: loan.charges.map((charge) => ({
               name: charge.name,
               amount: Number(charge.amount),
