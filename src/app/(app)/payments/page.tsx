@@ -59,6 +59,7 @@ export default async function PaymentsPage({
     applied,
     byMethod,
     disbursed,
+    chargesAtDisbursement,
     expenses,
     newLoans,
     carried,
@@ -95,6 +96,19 @@ export default async function PaymentsPage({
       where: {
         cashBox: { companyId: context.companyId },
         kind: "LOAN_DISBURSEMENT",
+        createdAt: day,
+      },
+      _sum: { amount: true },
+      _count: true,
+    }),
+    // El cargo que se le descuenta al cliente al entregarle la plata vuelve a
+    // la caja el mismo día. Sin contarlo, el resumen dice que salieron los
+    // 200.000 completos cuando salieron 190.000, y la ganancia se queda sin
+    // los 10.000 que el negocio sí se ganó.
+    db.cashMovement.aggregate({
+      where: {
+        cashBox: { companyId: context.companyId },
+        kind: "CHARGE_COLLECTED",
         createdAt: day,
       },
       _sum: { amount: true },
@@ -144,8 +158,13 @@ export default async function PaymentsPage({
   // La caja guarda las salidas en negativo; aquí se leen como lo que son.
   const collected = Number(todayTotal._sum.amount ?? 0);
   const lent = Math.abs(Number(disbursed._sum.amount ?? 0));
+  // Lo que se le descontó al cliente al entregarle: salió con el desembolso y
+  // volvió de una, así que es plata que se quedó en la caja.
+  const chargesTaken = Math.abs(
+    Number(chargesAtDisbursement._sum.amount ?? 0),
+  );
   const spent = Math.abs(Number(expenses._sum.amount ?? 0));
-  const handOver = collected - lent - spent;
+  const handOver = collected + chargesTaken - lent - spent;
 
   const principalPaid = Number(applied._sum.principalAmount ?? 0);
   const interestPaid = Number(applied._sum.interestAmount ?? 0);
@@ -156,7 +175,8 @@ export default async function PaymentsPage({
   const surplus =
     collected - (principalPaid + interestPaid + lateFeePaid + chargePaid);
   // Lo que deja el día: el capital vuelve, no se gana. Los gastos sí salen.
-  const profit = interestPaid + lateFeePaid + chargePaid - spent;
+  const profit =
+    interestPaid + lateFeePaid + chargePaid + chargesTaken - spent;
 
   // Refinanciar no mueve plata: traslada un saldo. Renovar traslada el saldo
   // y entrega la diferencia. Ninguna de las dos es "prestar" lo que dice el
@@ -451,6 +471,19 @@ export default async function PaymentsPage({
                   {money(lent)}
                 </span>
               </p>
+              {/* Lo que se le descontó al cliente al entregarle: no entra por
+                  un abono, así que sin este renglón no aparecía en ninguna
+                  parte y la resta de arriba quedaba coja. */}
+              {chargesTaken > 0 ? (
+                <p className="flex justify-between gap-3">
+                  <span className="text-ink-muted">
+                    {t("payments.summary.chargesTaken")}
+                  </span>
+                  <span className="numeric font-medium text-positive">
+                    {money(chargesTaken)}
+                  </span>
+                </p>
+              ) : null}
               <p className="flex justify-between gap-3 border-t border-border pt-1.5">
                 <span className="font-medium text-ink">
                   {t("payments.summary.profit")}

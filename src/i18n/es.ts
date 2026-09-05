@@ -837,7 +837,7 @@ export const es = {
     // --- El resumen del día, que es la cuenta que se entrega en la noche ---
     summary: {
       handOver: "Total a entregar",
-      handOverHint: "Lo cobrado, menos lo prestado y los gastos del día.",
+      handOverHint: "Lo cobrado y los cargos, menos lo prestado y los gastos del día.",
       counts: "{payments} abonos · {loans} préstamos",
       income: "De dónde salió lo cobrado",
       collected: "Total cobrado",
@@ -890,6 +890,8 @@ export const es = {
       amountLent: "prestado",
       amountHandedOut: "entregado",
       amountCarried: "trasladado",
+      // El cargo descontado al entregar: entró a la caja el mismo día.
+      chargesTaken: "Cargos al entregar",
       profit: "Ganancia del día",
       profitHint: "Interés, mora y cargos cobrados, menos los gastos.",
       nothing: "Todavía no hay movimiento hoy.",
