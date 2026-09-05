@@ -46,13 +46,44 @@ export default async function EditLoanPage({
 
   // Un préstamo en borrador reusa el formulario de creación: es exactamente la
   // misma información y el mismo cálculo de cuotas.
-  const cashBoxes = editableTerms
-    ? await db.cashBox.findMany({
-        where: { companyId: context.companyId, isActive: true },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true },
-      })
-    : [];
+  const [cashBoxes, customers] = editableTerms
+    ? await Promise.all([
+        db.cashBox.findMany({
+          where: { companyId: context.companyId, isActive: true },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true },
+        }),
+        // Los mismos que al crear: el cliente del préstamo no se cambia,
+        // pero el fiador sí se escoge de entre todos.
+        db.customer.findMany({
+          where: {
+            companyId: context.companyId,
+            status: { notIn: ["BLACKLISTED", "INACTIVE"] },
+          },
+          orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+          select: { id: true, code: true, firstName: true, lastName: true },
+          take: 500,
+        }),
+      ])
+    : [[], []];
+
+  // El dueño del préstamo va siempre en la lista, aunque esté en lista negra
+  // u oculto: el desplegable está bloqueado, pero si no está su opción se ve
+  // vacío y parece que el préstamo no tiene cliente.
+  const customersForPicker = [
+    ...(customers.some((customer) => customer.id === loan.customerId)
+      ? []
+      : [
+          {
+            id: loan.customerId,
+            label: `${loan.customer.code} — ${loan.customer.firstName} ${loan.customer.lastName}`,
+          },
+        ]),
+    ...customers.map((customer) => ({
+      id: customer.id,
+      label: `${customer.code} — ${customer.firstName} ${customer.lastName}`,
+    })),
+  ];
 
   const header = (
     <PageHeader
@@ -96,6 +127,7 @@ export default async function EditLoanPage({
           loan={{
             id: loan.id,
             customerId: loan.customerId,
+            guarantorId: loan.guarantorId,
             principal: Number(loan.principal),
             interestRate: Number(loan.interestRate),
             rateBasis: loan.rateBasis,
@@ -114,12 +146,7 @@ export default async function EditLoanPage({
               mode: charge.mode,
             })),
           }}
-          customers={[
-            {
-              id: loan.customerId,
-              label: `${loan.customer.code} — ${loan.customer.firstName} ${loan.customer.lastName}`,
-            },
-          ]}
+          customers={customersForPicker}
           cashBoxes={cashBoxes.map((cashBox) => ({
             id: cashBox.id,
             label: cashBox.name,

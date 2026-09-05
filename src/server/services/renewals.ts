@@ -293,6 +293,9 @@ export async function renewLoan(
           companyId: input.companyId,
           branchId: refreshed.branchId,
           customerId: refreshed.customerId,
+          // El fiador sigue siendo el mismo: renovar es estirar el mismo
+          // trato, no empezar otro. Si cambió, se corrige en el préstamo.
+          guarantorId: refreshed.guarantorId,
           loanProductId: refreshed.loanProductId,
           code,
           origin: plan.kind,

@@ -688,6 +688,9 @@ export const es = {
       interestRate:
         "La tasa no es válida: la cuota no alcanza a cubrir el interés.",
       termCount: "La cantidad de cuotas debe ser un número entero positivo.",
+      guarantorNotFound: "Ese fiador no está registrado en esta oficina.",
+      guarantorIsBorrower:
+        "El fiador tiene que ser otra persona, no el mismo cliente del préstamo.",
       customIntervalDays:
         "Indica cada cuántos días se cobra (un número entero mayor que cero).",
       nonCollectionDays:
@@ -809,6 +812,11 @@ export const es = {
     paidPercent: "{percent}% pagado",
     // De cuándo a cuándo va el crédito, que es lo que el cliente pregunta
     // cuando quiere saber cuánto le falta para quedar libre.
+    guarantor: "Fiador",
+    guarantorHint:
+      "Quién responde si el cliente no paga. Se escoge entre los clientes registrados.",
+    noGuarantor: "Sin fiador",
+    guarantorOf: "Fiador de este préstamo",
     startLabel: "Inicio",
     endLabel: "Vence",
     endedLabel: "Terminó",

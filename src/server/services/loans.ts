@@ -16,6 +16,7 @@ import {
 } from "@/core/loans/charges";
 import { allocatePayment } from "@/core/loans/allocation";
 import { canCancel, canEditAtAll } from "@/core/loans/editable";
+import { guarantorProblem } from "@/core/loans/guarantor";
 import { buildSchedule, type Schedule } from "@/core/loans/schedule";
 import { fromCents, stepForDecimals, toCents } from "@/core/money";
 import type {
@@ -34,6 +35,8 @@ export interface CreateLoanInput {
   companyId: string;
   branchId?: string | null;
   customerId: string;
+  /** Quien responde si el cliente no paga. Otro cliente de la empresa. */
+  guarantorId?: string | null;
   loanProductId?: string | null;
   principal: number;
   interestRate: number;
@@ -118,6 +121,36 @@ export function normalizedCharges(
   );
 }
 
+/**
+ * Comprueba el fiador antes de guardar nada.
+ *
+ * Dos cosas que la llave de la base no puede decir por sí sola: que el
+ * fiador sea de esta empresa —la llave acepta cualquier cliente, también el
+ * de otra oficina— y que no sea el mismo que pide la plata, que no respalda
+ * nada y solo confunde el papel.
+ */
+async function checkGuarantor(
+  tx: Pick<typeof db, "customer">,
+  companyId: string,
+  guarantorId: string | null | undefined,
+  customerId: string,
+): Promise<string | null> {
+  if (!guarantorId) return null;
+  // Solo se pregunta a la base cuando hace falta: si se puso a sí mismo, la
+  // regla ya lo rechaza sin consultar nada.
+  const found =
+    guarantorId === customerId
+      ? false
+      : (await tx.customer.findFirst({
+          where: { id: guarantorId, companyId },
+          select: { id: true },
+        })) !== null;
+
+  const problem = guarantorProblem(guarantorId, customerId, found);
+  if (problem) throw new LoanServiceError(`Invalid guarantor: ${problem}`, problem);
+  return guarantorId;
+}
+
 export async function createLoan(input: CreateLoanInput): Promise<string> {
   const step = stepForDecimals(input.decimalPlaces ?? 2);
   const charges = normalizedCharges(input.charges, step);
@@ -135,6 +168,12 @@ export async function createLoan(input: CreateLoanInput): Promise<string> {
 
   return withCodeRetry(() =>
     db.$transaction(async (tx) => {
+      const guarantorId = await checkGuarantor(
+        tx,
+        input.companyId,
+        input.guarantorId,
+        input.customerId,
+      );
       const code = await nextLoanCode(tx, input.companyId);
       const now = new Date();
 
@@ -143,6 +182,7 @@ export async function createLoan(input: CreateLoanInput): Promise<string> {
           companyId: input.companyId,
           branchId: input.branchId ?? null,
           customerId: input.customerId,
+          guarantorId,
           loanProductId: input.loanProductId ?? null,
           code,
           principal: input.principal,
@@ -240,7 +280,9 @@ export class LoanServiceError extends Error {
       | "termsLocked"
       | "closed"
       | "cannotCancel"
-      | "alreadyRenewed",
+      | "alreadyRenewed"
+      | "guarantorNotFound"
+      | "guarantorIsBorrower",
   ) {
     super(message);
     this.name = "LoanServiceError";
@@ -269,6 +311,8 @@ export interface UpdateLoanInput {
     | "gracePeriodDays"
     | "decimalPlaces"
   >;
+  /** El fiador. Sin pasarlo no se toca; vacío lo quita. */
+  guarantorId?: string | null;
   /**
    * Los cargos que quedan. Sin pasarlos no se tocan; una lista vacía los
    * quita todos, que es lo que significa borrarlos en la pantalla.
@@ -296,6 +340,15 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
     if (!loan) throw new LoanServiceError("Loan not found", "notFound");
     if (!canEditAtAll(loan.status)) {
       throw new LoanServiceError("Loan is closed", "closed");
+    }
+
+    if (input.guarantorId !== undefined) {
+      await checkGuarantor(
+        tx,
+        input.companyId,
+        input.guarantorId || null,
+        loan.customerId,
+      );
     }
 
     // Las condiciones se pueden corregir después de creado el préstamo: quien
@@ -331,6 +384,9 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
       data: {
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
         ...(input.branchId !== undefined ? { branchId: input.branchId } : {}),
+        ...(input.guarantorId !== undefined
+          ? { guarantorId: input.guarantorId || null }
+          : {}),
         ...(input.terms && schedule
           ? {
               principal: input.terms.principal,

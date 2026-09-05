@@ -56,6 +56,7 @@ export interface CustomerOption {
 export interface LoanDefaults {
   id: string;
   customerId: string;
+  guarantorId: string | null;
   principal: number;
   interestRate: number;
   rateBasis: RateBasis;
@@ -160,6 +161,7 @@ export function LoanForm({
   const [customerId, setCustomerId] = useState(
     loan?.customerId ?? defaultCustomerId ?? "",
   );
+  const [guarantorId, setGuarantorId] = useState(loan?.guarantorId ?? "");
   const [customIntervalDays, setCustomIntervalDays] = useState(
     loan?.customIntervalDays ? String(loan.customIntervalDays) : "10",
   );
@@ -267,7 +269,14 @@ export function LoanForm({
                     id="customerId"
                     name="customerId"
                     value={customerId}
-                    onChange={(event) => setCustomerId(event.target.value)}
+                    onChange={(event) => {
+                      setCustomerId(event.target.value);
+                      // Si el nuevo cliente era el fiador, el fiador se
+                      // borra: nadie se respalda a sí mismo, y dejarlo
+                      // puesto guardaría a alguien que ya no está en la
+                      // lista.
+                      if (event.target.value === guarantorId) setGuarantorId("");
+                    }}
                     required
                     // Un préstamo no cambia de dueño; para eso se anula y se
                     // crea otro a nombre del cliente correcto.
@@ -281,6 +290,34 @@ export function LoanForm({
                         {customer.label}
                       </option>
                     ))}
+                  </Select>
+                </Field>
+              </div>
+
+              {/* El fiador sale de los mismos clientes registrados: al que
+                  respalda se le termina prestando, y así queda con su cédula
+                  y su foto en vez de escrito a mano en dos partes. */}
+              <div className="sm:col-span-2">
+                <Field
+                  label={es.loans.guarantor}
+                  htmlFor="guarantorId"
+                  hint={es.loans.guarantorHint}
+                >
+                  <Select
+                    id="guarantorId"
+                    name="guarantorId"
+                    value={guarantorId}
+                    onChange={(event) => setGuarantorId(event.target.value)}
+                  >
+                    <option value="">{es.loans.noGuarantor}</option>
+                    {customers
+                      // El que pide la plata no puede respaldarse a sí mismo.
+                      .filter((customer) => customer.id !== customerId)
+                      .map((customer) => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.label}
+                        </option>
+                      ))}
                   </Select>
                 </Field>
               </div>

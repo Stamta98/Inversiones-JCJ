@@ -353,7 +353,9 @@ model Customer {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  loans            Loan[]
+  loans            Loan[]              @relation("LoanBorrower")
+  /// Los préstamos de otros en los que este cliente salió de fiador.
+  guaranteedLoans  Loan[]              @relation("LoanGuarantor")
   references       CustomerReference[]
   attachments      Attachment[]
   interactions     Interaction[]
@@ -523,7 +525,12 @@ model Loan {
   branchId      String?
   branch        Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
   customerId    String
-  customer      Customer     @relation(fields: [customerId], references: [id])
+  customer      Customer     @relation("LoanBorrower", fields: [customerId], references: [id])
+  /// Quien responde si el cliente no paga. Es otro cliente de la misma
+  /// empresa, no una ficha aparte: al fiador se le acaba prestando, y
+  /// cuando eso pasa ya está registrado con su cédula y su foto.
+  guarantorId   String?
+  guarantor     Customer?    @relation("LoanGuarantor", fields: [guarantorId], references: [id], onDelete: SetNull)
   loanProductId String?
   loanProduct   LoanProduct? @relation(fields: [loanProductId], references: [id], onDelete: SetNull)
 
@@ -589,6 +596,7 @@ model Loan {
   @@index([companyId, firstDueDate])
   @@index([companyId, sortOrder])
   @@index([parentLoanId])
+  @@index([guarantorId])
 }
 
 enum InstallmentStatus {

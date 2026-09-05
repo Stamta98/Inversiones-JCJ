@@ -50,6 +50,7 @@ const loanSchema = z.object({
   gracePeriodDays: z.coerce.number().int().min(0).default(0),
   cashBoxId: z.string().optional(),
   disburseNow: z.string().optional(),
+  guarantorId: z.string().optional(),
 });
 
 export interface LoanFormState {
@@ -135,12 +136,19 @@ export async function createLoanAction(
       gracePeriodDays: data.gracePeriodDays,
       decimalPlaces: context.decimalPlaces,
       charges: readCharges(formData),
+      guarantorId: data.guarantorId || null,
       disburseNow: data.disburseNow === "on",
       cashBoxId: data.cashBoxId || null,
       createdById: context.userId,
     });
   } catch (error) {
-    if (error instanceof ChargeError || error instanceof ScheduleError) {
+    if (
+      error instanceof ChargeError ||
+      error instanceof ScheduleError ||
+      // Un fiador que no es de esta oficina, o que es el mismo que pide la
+      // plata: es un dato mal puesto y se dice en la pantalla, no se cae.
+      error instanceof LoanServiceError
+    ) {
       const message = t(`loans.errors.${error.code}`);
       return {
         error:
@@ -181,6 +189,7 @@ export async function updateLoanAction(
     await updateLoan({
       companyId: context.companyId,
       loanId: data.loanId,
+      guarantorId: data.guarantorId || null,
       terms: {
         principal: data.principal,
         interestRate: data.interestRate,

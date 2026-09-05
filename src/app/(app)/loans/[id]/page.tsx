@@ -76,6 +76,16 @@ export default async function LoanDetailPage({
         where: { id, companyId: context.companyId },
         include: {
           customer: true,
+          guarantor: {
+            select: {
+              id: true,
+              code: true,
+              firstName: true,
+              lastName: true,
+              mobilePhone: true,
+              photoUrl: true,
+            },
+          },
           installments: { orderBy: { number: "asc" } },
           payments: {
             orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
@@ -711,6 +721,40 @@ export default async function LoanDetailPage({
           </Card>
         ) : null}
       </div>
+
+      {/* Quién respalda el préstamo. Con su enlace a la ficha: cuando el
+          cliente deja de pagar, al fiador hay que poder llamarlo, y para eso
+          hay que llegar a su teléfono en un toque. */}
+      {loan.guarantor ? (
+        <div className="mt-4">
+          <Card>
+            <CardHeader title={t("loans.guarantorOf")} />
+            <CardBody>
+              <Link
+                href={`/customers/${loan.guarantor.id}`}
+                className="flex items-center gap-3 hover:opacity-80"
+              >
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-muted text-sm font-semibold text-ink-muted">
+                  {initials(
+                    `${loan.guarantor.firstName} ${loan.guarantor.lastName}`,
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-ink">
+                    {loan.guarantor.firstName} {loan.guarantor.lastName}
+                  </span>
+                  <span className="numeric block text-xs text-ink-muted">
+                    {loan.guarantor.code}
+                    {loan.guarantor.mobilePhone
+                      ? ` · ${loan.guarantor.mobilePhone}`
+                      : ""}
+                  </span>
+                </span>
+              </Link>
+            </CardBody>
+          </Card>
+        </div>
+      ) : null}
 
       {/* Cada cargo lleva al lado su lápiz y su caneca, y abajo está el
           botón de agregar: las tres cosas se ven sin tener que buscarlas.
