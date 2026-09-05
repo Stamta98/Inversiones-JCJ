@@ -655,10 +655,10 @@ export default async function LoanDetailPage({
         ) : null}
       </div>
 
-      {/* Los cargos se leen mucho más de lo que se corrigen, así que la
-          tarjeta muestra la tabla y guarda el formulario detrás de un botón.
+      {/* Cada cargo lleva al lado su lápiz y su caneca, y abajo está el
+          botón de agregar: las tres cosas se ven sin tener que buscarlas.
           Cambiar uno rehace el plan y mueve la caja: eso lo hace el
-          servidor, no la tabla. */}
+          servidor, no la tarjeta. */}
       <div className="mt-4">
         <LoanCharges
           loanId={loan.id}
