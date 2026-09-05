@@ -173,9 +173,16 @@ duplicar nada.
 
 ```bash
 # 1. edita prisma/schema.prisma
-npm run db:migrate -- --name lo_que_cambiaste   # crea la migración
-npm run db:deploy                               # la aplica en producción
+npm run db:migrate -- --name lo_que_cambiaste   # crea la migración y la aplica en local
 ```
+
+En producción no hay que hacer nada más: `npm run build` corre
+`prisma migrate deploy` antes de compilar, así que el despliegue aplica lo que
+falte. Si una migración falla, el despliegue falla y no sube nada — que es lo
+que uno quiere: subir código que pide una columna que la base no tiene deja el
+sitio caído entero.
+
+Para aplicarlas a mano cuando haga falta: `npm run db:deploy`.
 
 No uses `db:push` contra Supabase: no deja historial y puede borrar datos.
 Queda solo para probar rápido en local.

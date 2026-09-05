@@ -5,7 +5,8 @@
   "description": "Plataforma de gestion de prestamos, cobranza y creditos (web + movil).",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "//build": "Las migraciones van antes de compilar: sin esto el codigo sube pidiendo columnas que la base todavia no tiene y el sitio cae entero.",
+    "build": "prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint src",
     "postinstall": "prisma generate",
