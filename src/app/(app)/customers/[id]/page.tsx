@@ -297,6 +297,13 @@ export default async function CustomerDetailPage({
         {customer.status === "BLACKLISTED" ? (
           <Alert tone="danger">{t("customers.blacklistWarning")}</Alert>
         ) : null}
+        {/* Oculto no es lo mismo que borrado: la ficha se abre igual y dice
+            que no sale en la lista, con el botón para volver a mostrarlo. */}
+        {customer.status === "INACTIVE" ? (
+          <Alert tone="neutral" icon="clock">
+            {t("customers.hidden")}
+          </Alert>
+        ) : null}
         {overdueCount > 0 ? (
           <Alert tone="warning">
             {overdueCount === 1

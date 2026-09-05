@@ -36,14 +36,22 @@ const OPEN_STATUSES = ["ACTIVE", "IN_ARREARS", "APPROVED"] as const;
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; ver?: string }>;
 }) {
   const context = await requirePermission("customers.read");
-  const { q } = await searchParams;
+  const { q, ver } = await searchParams;
   const term = q?.trim() ?? "";
+  // Los ocultos no salen, salvo que se pidan. Es el cliente que lleva meses
+  // sin pedir nada: no se borra, se quita de en medio.
+  const view = ver === "ocultos" || ver === "todos" ? ver : "visibles";
 
   const where: Prisma.CustomerWhereInput = {
     companyId: context.companyId,
+    ...(view === "visibles"
+      ? { status: { not: "INACTIVE" as const } }
+      : view === "ocultos"
+        ? { status: "INACTIVE" as const }
+        : {}),
     ...(term
       ? {
           OR: [
@@ -59,7 +67,8 @@ export default async function CustomersPage({
 
   // Los totales cuentan todo lo que cumple el filtro, no solo la primera
   // página: "2 clientes" con veinticinco en pantalla no sería un total.
-  const [customers, total, withOpenLoans, withContact] = await Promise.all([
+  const [customers, total, withOpenLoans, withContact, hiddenTotal] =
+    await Promise.all([
     db.customer.findMany({
       where,
       // Primero lo que la persona puso a mano, después el orden de siempre.
@@ -80,6 +89,10 @@ export default async function CustomersPage({
         ...where,
         OR: [{ mobilePhone: { not: null } }, { phone: { not: null } }],
       },
+    }),
+    // Cuántos hay guardados: si no hay ninguno, el filtro sobra.
+    db.customer.count({
+      where: { companyId: context.companyId, status: "INACTIVE" },
     }),
   ]);
 
@@ -142,7 +155,53 @@ export default async function CustomersPage({
             aria-label={t("common.search")}
           />
         </div>
+        {/* Buscando, el filtro viaja con la búsqueda: si no, cambiar de vista
+            perdería lo que se acabó de escribir. */}
+        {view !== "visibles" ? (
+          <input type="hidden" name="ver" value={view} />
+        ) : null}
       </form>
+
+      {/* El filtro solo aparece cuando hay alguno guardado: sin ocultos es un
+          botón que no lleva a ninguna parte. */}
+      {hiddenTotal > 0 ? (
+        <nav className="mb-3 flex flex-wrap items-center gap-1.5 text-sm">
+          <span className="text-xs text-ink-muted">{t("customers.showing")}</span>
+          {[
+            { key: "visibles", label: t("customers.onlyVisible") },
+            { key: "ocultos", label: t("customers.onlyHidden") },
+            { key: "todos", label: t("customers.allCustomers") },
+          ].map((option) => {
+            const params = new URLSearchParams();
+            if (term) params.set("q", term);
+            if (option.key !== "visibles") params.set("ver", option.key);
+            const href = `/customers${params.size > 0 ? `?${params}` : ""}`;
+            const active = option.key === view;
+
+            return (
+              <Link
+                key={option.key}
+                href={href}
+                className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                  active
+                    ? "border-brand bg-brand-soft text-brand-strong"
+                    : "border-border bg-surface text-ink-muted hover:bg-surface-muted"
+                }`}
+              >
+                {option.label}
+              </Link>
+            );
+          })}
+          <span className="numeric text-xs text-ink-subtle">
+            {hiddenTotal === 1
+              ? t("customers.hiddenCountOne")
+              : t("customers.hiddenCount").replace(
+                  "{count}",
+                  String(hiddenTotal),
+                )}
+          </span>
+        </nav>
+      ) : null}
 
       {/* De un vistazo: cuántos son, a cuántos les está prestando y a cuántos
           podría llamar. Es lo que se mira antes de bajar por la lista. */}

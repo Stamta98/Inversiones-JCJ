@@ -140,6 +140,21 @@ export function CustomerMenu({
             ) : null}
           </div>
 
+          {/* Ocultar, para el que lleva meses sin pedir nada. Enlaza al
+              cuadro donde se hace, que ahí sí se puede leer si no se pudo. */}
+          {canEdit ? (
+            <div className="border-t border-border">
+              <Link
+                className={item}
+                href={`/customers/${customerId}/edit#ocultar`}
+                onClick={() => setOpen(false)}
+              >
+                <Icon name="clock" size={16} className="text-ink-subtle" />
+                {es.customers.hide}
+              </Link>
+            </div>
+          ) : null}
+
           {/* Va aparte y antes de borrar: reportar no se toca por error. */}
           {canReport ? (
             <div className="border-t border-border">

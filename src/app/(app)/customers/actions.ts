@@ -140,6 +140,8 @@ const customerSchema = z.object({
 
 export interface CustomerFormState {
   error?: string;
+  /** Lo que salió bien, para decirlo donde se hizo. */
+  success?: string;
   fieldErrors?: Record<string, string>;
 }
 
@@ -471,4 +473,71 @@ export async function deleteCustomerAction(formData: FormData): Promise<void> {
   revalidatePath("/cash");
   revalidatePath("/dashboard");
   redirect("/customers");
+}
+
+/**
+ * Ocultar o volver a mostrar un cliente.
+ *
+ * El que lleva meses sin pedir nada estorba en la lista, pero borrarlo sería
+ * perder su historia — y el día que vuelva, su cupo y sus préstamos viejos son
+ * justamente lo que hay que mirar. Ocultarlo lo saca de la lista y lo deja
+ * entero.
+ *
+ * A quien todavía debe no se le puede ocultar: sacar de la vista a alguien con
+ * plata afuera es la manera más fácil de dejar de cobrarle.
+ */
+export async function toggleCustomerVisibilityAction(
+  _previous: CustomerFormState,
+  formData: FormData,
+): Promise<CustomerFormState> {
+  const context = await requirePermission("customers.update");
+  const customerId = String(formData.get("customerId") ?? "");
+  if (!customerId) return { error: t("common.error") };
+
+  const customer = await db.customer.findFirst({
+    where: { id: customerId, companyId: context.companyId },
+    select: {
+      id: true,
+      status: true,
+      loans: {
+        where: { status: { in: ["ACTIVE", "IN_ARREARS", "APPROVED"] } },
+        select: { id: true },
+      },
+    },
+  });
+  if (!customer) return { error: t("common.error") };
+
+  const hiding = customer.status !== "INACTIVE";
+
+  if (hiding && customer.loans.length > 0) {
+    return {
+      error: (customer.loans.length === 1
+        ? t("customers.hideBlockedOne")
+        : t("customers.hideBlocked")
+      ).replace("{count}", String(customer.loans.length)),
+    };
+  }
+
+  await db.customer.update({
+    where: { id: customer.id },
+    data: { status: hiding ? "INACTIVE" : "ACTIVE" },
+  });
+
+  await db.auditLog.create({
+    data: {
+      companyId: context.companyId,
+      userId: context.userId,
+      action: hiding ? "customer.hidden" : "customer.shown",
+      entityType: "Customer",
+      entityId: customer.id,
+      metadata: {},
+    },
+  });
+
+  revalidatePath("/customers");
+  revalidatePath(`/customers/${customer.id}`);
+
+  return {
+    success: hiding ? t("customers.hideDone") : t("customers.unhideDone"),
+  };
 }

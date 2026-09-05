@@ -375,7 +375,7 @@ export const es = {
     interactionsTab: "Gestiones",
     status: {
       ACTIVE: "Activo",
-      INACTIVE: "Inactivo",
+      INACTIVE: "Oculto",
       BLACKLISTED: "Lista negra",
     },
     personalSection: "Datos personales",
@@ -477,6 +477,29 @@ export const es = {
     deletePaid: "Se pierde el historial de {amount} ya cobrados",
     deleteNoLoans: "Este cliente no tiene préstamos.",
     loanCount: "Préstamos",
+    // Ocultar es para el cliente que lleva meses sin pedir nada: deja de
+    // estorbar en la lista sin perder su historia. No es borrarlo ni ponerlo
+    // en lista negra, que son otras dos cosas.
+    hide: "Ocultar cliente",
+    hideConfirm:
+      "Deja de salir en la lista de clientes. Su historia y sus préstamos quedan como están, y se puede volver a mostrar cuando quieras.",
+    hidden: "Este cliente está oculto.",
+    hiddenHint:
+      "No sale en la lista. Todo lo suyo sigue guardado; vuelve a mostrarlo cuando pida otro préstamo.",
+    unhide: "Mostrar de nuevo",
+    hideDone: "El cliente quedó oculto.",
+    unhideDone: "El cliente vuelve a salir en la lista.",
+    hideBlocked:
+      "No se puede ocultar a alguien que todavía debe: tiene {count} préstamos abiertos. Primero salda o anula lo que tenga afuera.",
+    hideBlockedOne:
+      "No se puede ocultar a alguien que todavía debe: tiene un préstamo abierto. Primero salda o anula lo que tenga afuera.",
+    // El filtro de la lista.
+    showing: "Mostrando",
+    onlyVisible: "Sin los ocultos",
+    onlyHidden: "Solo los ocultos",
+    allCustomers: "Todos",
+    hiddenCount: "{count} ocultos",
+    hiddenCountOne: "1 oculto",
     statActive: "Con préstamo",
     statIdle: "Sin préstamo",
     statContact: "Con contacto",

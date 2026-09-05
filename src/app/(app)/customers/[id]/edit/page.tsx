@@ -1,11 +1,18 @@
 import { notFound } from "next/navigation";
 
-import { Card, CardHeader, LinkButton, PageHeader } from "@/components/ui";
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  LinkButton,
+  PageHeader,
+} from "@/components/ui";
 import { can, requirePermission } from "@/server/auth/context";
 import { customerDeletionSummary } from "@/server/services/customers";
 import { db } from "@/server/db";
 
 import { CustomerForm } from "../../new/customer-form";
+import { HideCustomer } from "../hide-customer";
 import { DeleteCustomer } from "./delete-customer";
 
 export const dynamic = "force-dynamic";
@@ -95,6 +102,27 @@ export default async function EditCustomerPage({
           idBackUrl: documentUrl("ID_BACK"),
         }}
       />
+
+      {/* Ocultar va antes de eliminar y separado: es lo que casi siempre se
+          quiere hacer con el cliente que lleva meses sin pedir nada, y el
+          otro cuadro no tiene vuelta atrás. */}
+      {can(context, "customers.update") ? (
+        <Card className="mt-4 max-w-2xl" id="ocultar">
+          <CardHeader
+            title={
+              customer.status === "INACTIVE"
+                ? context.t("customers.unhide")
+                : context.t("customers.hide")
+            }
+          />
+          <CardBody>
+            <HideCustomer
+              customerId={customer.id}
+              hidden={customer.status === "INACTIVE"}
+            />
+          </CardBody>
+        </Card>
+      ) : null}
 
       {/* El menú del cliente enlaza directo aquí, para no hacer buscar el
           cuadro de eliminar al final de un formulario largo. */}
