@@ -3,18 +3,13 @@ import { notFound } from "next/navigation";
 
 import {
   Alert,
-  Badge,
   Icon,
   Card,
   CardBody,
   CardHeader,
-  EmptyState,
   LinkButton,
   PageHeader,
   StatCard,
-  TableWrap,
-  Td,
-  Th,
 } from "@/components/ui";
 import {
   summarizePromises,
@@ -127,22 +122,17 @@ export default async function CustomerDetailPage({
           },
         },
       },
-      attachments: { orderBy: { createdAt: "asc" } },
-      interactions: {
-        orderBy: { occurredAt: "desc" },
-        take: 10,
-        include: { agent: { select: { fullName: true } } },
-      },
+      // De los adjuntos y las gestiones aquí solo hace falta si hay o no
+      // hay: es lo único que decide si el atajo de arriba aparece. Lo que
+      // tienen dentro se lee en su propia pantalla.
+      _count: { select: { attachments: true, interactions: true } },
     },
   });
 
   if (!customer) notFound();
 
-  const payments = await db.payment.findMany({
+  const paymentCount = await db.payment.count({
     where: { companyId: context.companyId, loan: { customerId: customer.id } },
-    include: { loan: { select: { id: true, code: true } } },
-    orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
-    take: 30,
   });
 
   const promises = await db.paymentPromise.findMany({
@@ -222,11 +212,11 @@ export default async function CustomerDetailPage({
     },
     {
       key: "abonos",
-      href: "#abonos",
+      href: `/customers/${customer.id}/payments`,
       label: t("customers.jumpPayments"),
       icon: "receipt" as const,
       tint: "bg-positive-soft text-positive",
-      has: payments.length > 0,
+      has: paymentCount > 0,
     },
     {
       key: "adjuntos",
@@ -234,15 +224,15 @@ export default async function CustomerDetailPage({
       label: t("customers.jumpDocuments"),
       icon: "image" as const,
       tint: "bg-warning-soft text-warning",
-      has: customer.attachments.length > 0,
+      has: customer._count.attachments > 0,
     },
     {
       key: "gestiones",
-      href: "#gestiones",
+      href: `/customers/${customer.id}/interactions`,
       label: t("customers.jumpInteractions"),
       icon: "headset" as const,
       tint: "bg-surface-muted text-ink-muted",
-      has: customer.interactions.length > 0,
+      has: customer._count.interactions > 0,
     },
   ].filter((jump) => jump.has);
 
@@ -276,7 +266,7 @@ export default async function CustomerDetailPage({
             canCreateLoan={can(context, "loans.create")}
             canEdit={can(context, "customers.update")}
             canDelete={can(context, "customers.delete")}
-            hasAttachments={customer.attachments.length > 0}
+            hasAttachments={customer._count.attachments > 0}
             canReport={
               can(context, "credit.create") &&
               Boolean(customer.documentNumber)
@@ -678,98 +668,6 @@ export default async function CustomerDetailPage({
         </Card>
 
         <div className="space-y-4 lg:col-span-2">
-          <Card id="abonos">
-            <CardHeader
-              title={t("payments.history")}
-              description={t("payments.historyHint")}
-            />
-            {payments.length === 0 ? (
-              <EmptyState icon="receipt" title={t("payments.emptyTitle")} />
-            ) : (
-              <TableWrap>
-                <thead>
-                  <tr>
-                    <Th>{t("payments.receipt")}</Th>
-                    <Th>{t("payments.paidAt")}</Th>
-                    <Th>{t("loans.code")}</Th>
-                    <Th align="right">{t("common.amount")}</Th>
-                    <Th align="center">{t("common.status")}</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((payment) => (
-                    <tr key={payment.id}>
-                      <Td numeric>
-                        <Link
-                          href={`/payments/${payment.id}`}
-                          className="text-brand-strong hover:underline"
-                        >
-                          {payment.receiptNumber}
-                        </Link>
-                      </Td>
-                      <Td numeric>
-                        {formatDate(payment.paidAt, context.locale)}
-                      </Td>
-                      <Td>
-                        <Link
-                          href={`/loans/${payment.loan.id}`}
-                          className="text-ink-muted hover:underline"
-                        >
-                          {payment.loan.code}
-                        </Link>
-                      </Td>
-                      <Td align="right" numeric>
-                        {money(Number(payment.amount))}
-                      </Td>
-                      <Td align="center">
-                        <Badge
-                          tone={
-                            payment.status === "REVERSED"
-                              ? "danger"
-                              : "positive"
-                          }
-                        >
-                          {t(`payments.statusLabel.${payment.status}`)}
-                        </Badge>
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </TableWrap>
-            )}
-          </Card>
-
-          <Card id="gestiones">
-            <CardHeader title={t("customers.interactionsTab")} />
-            {customer.interactions.length === 0 ? (
-              <EmptyState icon="headset" title={t("common.empty")} />
-            ) : (
-              <TableWrap>
-                <thead>
-                  <tr>
-                    <Th>{t("callCenter.occurredAt")}</Th>
-                    <Th>{t("callCenter.channel")}</Th>
-                    <Th>{t("callCenter.outcome")}</Th>
-                    <Th>{t("callCenter.agent")}</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {customer.interactions.map((interaction) => (
-                    <tr key={interaction.id}>
-                      <Td numeric>{formatDate(interaction.occurredAt)}</Td>
-                      <Td>
-                        {t(`callCenter.channelLabel.${interaction.channel}`)}
-                      </Td>
-                      <Td>
-                        {t(`callCenter.outcomeLabel.${interaction.outcome}`)}
-                      </Td>
-                      <Td>{interaction.agent?.fullName ?? "—"}</Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </TableWrap>
-            )}
-          </Card>
         </div>
       </div>
     </>

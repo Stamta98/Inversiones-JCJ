@@ -58,7 +58,7 @@ export default async function CustomerDocumentsPage({
   return (
     <>
       <PageHeader
-        title={t("customers.documentsSection")}
+        title={t("customers.jumpDocuments")}
         description={`${customer.code} · ${customer.firstName} ${customer.lastName}`}
         action={
           <LinkButton

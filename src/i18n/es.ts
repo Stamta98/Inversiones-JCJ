@@ -417,6 +417,12 @@ export const es = {
     loansClosed: "Préstamos terminados",
     loansClosedHint:
       "Saldados, anulados o dados por perdidos. Se quedan aquí: cuántas veces ha vuelto un cliente y cómo pagó también es su historia.",
+    paymentsCount: "Abonos registrados",
+    paidTotal: "Total abonado",
+    paymentsTruncated:
+      "Se muestran los {shown} más recientes de {total}. Los demás están en cada préstamo.",
+    interactionsHint:
+      "Llamadas, visitas y mensajes que se le han hecho a este cliente.",
     idDocuments: "Documento de identidad",
     otherDocuments: "Otros documentos",
     lentTotal: "Capital prestado",
