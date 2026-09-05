@@ -207,7 +207,9 @@ export default async function PaymentsPage({
   // Las dos son plata que entró hoy por el mismo concepto.
   const chargesEarned = chargesTaken + chargePaid;
   const chargesCount =
-    chargesAtDisbursement._count + chargesApart._count + chargesInPayments.length;
+    chargesAtDisbursement._count +
+    chargesApart._count +
+    chargesInPayments.length;
 
   // Lo que deja el día: el capital vuelve, no se gana. Los gastos sí salen.
   const profit = interestPaid + lateFeePaid + chargePaid + chargesTaken - spent;
@@ -223,7 +225,9 @@ export default async function PaymentsPage({
     // Cuando alguien paga más de lo que debía, ese sobrante no entró a ninguna
     // cuota. Sin esta línea las cuatro de arriba no suman el total y la cuenta
     // del día parece cuadrada cuando no lo está.
-    ...(surplus > 0 ? [{ label: t("payments.unapplied"), value: surplus }] : []),
+    ...(surplus > 0
+      ? [{ label: t("payments.unapplied"), value: surplus }]
+      : []),
   ];
 
   // Refinanciar no mueve plata: traslada un saldo. Renovar traslada el saldo
@@ -335,10 +339,11 @@ export default async function PaymentsPage({
         </span>
       </form>
 
-      {/* Lo que se movió hoy, cada cosa en su cuadro con su monto y cuántas
-          fueron: ninguna se entiende sumada con las otras. Lo cobrado va
-          arriba y de lado a lado porque es de donde sale todo lo demás, y los
-          cargos abajo, cerrando con lo que el día dejó de más. */}
+      {/* Los seis cuadros del día, todos del mismo tamaño y en dos columnas.
+          El orden lo manda la lectura, no la importancia: lo cobrado y lo
+          prestado arriba, que es de lo que se habla; renovar y refinanciar en
+          el medio, que son la misma cosa mirada de dos maneras; y abajo los
+          cargos y los gastos, que es lo de más y lo de menos del día. */}
       <div className="mb-3 grid grid-cols-2 gap-3">
         {[
           {
@@ -349,11 +354,8 @@ export default async function PaymentsPage({
             count: todayTotal._count,
             one: "payments.summary.countPaymentsOne",
             many: "payments.summary.countPayments",
-            // Blanco y con borde marcado: es un total, no una categoría más.
-            // Los cuadros de color son las cosas que se cuentan aparte.
             box: "border-border-strong bg-surface",
             text: "text-ink",
-            wide: true,
           },
           {
             label: t("payments.summary.tileLoans"),
@@ -365,7 +367,6 @@ export default async function PaymentsPage({
             many: "payments.summary.countLoans",
             box: "border-info-soft bg-info-soft/60",
             text: "text-info",
-            wide: false,
           },
           {
             label: t("loans.renewal.kindMenu.RENEWAL"),
@@ -377,7 +378,6 @@ export default async function PaymentsPage({
             many: "payments.summary.countRenewals",
             box: "border-positive-soft bg-positive-soft/60",
             text: "text-positive",
-            wide: false,
           },
           {
             label: t("loans.renewal.kindMenu.REFINANCE"),
@@ -389,7 +389,17 @@ export default async function PaymentsPage({
             many: "payments.summary.countRefinances",
             box: "border-warning-soft bg-warning-soft/60",
             text: "text-warning",
-            wide: false,
+          },
+          {
+            label: t("payments.summary.tileCharges"),
+            kind: "CHARGE",
+            icon: "wallet" as const,
+            value: chargesEarned,
+            count: chargesCount,
+            one: "payments.summary.countChargesOne",
+            many: "payments.summary.countCharges",
+            box: "border-brand-soft bg-brand-soft/60",
+            text: "text-brand-strong",
           },
           {
             label: t("payments.summary.expenses"),
@@ -401,30 +411,12 @@ export default async function PaymentsPage({
             many: "payments.summary.countExpenses",
             box: "border-danger-soft bg-danger-soft/60",
             text: "text-danger",
-            wide: false,
-          },
-          // Los cargos van solos en la última fila y ocupan el ancho: son
-          // cinco cuadros en dos columnas y dejar uno a medias, con el hueco
-          // al lado, se ve como si faltara algo.
-          {
-            label: t("payments.summary.tileCharges"),
-            kind: "CHARGE",
-            icon: "wallet" as const,
-            value: chargesEarned,
-            count: chargesCount,
-            one: "payments.summary.countChargesOne",
-            many: "payments.summary.countCharges",
-            box: "border-brand-soft bg-brand-soft/60",
-            text: "text-brand-strong",
-            wide: true,
           },
         ].map((tile) => (
           <Link
             key={tile.label}
             href={`/payments/day?kind=${tile.kind}&date=${selected}`}
-            className={`rounded-[--radius-card] border p-3 transition-shadow hover:shadow-md ${tile.box} ${
-              tile.wide ? "col-span-2" : ""
-            }`}
+            className={`rounded-[--radius-card] border p-3 transition-shadow hover:shadow-md ${tile.box}`}
           >
             <p
               className={`flex items-center gap-1.5 text-sm font-semibold ${tile.text}`}
