@@ -16,6 +16,13 @@ export const es = {
     close: "Cerrar",
     // Al tocar una foto: se abre grande, que es para lo que uno la toca.
     zoom: "Ampliar la foto",
+    downloadPhoto: "Descargar la foto",
+    sharePhoto: "Compartir la foto",
+    sharingPhoto: "Preparando…",
+    // Cuando el navegador no sabe pasar archivos a otra aplicación: se
+    // descarga, que es lo único que queda por hacer, y se dice.
+    sharePhotoFallback:
+      "Tu navegador no puede compartir archivos. La foto se descargó: adjúntala desde ahí.",
     create: "Crear",
     edit: "Editar",
     delete: "Eliminar",
