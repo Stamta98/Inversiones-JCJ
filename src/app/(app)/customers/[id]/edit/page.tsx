@@ -92,7 +92,6 @@ export default async function EditCustomerPage({
               : Number(customer.monthlyIncome),
           creditLimit: Number(customer.creditLimit),
           vehiclePlate: customer.vehiclePlate,
-          notes: customer.notes,
           photoUrl: customer.photoUrl,
           latitude: customer.latitude,
           longitude: customer.longitude,

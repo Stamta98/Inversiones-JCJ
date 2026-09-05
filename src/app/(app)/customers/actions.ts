@@ -135,7 +135,6 @@ const customerSchema = z.object({
     .transform((value) =>
       value === undefined || value.length === 0 ? 0 : Number(value),
     ),
-  notes: optionalText,
 });
 
 export interface CustomerFormState {
@@ -222,7 +221,6 @@ export async function createCustomer(
           workLongitude: data.workLongitude,
           monthlyIncome: data.monthlyIncome,
           creditLimit: data.creditLimit,
-          notes: data.notes,
           photoUrl: data.photoUrl,
           attachments: {
             create: [
@@ -343,7 +341,6 @@ export async function updateCustomer(
         vehiclePlate: data.vehiclePlate,
         monthlyIncome: data.monthlyIncome,
         creditLimit: data.creditLimit,
-        notes: data.notes,
         // Solo se pisan si el usuario capturó valores nuevos.
         ...(data.photoUrl ? { photoUrl: data.photoUrl } : {}),
         ...(data.homeLatitude !== null

@@ -12,7 +12,6 @@ import {
   FormSection,
   Input,
   Select,
-  Textarea,
 } from "@/components/ui";
 import { LocationField } from "@/components/ui/location-field";
 import { PhotoUpload } from "@/components/ui/photo-upload";
@@ -57,7 +56,6 @@ export interface CustomerDefaults {
   monthlyIncome: number | null;
   vehiclePlate: string | null;
   creditLimit: number;
-  notes: string | null;
   photoUrl: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -551,22 +549,6 @@ export function CustomerForm({
             label={es.customers.idBack}
             defaultValue={storedPhoto(customer?.idBackUrl)}
           />
-        </CardBody>
-      </FormSection>
-
-      <FormSection
-        icon="file-text"
-        title={es.common.notes}
-        hint={es.customers.notesHint}
-      >
-        <CardBody>
-          <Field label={es.common.notes} htmlFor="notes">
-            <Textarea
-              id="notes"
-              name="notes"
-              defaultValue={v(customer?.notes)}
-            />
-          </Field>
         </CardBody>
       </FormSection>
 
