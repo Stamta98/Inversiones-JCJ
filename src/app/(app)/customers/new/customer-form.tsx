@@ -199,7 +199,9 @@ export function CustomerForm({
           <Field
             label={es.customers.mobilePhone}
             htmlFor="mobilePhone"
-            hint="Se usa para enviar los mensajes de cobro por WhatsApp."
+            hint={es.customers.mobilePhoneHint}
+            error={fieldError("mobilePhone")}
+            required
           >
             <Input
               id="mobilePhone"
@@ -207,6 +209,7 @@ export function CustomerForm({
               defaultValue={v(customer?.mobilePhone)}
               type="tel"
               inputMode="tel"
+              required
             />
           </Field>
         </CardBody>

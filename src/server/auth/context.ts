@@ -46,6 +46,15 @@ export interface AuthContext {
    * México. Poner la palabra equivocada en el formulario se nota.
    */
   stateLabel: string;
+  /**
+   * El código del país para los teléfonos, sin el más.
+   *
+   * Un celular se teclea como se dice en la calle —«3007776655»— y para
+   * WhatsApp tiene que quedar completo. Sale del país de la empresa: escrito a
+   * mano quedaba «1», que es Estados Unidos, y a un cliente colombiano no le
+   * llegaba nunca el mensaje.
+   */
+  phoneCode: string;
   branchId: string | null;
   roleKey: string;
   roleName: string;
@@ -138,6 +147,9 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
     stateLabel:
       findCountry(membership.company.country ?? "")?.stateLabel ??
       es.customers.state,
+    // Sin país escogido se queda con el de antes, para no cambiarle el número
+    // a quien ya lo tenía guardado de esa manera.
+    phoneCode: findCountry(membership.company.country ?? "")?.phoneCode ?? "1",
     branchId: membership.branchId,
     roleKey: membership.role.key,
     roleName: membership.role.name,

@@ -10,10 +10,7 @@ import { normalizePhoneNumber } from "@/modules/messaging/providers";
 import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import { deleteCustomer } from "@/server/services/customers";
-import {
-  moveCustomer,
-  resetCustomerOrder,
-} from "@/server/services/ordering";
+import { moveCustomer, resetCustomerOrder } from "@/server/services/ordering";
 
 /**
  * An optional text field.
@@ -96,7 +93,12 @@ const customerSchema = z.object({
     { message: t("validation.email") },
   ),
   phone: optionalText,
-  mobilePhone: optionalText,
+  // El celular es obligatorio: por ahí se le cobra. Un cliente sin número no
+  // se puede llamar ni escribir, y los mensajes de cobro no le llegan nunca.
+  mobilePhone: z
+    .string()
+    .trim()
+    .min(1, { message: t("customers.mobileRequired") }),
   address: optionalText,
   neighborhood: optionalText,
   landmark: optionalText,
@@ -158,8 +160,14 @@ export async function createCustomer(
     const fieldErrors = Object.fromEntries(
       parsed.error.issues.map((issue) => [issue.path.join("."), issue.message]),
     );
+    // Arriba se dice el primer motivo de verdad, no un «ocurrió un error» que
+    // deja al cobrador buscando cuál campo fue. La foto va de primera porque
+    // es la que queda más lejos del botón.
     return {
-      error: fieldErrors.photoUrl ?? t("common.error"),
+      error:
+        fieldErrors.photoUrl ??
+        Object.values(fieldErrors)[0] ??
+        t("common.error"),
       fieldErrors,
     };
   }
@@ -191,7 +199,7 @@ export async function createCustomer(
           // Stored in E.164 so WhatsApp can use it without re-parsing.
           mobilePhone: data.mobilePhone
             ? (normalizePhoneNumber(data.mobilePhone, {
-                defaultCountryCode: "1",
+                defaultCountryCode: context.phoneCode,
               }) ?? data.mobilePhone)
             : null,
           address: data.address,
@@ -286,7 +294,11 @@ export async function updateCustomer(
     const fieldErrors = Object.fromEntries(
       parsed.error.issues.map((issue) => [issue.path.join("."), issue.message]),
     );
-    return { error: t("common.error"), fieldErrors };
+    // El motivo de verdad, igual que al crearlo.
+    return {
+      error: Object.values(fieldErrors)[0] ?? t("common.error"),
+      fieldErrors,
+    };
   }
 
   const data = parsed.data;
@@ -312,7 +324,7 @@ export async function updateCustomer(
         phone: data.phone,
         mobilePhone: data.mobilePhone
           ? (normalizePhoneNumber(data.mobilePhone, {
-              defaultCountryCode: "1",
+              defaultCountryCode: context.phoneCode,
             }) ?? data.mobilePhone)
           : null,
         address: data.address,

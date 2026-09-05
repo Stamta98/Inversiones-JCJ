@@ -455,6 +455,9 @@ export const es = {
     photoHint: "Obligatoria. Tómala de frente y con buena luz.",
     photoRequired: "La foto del cliente es obligatoria.",
     documentRequired: "El número de documento es obligatorio.",
+    mobileRequired:
+      "El celular es obligatorio: por ahí se le cobra al cliente.",
+    mobilePhoneHint: "Obligatorio. Por ahí se le manda el cobro por WhatsApp.",
     documentTaken:
       "Ya hay un cliente registrado con ese número de documento. Búscalo en la lista en vez de crearlo de nuevo.",
     vehiclePlate: "Placa del vehículo",
@@ -1557,7 +1560,8 @@ export const es = {
     // La pantalla va por partes, y cada parte con su nombre: antes era un
     // solo rollo de cinco pantallas donde todo pesaba igual.
     accessTitle: "Quién entra",
-    accessHint: "Las personas que usan el sistema y lo que cada una puede hacer.",
+    accessHint:
+      "Las personas que usan el sistema y lo que cada una puede hacer.",
     companySectionHint:
       "El nombre, la moneda y la hora con que se hacen los recibos y los contratos.",
     language: "Idioma",
