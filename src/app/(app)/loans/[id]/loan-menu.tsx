@@ -24,6 +24,7 @@ export function LoanMenu({
   canRenew,
   canEdit,
   canDelete,
+  canReport,
 }: {
   loanId: string;
   customerId: string;
@@ -36,6 +37,8 @@ export function LoanMenu({
   canRenew: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  /** Reportar a la central de riesgo: solo con el permiso y con cédula. */
+  canReport: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -147,6 +150,20 @@ export function LoanMenu({
                   </Link>
                 </>
               ) : null}
+            </div>
+          ) : null}
+
+          {/* Reportar va solo, entre prestar otra vez y editar: no es una
+              manera de cobrar, es señalar a alguien en toda la ciudad. */}
+          {canReport ? (
+            <div className="border-t border-border">
+              <Link
+                className={`${row} text-warning`}
+                href={`/credit/report?customerId=${customerId}&loanId=${loanId}`}
+              >
+                <Icon name="alert-triangle" size={16} />
+                {es.credit.reportAction}
+              </Link>
             </div>
           ) : null}
 

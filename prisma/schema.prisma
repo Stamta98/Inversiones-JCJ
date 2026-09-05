@@ -73,6 +73,8 @@ model Company {
   settings          CompanySetting[]
   translations      Translation[]
   auditLogs         AuditLog[]
+  creditReports     CreditReport[]
+  creditLookups     CreditLookup[]
   automationRules   AutomationRule[]
   messagingAccounts MessagingAccount[]
   routeSettlements  RouteSettlement[]
@@ -128,6 +130,8 @@ model User {
   settlementsCollected RouteSettlement[] @relation("SettlementCollector")
   settlementsReceived  RouteSettlement[] @relation("SettlementReceiver")
   cashMovements        CashMovement[]
+
+  creditLookups CreditLookup[]
 
   @@index([isActive])
 }
@@ -357,6 +361,8 @@ model Customer {
   routeStops       RouteStop[]
   paymentPromises  PaymentPromise[]
 
+  creditReports CreditReport[]
+
   @@unique([companyId, code])
   @@index([companyId, status])
   @@index([companyId, sortOrder, lastName, firstName])
@@ -574,6 +580,8 @@ model Loan {
   paymentPromises  PaymentPromise[]
   charges          LoanCharge[]
   cashMovements    CashMovement[]
+
+  creditReports CreditReport[]
 
   @@unique([companyId, code])
   @@index([companyId, status])
@@ -1294,4 +1302,105 @@ model AuditLog {
 
   @@index([companyId, createdAt])
   @@index([entityType, entityId])
+}
+
+// ---------------------------------------------------------------------------
+// Central de riesgo
+// ---------------------------------------------------------------------------
+
+/// Qué tan grave es lo que se reporta.
+enum CreditReportSeverity {
+  /// Se atrasó y se puso al día tarde, pero pagó.
+  LATE
+  /// Dejó de pagar y quedó debiendo.
+  DEFAULT
+  /// Dio datos falsos o desapareció con la plata.
+  FRAUD
+}
+
+enum CreditReportStatus {
+  ACTIVE
+  /// Se retiró: pagó, o el reporte estaba equivocado.
+  WITHDRAWN
+}
+
+/// Un cliente reportado por una empresa, que otra puede consultar.
+///
+/// Es la única tabla del sistema que se lee entre empresas, y a propósito:
+/// sirve justamente para que una oficina sepa lo que pasó en otra antes de
+/// prestarle a alguien. Por eso solo se consulta por el número de documento
+/// exacto —nunca se lista ni se busca por nombre—, y por eso guarda copia de
+/// los datos de la persona: si la ficha de origen cambia o se borra, el
+/// reporte tiene que seguir diciendo a quién señaló.
+model CreditReport {
+  id         String    @id @default(cuid())
+  /// Quién reporta. Se muestra a quien consulta: hay a quién llamar.
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// La ficha de donde salió, si todavía existe.
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  /// El préstamo que se dejó de pagar, cuando lo hubo.
+  loanId     String?
+  loan       Loan?     @relation(fields: [loanId], references: [id], onDelete: SetNull)
+
+  /// La cédula: es la llave con la que otra oficina lo encuentra.
+  documentType   String?
+  documentNumber String
+  /// Copia de los datos al momento de reportar.
+  firstName      String
+  lastName       String
+  photoUrl       String?
+  mobilePhone    String?
+  city           String?
+
+  severity      CreditReportSeverity @default(DEFAULT)
+  /// Lo que quedó debiendo cuando se reportó.
+  amount        Decimal              @default(0) @db.Decimal(18, 2)
+  daysInArrears Int                  @default(0)
+  reason        String?
+
+  /// Cuándo se le avisó al cliente que se le iba a reportar. La ley de habeas
+  /// data lo exige antes de reportar, y sin esta fecha no hay cómo probarlo.
+  noticedAt DateTime?
+
+  status          CreditReportStatus @default(ACTIVE)
+  withdrawnAt     DateTime?
+  withdrawnReason String?
+  withdrawnById   String?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lookups CreditLookup[]
+
+  /// La consulta entra por aquí, y es lo único por lo que se puede buscar.
+  @@index([documentNumber, status])
+  @@index([companyId, createdAt])
+  @@index([customerId])
+}
+
+/// Quién consultó a quién.
+///
+/// La persona reportada tiene derecho a saber quién pidió su información, y
+/// la empresa que reporta tiene derecho a saber que la consultaron. Sin este
+/// registro ninguna de las dos cosas se puede responder.
+model CreditLookup {
+  id             String        @id @default(cuid())
+  /// La empresa que consultó.
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  documentNumber String
+  /// Cuántos reportes activos encontró: si fueron cero, también queda dicho.
+  foundCount     Int           @default(0)
+  /// El reporte concreto que se miró, cuando la consulta abrió uno.
+  reportId       String?
+  report         CreditReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  @@index([documentNumber, createdAt])
+  @@index([companyId, createdAt])
 }

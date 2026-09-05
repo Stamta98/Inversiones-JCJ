@@ -372,6 +372,12 @@ export default async function LoanDetailPage({
                 canEditAtAll(loan.status as LoanStatus)
               }
               canDelete={can(context, "loans.delete")}
+              // Sin cédula no hay con qué encontrarlo en otra oficina, así que
+              // ofrecer reportarlo sería ofrecer algo que no va a servir.
+              canReport={
+                can(context, "credit.create") &&
+                Boolean(loan.customer.documentNumber)
+              }
             />
           </div>
         </div>

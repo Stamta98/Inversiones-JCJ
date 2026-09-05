@@ -29,6 +29,9 @@ export const PERMISSION_RESOURCES = [
   "templates",
   "callCenter",
   "messaging",
+  // La central de riesgo: consultar es una cosa y reportar es otra. Un
+  // cobrador puede necesitar mirar antes de prestar sin poder señalar a nadie.
+  "credit",
   "moduleBuilder",
   "settings",
   "users",
@@ -101,6 +104,7 @@ export const ROLE_PRESETS: RolePreset[] = [
       ...permissionsFor("callCenter"),
       ...permissionsFor("messaging"),
       ...permissionsFor("users", ["read", "create", "update"]),
+      ...permissionsFor("credit", ["read", "create", "update", "delete"]),
     ],
     isSystem: true,
   },
@@ -114,6 +118,8 @@ export const ROLE_PRESETS: RolePreset[] = [
       ...permissionsFor("payments", ["read", "create"]),
       ...permissionsFor("collections", ["read", "update"]),
       ...permissionsFor("callCenter", ["read", "create"]),
+      // Mirar antes de prestar sí; señalar a alguien no.
+      ...permissionsFor("credit", ["read"]),
     ],
     isSystem: true,
   },
@@ -126,6 +132,7 @@ export const ROLE_PRESETS: RolePreset[] = [
       ...permissionsFor("loans", ["read"]),
       ...permissionsFor("callCenter"),
       ...permissionsFor("messaging", ["read", "create"]),
+      ...permissionsFor("credit", ["read"]),
     ],
     isSystem: true,
   },

@@ -20,6 +20,7 @@ export function CustomerMenu({
   canCreateLoan,
   canEdit,
   canDelete,
+  canReport,
   hasAttachments,
 }: {
   customerId: string;
@@ -28,6 +29,8 @@ export function CustomerMenu({
   canCreateLoan: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  /** Reportarlo a la central de riesgo: con permiso y con cédula. */
+  canReport: boolean;
   /** Sin fotos guardadas, el renglón llevaría a un cuadro vacío. */
   hasAttachments: boolean;
 }) {
@@ -136,6 +139,20 @@ export function CustomerMenu({
               </a>
             ) : null}
           </div>
+
+          {/* Va aparte y antes de borrar: reportar no se toca por error. */}
+          {canReport ? (
+            <div className="border-t border-border">
+              <Link
+                className={`${row} text-warning`}
+                href={`/credit/report?customerId=${customerId}`}
+                onClick={() => setOpen(false)}
+              >
+                <Icon name="alert-triangle" size={16} />
+                {es.credit.reportAction}
+              </Link>
+            </div>
+          ) : null}
 
           {canDelete ? (
             <div className="border-t border-border">

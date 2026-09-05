@@ -25,6 +25,7 @@ import { startOfDay } from "@/core/dates";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
+import { countActiveReports } from "@/server/services/credit";
 
 import { LoanRow } from "@/components/loans/loan-row";
 
@@ -166,7 +167,7 @@ export default async function CustomerDetailPage({
   // una oficina con varios cobradores, y ninguna se podía contestar desde la
   // ficha. La primera vive en la bitácora; la segunda, en la última visita
   // que se le hizo.
-  const [createdEntry, lastStop] = await Promise.all([
+  const [createdEntry, lastStop, reportedElsewhere] = await Promise.all([
     db.auditLog.findFirst({
       where: {
         companyId: context.companyId,
@@ -184,6 +185,10 @@ export default async function CustomerDetailPage({
       orderBy: { route: { scheduledFor: "desc" } },
       select: { collector: { select: { fullName: true } } },
     }),
+    // ¿Está reportado en la central? Es lo primero que uno querría saber al
+    // abrir la ficha de alguien a quien va a prestarle. No cuenta como
+    // consulta: nadie preguntó, se abrió su ficha.
+    countActiveReports(customer.documentNumber),
   ]);
   const promiseRecord = summarizePromises(
     promises.map((promise) => promise.status as PromiseStatus),
@@ -280,6 +285,10 @@ export default async function CustomerDetailPage({
             canEdit={can(context, "customers.update")}
             canDelete={can(context, "customers.delete")}
             hasAttachments={idDocuments.length > 0}
+            canReport={
+              can(context, "credit.create") &&
+              Boolean(customer.documentNumber)
+            }
           />
         }
       />
@@ -300,6 +309,36 @@ export default async function CustomerDetailPage({
       {/* Atajos a lo que está más abajo. La ficha es larga y en el teléfono
           llegar a los abonos eran cuatro deslizadas; el que no tiene nada
           que mostrar no sale, para no mandar a un cuadro vacío. */}
+      {/* Si está reportado, se dice arriba y en rojo: es lo que hay que saber
+          antes de prestarle, no algo para descubrir bajando la ficha. */}
+      {reportedElsewhere > 0 && can(context, "credit.read") ? (
+        <Link
+          href={`/credit?doc=${encodeURIComponent(customer.documentNumber ?? "")}`}
+          className="mt-4 flex items-start gap-3 rounded-[--radius-card] border border-danger-soft bg-danger-soft/60 p-3 transition-shadow hover:shadow-md"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-danger text-white">
+            <Icon name="alert-triangle" size={18} />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold text-danger">
+              {t("credit.flagTitle")}
+            </span>
+            <span className="block text-sm text-ink">
+              {reportedElsewhere === 1
+                ? t("credit.flagOne")
+                : t("credit.flagMany").replace(
+                    "{count}",
+                    String(reportedElsewhere),
+                  )}
+            </span>
+            <span className="mt-0.5 flex items-center gap-1 text-xs font-medium text-danger">
+              {t("credit.flagSee")}
+              <Icon name="chevron-right" size={12} />
+            </span>
+          </span>
+        </Link>
+      ) : null}
+
       {jumps.length > 0 ? (
         <nav className="mt-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {jumps.map((jump) => (

@@ -3,6 +3,12 @@
  *
  * Customer photos and identity documents are personal data, so they are never
  * public. A signed-in user only sees files belonging to their own company.
+ *
+ * La única excepción es la foto de alguien reportado a la central de riesgo:
+ * de nada sirve que otra oficina vea el reporte si no puede ver la cara del
+ * que le va a tocar la puerta. Es una excepción de una sola foto por reporte
+ * —la que el reporte guardó, no todo lo del cliente—, y solo mientras el
+ * reporte esté vivo.
  */
 
 import { NextResponse } from "next/server";
@@ -12,6 +18,7 @@ import {
   companyIdOfKey,
 } from "@/modules/storage/providers";
 import { getAuthContext } from "@/server/auth/context";
+import { db } from "@/server/db";
 import { storage } from "@/server/storage";
 
 export const dynamic = "force-dynamic";
@@ -39,9 +46,19 @@ export async function GET(
     throw error;
   }
 
-  // A file belongs to exactly one company; nobody else may read it.
+  // A file belongs to exactly one company; nobody else may read it, salvo la
+  // foto que un reporte vivo de la central puso a la vista de todos.
   if (ownerCompanyId !== context.companyId) {
-    return new NextResponse("Not found", { status: 404 });
+    const reported = await db.creditReport.count({
+      where: {
+        status: "ACTIVE",
+        photoUrl: { endsWith: storageKey },
+        companyId: ownerCompanyId,
+      },
+    });
+    if (reported === 0) {
+      return new NextResponse("Not found", { status: 404 });
+    }
   }
 
   const file = await storage().get(storageKey);

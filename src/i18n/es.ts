@@ -286,6 +286,11 @@ export const es = {
       label: "Configuración",
       description: "Empresa, sucursales, usuarios, roles y módulos.",
     },
+    credit: {
+      label: "Central de riesgo",
+      description:
+        "Consulta por cédula si alguien quedó debiendo en otra oficina, y reporta al que te quedó debiendo a ti.",
+    },
   },
 
   dashboard: {
@@ -1595,6 +1600,103 @@ export const es = {
     labelUnchanged: "Sin cambiar",
   },
 
+  // --- La central de riesgo -----------------------------------------------
+  credit: {
+    title: "Central de riesgo",
+    subtitle:
+      "Consulta por cédula antes de prestar, y reporta al que te quedó debiendo.",
+    // Consultar
+    lookupTitle: "Consultar una cédula",
+    lookupHint:
+      "Escribe el número de documento, completo y sin puntos. Se busca exacto: no hay búsqueda por nombre.",
+    document: "Número de documento",
+    lookupAction: "Consultar",
+    clean: "Sin reportes",
+    cleanHint:
+      "Este documento no aparece reportado por ninguna oficina. Eso no dice que sea buena paga: dice que nadie lo ha reportado.",
+    found: "{count} reportes activos",
+    foundOne: "1 reporte activo",
+    inCompanies: "en {count} oficinas",
+    inCompaniesOne: "en 1 oficina",
+    totalOwed: "Debe en total",
+    reportedBy: "Reportado por",
+    yourCompany: "Tu oficina",
+    reportedOn: "Reportado el",
+    expiresOn: "Se borra el",
+    noticedOn: "Se le avisó el",
+    severityLabel: {
+      LATE: "Pagó tarde",
+      DEFAULT: "Quedó debiendo",
+      FRAUD: "Fraude",
+    },
+    severityHint: {
+      LATE: "Se atrasó y se puso al día tarde, pero pagó. Se borra a los 2 años.",
+      DEFAULT: "Dejó de pagar y quedó debiendo. Se borra a los 4 años.",
+      FRAUD: "Dio datos falsos o desapareció con la plata. Se borra a los 6 años.",
+    },
+    // Reportar
+    reportAction: "Reportar al cliente",
+    reportTitle: "Reportar a {name}",
+    reportHint:
+      "Queda visible para cualquier oficina que consulte esta cédula. Se puede retirar cuando pague.",
+    severity: "¿Qué pasó?",
+    amount: "Cuánto quedó debiendo",
+    reason: "Qué pasó, en tus palabras",
+    reasonPlaceholder: "Dejó de contestar desde la tercera cuota.",
+    noticedAt: "¿Qué día le avisaste que lo ibas a reportar?",
+    noticedAtHint:
+      "Antes de reportar a alguien hay que avisarle y darle {days} días para ponerse al día. Sin esa fecha no se puede reportar.",
+    reportSubmit: "Reportar",
+    reported: "{name} quedó reportado.",
+    // Retirar
+    withdrawAction: "Retirar el reporte",
+    withdrawTitle: "Retirar el reporte de {name}",
+    withdrawHint:
+      "Deja de verse en las consultas. No se borra: queda el rastro de que existió y de por qué se quitó.",
+    withdrawReason: "¿Por qué lo retiras?",
+    withdrawReasonPlaceholder: "Pagó todo el 5 de septiembre.",
+    withdrawSubmit: "Retirar",
+    withdrawn: "El reporte quedó retirado.",
+    withdrawnOn: "Retirado el",
+    // Mis reportes
+    ownTitle: "Lo que tú has reportado",
+    ownEmpty: "Todavía no has reportado a nadie.",
+    statusLabel: {
+      ACTIVE: "Activo",
+      WITHDRAWN: "Retirado",
+    },
+    // El aviso en la ficha
+    flagTitle: "Reportado en la central de riesgo",
+    flagOne: "Una oficina lo tiene reportado.",
+    flagMany: "{count} oficinas lo tienen reportado.",
+    flagSee: "Ver el reporte",
+    // Quién consultó
+    lookupsTitle: "Quién ha consultado esta cédula",
+    lookupsHint:
+      "Toda consulta queda registrada: la persona reportada tiene derecho a saber quién pidió sus datos.",
+    lookupsEmpty: "Nadie ha consultado esta cédula todavía.",
+    lookupFound: "encontró {count}",
+    lookupNothing: "no encontró nada",
+    errors: {
+      document:
+        "Escribe un número de documento completo, de al menos 5 caracteres.",
+      name: "Falta el nombre de la persona.",
+      amount: "El monto no puede ser negativo.",
+      alreadyReported:
+        "Ya tienes reportado a este cliente por este préstamo. Retira el reporte anterior si quieres cambiarlo.",
+      notFound: "No se encontró.",
+      notYours:
+        "Este reporte lo hizo otra oficina. Solo quien reporta puede retirar su reporte.",
+      noticeMissing:
+        "Primero avísale al cliente y pon aquí la fecha en que le avisaste. Reportar a alguien sin avisarle no se puede.",
+      noticeTooRecent:
+        "Todavía no. Desde el aviso tienen que pasar {days} días para poder reportarlo.",
+      withdrawReason: "Escribe por qué lo estás retirando.",
+      noDocument:
+        "Este cliente no tiene número de documento, y el documento es con lo que otra oficina lo encontraría.",
+    },
+  },
+
   roles: {
     owner: "Dueño",
     manager: "Administrador",
@@ -1618,6 +1720,7 @@ export const es = {
       callCenter: "Call center",
       messaging: "Mensajería",
       moduleBuilder: "Constructor de módulos",
+      credit: "Central de riesgo",
       settings: "Configuración",
       users: "Usuarios",
       audit: "Auditoría",
