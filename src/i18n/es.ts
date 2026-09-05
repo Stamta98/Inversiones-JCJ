@@ -671,7 +671,7 @@ export const es = {
       WAIVED: "Condonada",
     },
     editLockedPaid:
-      "Este préstamo ya está saldado: sus condiciones son historia y no se cambian. Solo se pueden editar las notas.",
+      "Este préstamo ya está saldado: sus condiciones son historia y no se cambian.",
     editTermsWarning:
       "Si cambias el monto, la tasa o las cuotas, el plan se vuelve a calcular y los cobros ya registrados se aplican otra vez sobre el plan nuevo.",
     delete: "Eliminar préstamo",
@@ -825,7 +825,6 @@ export const es = {
     filterPaid: "Saldados",
     cancelReason: "Motivo de la anulación",
     cancelled: "Préstamo anulado.",
-    editNotesOnly: "Notas del préstamo",
     saved: "Préstamo actualizado.",
 
     // --- Refinanciación y renovación ---

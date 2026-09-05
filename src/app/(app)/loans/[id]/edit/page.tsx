@@ -20,7 +20,6 @@ import { LoanForm } from "../../new/loan-form";
 import {
   CancelLoanForm,
   DeleteLoanForm,
-  LoanNotesForm,
 } from "./loan-edit-forms";
 
 export const dynamic = "force-dynamic";
@@ -126,12 +125,7 @@ export default async function EditLoanPage({
             label: cashBox.name,
           }))}
         />
-      ) : (
-        <Card className="max-w-2xl">
-          <CardHeader title={t("loans.editNotesOnly")} />
-          <LoanNotesForm loanId={loan.id} notes={loan.notes} />
-        </Card>
-      )}
+      ) : null}
 
       {canCancel(status) ? (
         <Card className="mt-4 max-w-2xl">

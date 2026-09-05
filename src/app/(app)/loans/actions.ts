@@ -50,7 +50,6 @@ const loanSchema = z.object({
   gracePeriodDays: z.coerce.number().int().min(0).default(0),
   cashBoxId: z.string().optional(),
   disburseNow: z.string().optional(),
-  notes: z.string().optional(),
 });
 
 export interface LoanFormState {
@@ -161,8 +160,6 @@ const updateSchema = loanSchema
   .omit({ customerId: true, cashBoxId: true, disburseNow: true })
   .extend({
     loanId: z.string().min(1),
-    /** "on" when the loan is past draft and only the notes may move. */
-    notesOnly: z.string().optional(),
   });
 
 export async function updateLoanAction(
@@ -170,27 +167,6 @@ export async function updateLoanAction(
   formData: FormData,
 ): Promise<LoanFormState> {
   const context = await requirePermission("loans.update");
-  const notesOnly = String(formData.get("notesOnly") ?? "") === "on";
-
-  if (notesOnly) {
-    const loanId = String(formData.get("loanId") ?? "");
-    if (!loanId) return { error: t("common.error") };
-
-    try {
-      await updateLoan({
-        companyId: context.companyId,
-        loanId,
-        notes: String(formData.get("notes") ?? "") || null,
-        updatedById: context.userId,
-      });
-    } catch (error) {
-      return { error: loanErrorMessage(error) };
-    }
-
-    revalidatePath(`/loans/${loanId}`);
-    redirect(`/loans/${loanId}`);
-  }
-
   const parsed = updateSchema.safeParse({
     ...Object.fromEntries(
       [...formData.entries()].map(([key, value]) => [key, String(value)]),
@@ -415,7 +391,6 @@ export async function renewLoanAction(
       gracePeriodDays: data.gracePeriodDays,
       decimalPlaces: context.decimalPlaces,
       charges: readCharges(formData),
-      notes: data.notes || null,
       cashBoxId: data.cashBoxId || null,
       createdById: context.userId,
     });

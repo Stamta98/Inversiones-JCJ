@@ -17,7 +17,6 @@ import {
   Field,
   Input,
   Select,
-  Textarea,
 } from "@/components/ui";
 import { RenewalError, planRenewal, type RenewalKind } from "@/core/loans/renewal";
 import { ScheduleError, buildSchedule } from "@/core/loans/schedule";
@@ -457,12 +456,6 @@ export function RenewForm({
                   </Field>
                 </div>
               ) : null}
-
-              <div className="sm:col-span-2">
-                <Field label={es.common.notes} htmlFor="notes">
-                  <Textarea id="notes" name="notes" />
-                </Field>
-              </div>
             </CardBody>
           </Card>
 
