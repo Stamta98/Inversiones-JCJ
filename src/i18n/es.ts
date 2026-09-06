@@ -830,6 +830,15 @@ export const es = {
     // mucho más que un 13 suelto.
     overdueOfDue: "de {count} vencidas",
     // La cuenta del préstamo, en renglones que suman a la vista.
+    // Las cuatro cifras que uno mira de reojo antes de tocar la puerta.
+    quickTitle: "Detalles rápidos",
+    remainingPrincipal: "Capital restante",
+    installmentNo: "Cuota No.",
+    nextDueLabel: "Próxima cuota",
+    lastPaymentAmount: "Último pago",
+    lastPaymentDate: "Fecha últ. pago",
+    createdOn: "Fecha de creación",
+    frequencyLabelShort: "Frecuencia",
     detailsTitle: "Detalles del préstamo",
     detailsHint: "Todo lo de este crédito en un solo lugar.",
     // Los renglones del plan, que antes vivían sueltos en tiras de cuadritos.
@@ -841,8 +850,6 @@ export const es = {
     // El plazo se acabó y el crédito sigue debiendo. No es «Vence», que es la
     // fecha del final y ya está más arriba en la misma lista.
     expiredLabel: "Crédito vencido",
-    // El número y cada cuánto, sin repetir la palabra que ya dice el rótulo.
-    countAndFrequency: "{count} ({frequency})",
     alreadyPaid: "Ya pagó",
     interestOf: "Interés ({rate}% {basis})",
     lateFeeOwed: "Mora acumulada",

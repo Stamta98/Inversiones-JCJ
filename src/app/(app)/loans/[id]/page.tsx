@@ -11,6 +11,7 @@ import {
   Icon,
   LinkButton,
   Select,
+  StatCard,
   TableWrap,
   Td,
   Th,
@@ -408,6 +409,29 @@ export default async function LoanDetailPage({
     0,
   );
 
+  // El capital que todavía se debe, que no es el saldo: el saldo lleva el
+  // interés encima. Es la cifra con la que el prestamista mide su plata.
+  const principalPaid = Number(applied._sum.principalAmount ?? 0);
+  const remainingPrincipal = Math.max(
+    0,
+    Number(loan.totalPrincipal) - principalPaid,
+  );
+
+  // De a cuánto es la cuota. Saldado el préstamo ya no queda nada por cobrar
+  // y la cuenta del cobro da cero, pero la cuota siguió siendo la que fue:
+  // se lee del plan, que es donde está escrita.
+  const installmentAmount =
+    collect.installmentCents > 0
+      ? fromCents(collect.installmentCents)
+      : Number(loan.installments[0]?.totalAmount ?? 0);
+
+  // El último abono que entró de verdad: un recibo anulado no fue un pago.
+  const lastPayment =
+    loan.payments.find(
+      (payment) =>
+        payment.status === "POSTED" && payment.method !== "REFINANCE",
+    ) ?? null;
+
   const dueSoFar = loan.installments.filter(
     (installment) => installment.dueDate.getTime() < today.getTime(),
   ).length;
@@ -631,6 +655,80 @@ export default async function LoanDetailPage({
         </form>
       ) : null}
 
+      {/* Las cuatro cifras que uno mira de reojo antes de tocar la puerta.
+          Repiten lo que la lista de abajo dice con todas sus letras, y está
+          bien que lo repitan: una es para mirar y la otra para leer. */}
+      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-ink-muted uppercase">
+        <Icon name="bar-chart" size={14} />
+        {t("loans.quickTitle")}
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard
+          label={t("loans.principal")}
+          value={money(Number(loan.principal))}
+          compact
+        />
+        <StatCard
+          label={t("loans.remainingPrincipal")}
+          value={money(remainingPrincipal)}
+          tone="warning"
+          compact
+        />
+        <StatCard
+          label={`${t("loans.installment")} · ${t(
+            `loans.frequencyLabel.${loan.frequency}`,
+          )}`}
+          value={money(installmentAmount)}
+          compact
+        />
+        <StatCard
+          label={t("loans.installmentNo")}
+          value={`${Math.min(collect.paidCount + 1, loan.installments.length)} / ${
+            loan.installments.length
+          }`}
+          compact
+        />
+      </div>
+
+      {/* Lo atrasado y lo que sigue, cada uno en su franja: son las dos cosas
+          que se dicen en la puerta, y en un renglón de lista se perdían entre
+          las demás. */}
+      {catchUp > 0 ? (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-[--radius-card] border border-danger-soft bg-danger-soft/40 p-3">
+          <span>
+            <span className="block text-xs font-semibold text-danger">
+              {t("loans.overdueBalance")}
+            </span>
+            <span className="numeric block text-lg font-bold text-danger">
+              {money(catchUp)}
+            </span>
+          </span>
+          {collect.overdueSince ? (
+            <span className="numeric shrink-0 text-right text-[0.6875rem] text-danger">
+              {t("loans.oldestOverdueLabel")}
+              <br />
+              {formatDate(collect.overdueSince)}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {collect.nextDueDate && openLoan ? (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-[--radius-card] border border-warning-soft bg-warning-soft/40 p-3">
+          <span>
+            <span className="block text-xs font-semibold text-warning">
+              {t("loans.nextDueLabel")}
+            </span>
+            <span className="numeric block text-lg font-bold text-ink">
+              {money(fromCents(collect.nextAmountCents))}
+            </span>
+          </span>
+          <span className="numeric shrink-0 text-right text-[0.6875rem] text-ink-muted">
+            {formatDate(collect.nextDueDate)}
+          </span>
+        </div>
+      ) : null}
+
       {/* Todo lo del crédito en un solo cuadro, de arriba abajo: lo que se
           prestó, en qué quedó el trato, cómo va y qué se atrasó. Repartido en
           cuadritos sueltos, cada cifra se leía sola y de dónde salía el saldo
@@ -716,23 +814,33 @@ export default async function LoanDetailPage({
               pedir que se crea. */}
           <div className="space-y-1.5 border-t border-border pt-2.5">
             {[
+              { label: t("loans.code"), value: loan.code },
+              {
+                label: t("loans.customer"),
+                value: `${loan.customer.firstName} ${loan.customer.lastName}`,
+              },
+              // El capital que queda: el saldo de arriba lleva el interés
+              // encima, y esta es la plata del prestamista sin el negocio.
+              {
+                label: t("loans.remainingPrincipal"),
+                value: money(remainingPrincipal),
+              },
               loan.installments.length > 0
                 ? {
                     label: t("loans.installmentsLabel"),
-                    value: t("loans.countAndFrequency")
-                      .replace("{count}", String(loan.installments.length))
-                      .replace(
-                        "{frequency}",
-                        t(`loans.frequencyLabel.${loan.frequency}`),
-                      ),
+                    value: String(loan.installments.length),
                   }
                 : null,
-              collect.installmentCents > 0
+              installmentAmount > 0
                 ? {
                     label: t("loans.installmentValue"),
-                    value: money(fromCents(collect.installmentCents)),
+                    value: money(installmentAmount),
                   }
                 : null,
+              {
+                label: t("loans.frequencyLabelShort"),
+                value: t(`loans.frequencyLabel.${loan.frequency}`),
+              },
               { label: t("loans.startLabel"), value: formatDate(startedOn) },
               // El día en que empieza el cobro solo cuando no es el mismo en
               // que salió la plata: repetir la fecha no dice nada.
@@ -742,11 +850,35 @@ export default async function LoanDetailPage({
                     value: formatDate(firstDueDate),
                   }
                 : null,
+              collect.nextDueDate
+                ? {
+                    label: t("loans.nextDueLabel"),
+                    value: formatDate(collect.nextDueDate),
+                  }
+                : null,
               {
                 label: t(
                   loan.closingDate ? "loans.endedLabel" : "loans.endLabel",
                 ),
                 value: endsOn ? formatDate(endsOn) : "—",
+              },
+              // El último abono y cuándo entró: es lo primero que se mira
+              // cuando el cliente dice «yo ya le pagué».
+              lastPayment
+                ? {
+                    label: t("loans.lastPaymentAmount"),
+                    value: money(Number(lastPayment.amount)),
+                  }
+                : null,
+              lastPayment
+                ? {
+                    label: t("loans.lastPaymentDate"),
+                    value: formatDate(lastPayment.paidAt),
+                  }
+                : null,
+              {
+                label: t("loans.createdOn"),
+                value: formatDate(dayIn(loan.createdAt, context.timezone)),
               },
             ]
               .filter((row) => row !== null)
