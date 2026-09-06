@@ -178,7 +178,7 @@ export async function renewLoan(
       // Two people refinancing the same loan at once would settle it twice and
       // leave the customer owing two new loans for one old balance.
       const existing = await tx.loan.findFirst({
-        where: { parentLoanId: previous.id, status: { not: "CANCELLED" } },
+        where: { parentLoanId: previous.id },
         select: { code: true },
       });
       if (existing) {

@@ -17,7 +17,7 @@ import { db } from "@/server/db";
 export const dynamic = "force-dynamic";
 
 /** Se acabaron: no se cobran más y no vuelven a moverse. */
-const FINISHED = ["PAID", "CANCELLED", "WRITTEN_OFF"];
+const FINISHED = ["PAID", "WRITTEN_OFF"];
 
 /**
  * Los que se están cobrando, contados igual que en la ficha del cliente.
@@ -32,9 +32,9 @@ const COLLECTING = ["ACTIVE", "IN_ARREARS", "APPROVED"];
  * El historial de préstamos de un cliente.
  *
  * Todos los que se le han hecho, sin quitar ninguno: los que se están
- * cobrando arriba y los que ya se acabaron —saldados, anulados, incobrables—
- * debajo. Un préstamo terminado sigue diciendo algo de la persona: cuántas
- * veces ha vuelto, si pagó o si tocó anularlo. Por eso no se filtra nada.
+ * cobrando arriba y los que ya se acabaron —saldados o incobrables— debajo.
+ * Un préstamo terminado sigue diciendo algo de la persona: cuántas veces ha
+ * vuelto, si pagó o si tocó darlo por perdido. Por eso no se filtra nada.
  */
 export default async function CustomerLoansPage({
   params,
@@ -98,11 +98,12 @@ export default async function CustomerLoansPage({
     COLLECTING.includes(loan.status),
   );
 
-  // Un préstamo anulado nunca salió de la caja, así que no cuenta como plata
-  // entregada, pero sí se queda en la lista: pasó.
-  const lentTotal = customer.loans
-    .filter((loan) => loan.status !== "CANCELLED")
-    .reduce((total, loan) => total + Number(loan.principal), 0);
+  // Todo lo que se le ha entregado, cerrado o no: el que quedó incobrable
+  // también salió de la caja.
+  const lentTotal = customer.loans.reduce(
+    (total, loan) => total + Number(loan.principal),
+    0,
+  );
   const outstanding = collecting.reduce(
     (total, loan) => total + Number(loan.outstanding),
     0,

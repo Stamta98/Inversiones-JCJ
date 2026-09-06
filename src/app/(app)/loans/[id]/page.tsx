@@ -59,7 +59,6 @@ const LOAN_TONES: Record<string, Tone> = {
   ACTIVE: "positive",
   IN_ARREARS: "danger",
   PAID: "brand",
-  CANCELLED: "neutral",
   WRITTEN_OFF: "warning",
 };
 
@@ -106,7 +105,6 @@ export default async function LoanDetailPage({
           charges: { orderBy: { createdAt: "asc" } },
           parentLoan: { select: { id: true, code: true } },
           renewals: {
-            where: { status: { not: "CANCELLED" } },
             select: { id: true, code: true },
             take: 1,
           },

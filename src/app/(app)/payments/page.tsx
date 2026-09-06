@@ -150,7 +150,6 @@ export default async function PaymentsPage({
       where: {
         companyId: context.companyId,
         disbursedAt: day,
-        status: { not: "CANCELLED" },
       },
       select: {
         id: true,

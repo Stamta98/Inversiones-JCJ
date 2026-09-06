@@ -79,7 +79,6 @@ export async function postPayment(
 
       if (
         loan.status === "DRAFT" ||
-        loan.status === "CANCELLED" ||
         loan.status === "PENDING_APPROVAL"
       ) {
         throw new PaymentError("Loan is not active", "loanNotActive");
@@ -215,7 +214,7 @@ async function guardRefinanceSettlement(
   if (payment.method !== "REFINANCE") return;
 
   const replacement = await tx.loan.findFirst({
-    where: { parentLoanId: payment.loanId, status: { not: "CANCELLED" } },
+    where: { parentLoanId: payment.loanId },
     select: { code: true },
   });
   if (replacement) {
@@ -596,7 +595,6 @@ export async function collectCharge(input: {
     }
     if (
       loan.status === "DRAFT" ||
-      loan.status === "CANCELLED" ||
       loan.status === "PENDING_APPROVAL"
     ) {
       throw new PaymentError("Loan is not active", "loanNotActive");

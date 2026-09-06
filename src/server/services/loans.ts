@@ -351,7 +351,7 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
 
     // Las condiciones se pueden corregir después de creado el préstamo: quien
     // presta se equivoca tecleando y lo que hace falta es arreglarlo, no
-    // anularlo y volver a empezar. Lo que ya se cobró no se pierde — se vuelve
+    // borrarlo y volver a empezar. Lo que ya se cobró no se pierde — se vuelve
     // a aplicar contra el plan nuevo más abajo.
     const step = stepForDecimals(
       input.terms?.decimalPlaces ?? input.decimalPlaces ?? 2,
@@ -663,7 +663,7 @@ export async function deleteLoanWithin(
     // cliente entero se van los dos, así que ahí no aplica.
     if (!options.skipRenewalCheck) {
       const replacement = await tx.loan.findFirst({
-        where: { parentLoanId: loan.id, status: { not: "CANCELLED" } },
+        where: { parentLoanId: loan.id },
         select: { code: true },
       });
       if (replacement) {
@@ -859,7 +859,7 @@ export async function refreshLoan(
     },
   });
 
-  if (loan.status === "CANCELLED" || loan.status === "WRITTEN_OFF") return;
+  if (loan.status === "WRITTEN_OFF") return;
 
   const policy = lateFeePolicyOf(loan, loan.company.decimalPlaces);
   const snapshots = loan.installments.map((installment) => ({

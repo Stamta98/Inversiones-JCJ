@@ -18,12 +18,11 @@ const ALL_STATUSES: LoanStatus[] = [
   "ACTIVE",
   "IN_ARREARS",
   "PAID",
-  "CANCELLED",
   "WRITTEN_OFF",
 ];
 
 describe("canEditTerms", () => {
-  // Quien presta se equivoca tecleando, y anular el préstamo para volver a
+  // Quien presta se equivoca tecleando, y borrar el préstamo para volver a
   // empezar no arregla nada: mientras el préstamo siga vivo se corrige, y el
   // servicio rehace el plan y vuelve a repartir sobre él lo ya cobrado.
   it("lets a live loan be corrected", () => {
@@ -39,7 +38,7 @@ describe("canEditTerms", () => {
   });
 
   it("leaves a closed loan alone", () => {
-    for (const status of ["PAID", "CANCELLED", "WRITTEN_OFF"] as const) {
+    for (const status of ["PAID", "WRITTEN_OFF"] as const) {
       expect(canEditTerms(status), status).toBe(false);
     }
   });
@@ -70,13 +69,12 @@ describe("editableFields", () => {
   });
 
   it("gives nothing on a closed loan", () => {
-    expect(editableFields("CANCELLED")).toEqual([]);
     expect(editableFields("WRITTEN_OFF")).toEqual([]);
   });
 
   it("never lets a closed loan expose the money", () => {
     for (const status of ALL_STATUSES) {
-      if (!["PAID", "CANCELLED", "WRITTEN_OFF"].includes(status)) continue;
+      if (!["PAID", "WRITTEN_OFF"].includes(status)) continue;
       expect(isEditable(status, "principal"), status).toBe(false);
       expect(isEditable(status, "interestRate"), status).toBe(false);
       expect(isEditable(status, "termCount"), status).toBe(false);
@@ -87,7 +85,6 @@ describe("editableFields", () => {
 
 describe("canEditAtAll", () => {
   it("treats a closed loan as a record", () => {
-    expect(canEditAtAll("CANCELLED")).toBe(false);
     expect(canEditAtAll("WRITTEN_OFF")).toBe(false);
     expect(canEditAtAll("PAID")).toBe(true);
   });
@@ -98,6 +95,6 @@ describe("lockedReasonKey", () => {
     expect(lockedReasonKey("DRAFT")).toBeNull();
     expect(lockedReasonKey("ACTIVE")).toBeNull();
     expect(lockedReasonKey("PAID")).toBe("loans.editLockedPaid");
-    expect(lockedReasonKey("CANCELLED")).toBe("loans.editLockedClosed");
+    expect(lockedReasonKey("WRITTEN_OFF")).toBe("loans.editLockedClosed");
   });
 });

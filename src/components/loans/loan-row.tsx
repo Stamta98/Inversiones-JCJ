@@ -22,7 +22,6 @@ const STATUS_TONES: Record<string, Tone> = {
   ACTIVE: "positive",
   IN_ARREARS: "danger",
   PAID: "brand",
-  CANCELLED: "neutral",
   WRITTEN_OFF: "warning",
 };
 
@@ -35,7 +34,7 @@ function severity(
   daysExpired: number,
 ): string {
   if (status === "PAID") return "border-l-brand";
-  if (status === "CANCELLED" || status === "WRITTEN_OFF") {
+  if (status === "WRITTEN_OFF") {
     return "border-l-border-strong";
   }
   if (daysExpired > 0) return "border-l-danger";

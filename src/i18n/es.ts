@@ -416,7 +416,7 @@ export const es = {
     loansInProgress: "En curso",
     loansClosed: "Préstamos terminados",
     loansClosedHint:
-      "Saldados, anulados o dados por perdidos. Se quedan aquí: cuántas veces ha vuelto un cliente y cómo pagó también es su historia.",
+      "Saldados o dados por perdidos. Se quedan aquí: cuántas veces ha vuelto un cliente y cómo pagó también es su historia.",
     paymentsCount: "Abonos registrados",
     paidTotal: "Total abonado",
     paymentsTruncated:
@@ -673,7 +673,6 @@ export const es = {
       ACTIVE: "Activo",
       IN_ARREARS: "En mora",
       PAID: "Saldado",
-      CANCELLED: "Anulado",
       WRITTEN_OFF: "Incobrable",
     },
     installmentStatus: {

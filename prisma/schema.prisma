@@ -464,7 +464,8 @@ enum LoanStatus {
   ACTIVE
   IN_ARREARS
   PAID
-  CANCELLED
+  /// Cerrado sin haberse pagado. Es el único cierre que no es "pagado":
+  /// anular se quitó, y el préstamo que nunca debió hacerse se elimina.
   WRITTEN_OFF
 }
 

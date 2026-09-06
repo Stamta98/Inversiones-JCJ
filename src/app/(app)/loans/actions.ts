@@ -505,9 +505,8 @@ export async function resetLoanOrderAction(): Promise<void> {
 /**
  * Borra un préstamo para siempre.
  *
- * Anular deja el préstamo cerrado y a la vista, que es lo correcto casi
- * siempre. Esto es para el que nunca debió existir, y por eso devuelve la
- * plata a la caja y deja el rastro en la auditoría.
+ * Es para el préstamo que nunca debió existir, y por eso devuelve la plata a
+ * la caja y deja el rastro en la auditoría.
  */
 export async function deleteLoanAction(
   _previous: LoanFormState,

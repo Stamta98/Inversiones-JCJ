@@ -171,7 +171,7 @@ export default async function CustomerDetailPage({
 
   const { t, money } = context;
   // Lo que este cliente debe hoy, sumando solo los préstamos que siguen
-  // abiertos: uno saldado ya no debe nada y uno anulado nunca se cobró.
+  // abiertos: uno saldado ya no debe nada y uno incobrable ya no se cobra.
   const openLoans = customer.loans.filter((loan) =>
     ["ACTIVE", "IN_ARREARS", "APPROVED"].includes(loan.status),
   );
@@ -183,15 +183,14 @@ export default async function CustomerDetailPage({
     (total, loan) => total + Number(loan.outstanding),
     0,
   );
-  // Todo lo que se le ha entregado a este cliente. Un préstamo anulado nunca
-  // salió de la caja, así que no cuenta como plata prestada.
   // Solo dígitos, que es lo que aceptan tel: y wa.me.
   const digits = (value: string | null) => value?.replace(/\D/g, "") || null;
   const mobileDigits = digits(customer.mobilePhone);
   const homeDigits = digits(customer.phone);
-  const lentTotal = customer.loans
-    .filter((loan) => loan.status !== "CANCELLED")
-    .reduce((total, loan) => total + Number(loan.principal), 0);
+  const lentTotal = customer.loans.reduce(
+    (total, loan) => total + Number(loan.principal),
+    0,
+  );
 
   // Los atajos de arriba. Préstamos y documentos abren su propia pantalla:
   // el historial de alguien que lleva años puede ser largo, y las fotos de

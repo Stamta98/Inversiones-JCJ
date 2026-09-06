@@ -7,7 +7,7 @@
  * rate at that point would silently rewrite what the customer already paid.
  *
  * Aun así hay que poder corregirlos: quien presta se equivoca tecleando, y
- * anular el préstamo y volver a empezar no arregla nada, solo lo ensucia. Así
+ * borrar el préstamo y volver a empezar no arregla nada, solo lo ensucia. Así
  * que las condiciones se pueden cambiar mientras el préstamo siga vivo, y el
  * servicio rehace el plan y vuelve a repartir sobre él lo que ya se cobró.
  *
@@ -45,7 +45,7 @@ export function canEditTerms(status: LoanStatus): boolean {
 
 /** A closed loan is a record; not even the notes should move. */
 export function canEditAtAll(status: LoanStatus): boolean {
-  return status !== "CANCELLED" && status !== "WRITTEN_OFF";
+  return status !== "WRITTEN_OFF";
 }
 
 export type EditableField = FinancialField | DescriptiveField;

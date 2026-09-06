@@ -44,7 +44,6 @@ const LOAN_TONES: Record<string, Tone> = {
   ACTIVE: "positive",
   IN_ARREARS: "danger",
   PAID: "brand",
-  CANCELLED: "neutral",
   WRITTEN_OFF: "warning",
 };
 
@@ -108,7 +107,6 @@ export default async function DayDetailPage({
           where: {
             companyId: context.companyId,
             disbursedAt: today,
-            status: { not: "CANCELLED" },
             origin: kind,
           },
           include: {

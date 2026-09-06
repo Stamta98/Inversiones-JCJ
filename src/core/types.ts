@@ -52,7 +52,6 @@ export type LoanStatus =
   | "ACTIVE"
   | "IN_ARREARS"
   | "PAID"
-  | "CANCELLED"
   | "WRITTEN_OFF";
 
 export type InstallmentStatus =

@@ -80,7 +80,6 @@ export default async function ReceiptPage({
     (await db.loan.count({
       where: {
         parentLoanId: receipt.loan.id,
-        status: { not: "CANCELLED" },
       },
     })) > 0;
   const late = isLate({ daysLate: receipt.loan.daysLate });
