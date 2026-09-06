@@ -320,6 +320,18 @@ export default async function LoanDetailPage({
   // que salió la plata, así que se acaba un período antes de lo que debería.
   // Se ofrece correrlo, pero solo mientras el préstamo siga vivo y solo a
   // quien puede editarlo.
+  // Los cargos anotados que todavía se le deben, con lo que le falta a cada
+  // uno: es lo único que se puede cobrar aparte. Uno ya completo sale de la
+  // lista solo, sin tener que borrarlo del préstamo.
+  const pendingCharges = loan.charges
+    .filter((charge) => charge.mode === "PENDING")
+    .map((charge) => ({
+      id: charge.id,
+      name: charge.name,
+      left: Number(charge.amount) - Number(charge.paidAmount),
+    }))
+    .filter((charge) => charge.left > 0);
+
   const torcido = chargesOnDeliveryDay(
     {
       status: loan.status,
@@ -762,6 +774,7 @@ export default async function LoanDetailPage({
                 installmentAmount={fromCents(collect.installmentCents)}
                 maxAmount={Number(loan.outstanding)}
                 amountHint={amountHint}
+                pendingCharges={pendingCharges}
                 currencyCode={context.currencyCode}
                 locale={context.locale}
                 cashBoxes={cashBoxes.map((cashBox) => ({
@@ -838,6 +851,7 @@ export default async function LoanDetailPage({
             name: charge.name,
             amount: Number(charge.amount),
             mode: charge.mode,
+            paid: Number(charge.paidAmount),
           }))}
           principal={Number(loan.principal)}
           currencyCode={context.currencyCode}

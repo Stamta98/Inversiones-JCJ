@@ -300,7 +300,8 @@ export async function collectAtStop(
       // el de cobrar solo mora— van tal cual en vez de disfrazarse de otra
       // cosa: en la ruta solo se registran abonos.
       if (
-        error.code === "chargeName" ||
+        error.code === "chargeNotPending" ||
+        error.code === "chargeTooMuch" ||
         error.code === "chargeCashBox" ||
         error.code === "noLateFee"
       ) {

@@ -76,8 +76,45 @@ describe("summarizeCharges", () => {
     expect(summarizeCharges([])).toEqual({
       deductedCents: 0,
       financedCents: 0,
+      pendingCents: 0,
       totalCents: 0,
     });
+  });
+
+  it("keeps a pending charge out of the disbursement and the instalments", () => {
+    const summary = summarizeCharges([
+      { name: "Papelería", amountCents: 500_000, mode: "DEDUCTED" },
+      { name: "Estudio", amountCents: 200_000, mode: "FINANCED" },
+      { name: "Aval", amountCents: 300_000, mode: "PENDING" },
+    ]);
+
+    // El pendiente no baja lo que se entrega ni sube lo que el cliente debe:
+    // entra el día que se le cobre, y hasta entonces no está en ningún lado.
+    expect(summary.deductedCents).toBe(500_000);
+    expect(summary.financedCents).toBe(200_000);
+    expect(summary.pendingCents).toBe(300_000);
+    expect(summary.totalCents).toBe(1_000_000);
+  });
+
+  it("hands over the whole loan when the only charge is pending", () => {
+    const summary = summarizeCharges([
+      { name: "Aval", amountCents: 300_000, mode: "PENDING" },
+    ]);
+
+    expect(cashHandedOver(1_000_000, summary.deductedCents)).toBe(1_000_000);
+  });
+
+  it("lets a pending charge be worth more than the loan", () => {
+    // Uno descontado que se comiera el préstamo se rechaza, porque el cliente
+    // se iría sin plata. El pendiente no sale de la entrega, así que no hay
+    // nada que se coma: solo queda debiéndose.
+    const summary = summarizeCharges([
+      { name: "Aval", amountCents: 2_000_000, mode: "PENDING" },
+    ]);
+
+    expect(() =>
+      cashHandedOver(1_000_000, summary.deductedCents),
+    ).not.toThrow();
   });
 });
 
@@ -138,9 +175,9 @@ describe("un cargo financiado en el plan de cuotas", () => {
     );
 
     expect(sum).toBe(12_500_000);
-    expect(
-      withCharge.installments.reduce((t, i) => t + i.chargeCents, 0),
-    ).toBe(500_000);
+    expect(withCharge.installments.reduce((t, i) => t + i.chargeCents, 0)).toBe(
+      500_000,
+    );
   });
 
   it("deja el plan igual que siempre cuando no hay cargo", () => {

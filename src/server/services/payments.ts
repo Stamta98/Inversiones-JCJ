@@ -7,10 +7,7 @@
 
 import type { Prisma } from "@prisma/client";
 
-import {
-  allocatePayment,
-  type AllocationScope,
-} from "@/core/loans/allocation";
+import { allocatePayment, type AllocationScope } from "@/core/loans/allocation";
 import { fromCents, toCents } from "@/core/money";
 
 import { db } from "../db";
@@ -55,7 +52,8 @@ export class PaymentError extends Error {
       | "nothingToApply"
       | "settlesRefinance"
       | "reversed"
-      | "chargeName"
+      | "chargeNotPending"
+      | "chargeTooMuch"
       | "chargeCashBox"
       | "noLateFee",
   ) {
@@ -87,10 +85,7 @@ export async function postPayment(
         include: { installments: { orderBy: { number: "asc" } } },
       });
 
-      if (
-        loan.status === "DRAFT" ||
-        loan.status === "PENDING_APPROVAL"
-      ) {
+      if (loan.status === "DRAFT" || loan.status === "PENDING_APPROVAL") {
         throw new PaymentError("Loan is not active", "loanNotActive");
       }
 
@@ -579,25 +574,34 @@ export async function deletePayment(
  * movimiento pero sin nombre: así los dos suman en «Cargos adicionales» del
  * resumen y aun así se distingue de dónde salió cada uno.
  */
+/**
+ * Cobra un cargo que el préstamo tenía anotado.
+ *
+ * No se escribe el nombre a mano: se escoge uno de los que el préstamo dejó
+ * pendientes. Escrito a mano, «Papeleria» y «Papelería» eran dos cargos
+ * distintos y el que estaba anotado en el préstamo seguía debiéndose después
+ * de haberlo cobrado.
+ *
+ * Se puede abonar por partes: lo que entra se le suma a lo pagado del cargo y
+ * el resto sigue ofreciéndose hasta completarlo.
+ */
 export async function collectCharge(input: {
   companyId: string;
   loanId: string;
-  name: string;
+  /** El cargo del préstamo que se está cobrando. */
+  chargeId: string;
   amount: number;
   /** La plata tiene que entrar a algún lado: sin caja no hay dónde. */
   cashBoxId: string;
   collectedAt?: Date;
   collectedById?: string | null;
 }): Promise<{ name: string; amount: number }> {
-  const name = input.name.trim().replace(/\s+/g, " ");
-  if (name.length === 0) {
-    throw new PaymentError("A charge needs a name", "chargeName");
-  }
   if (!(input.amount > 0)) {
     throw new PaymentError("Amount must be greater than zero", "amount");
   }
 
   const collectedAt = input.collectedAt ?? new Date();
+  let name = "";
 
   await db.$transaction(async (tx) => {
     // El préstamo tiene que ser de esta empresa y estar vivo: a un borrador o
@@ -609,11 +613,29 @@ export async function collectCharge(input: {
     if (!loan) {
       throw new PaymentError("Loan not found", "loanNotActive");
     }
-    if (
-      loan.status === "DRAFT" ||
-      loan.status === "PENDING_APPROVAL"
-    ) {
+    if (loan.status === "DRAFT" || loan.status === "PENDING_APPROVAL") {
       throw new PaymentError("Loan is not active", "loanNotActive");
+    }
+
+    // El cargo tiene que ser de este préstamo y estar pendiente. Uno
+    // descontado al entregar o repartido en las cuotas ya se está cobrando
+    // por otro lado: volver a cobrarlo sería cobrarlo dos veces.
+    const charge = await tx.loanCharge.findFirst({
+      where: { id: input.chargeId, loanId: loan.id, mode: "PENDING" },
+      select: { id: true, name: true, amount: true, paidAmount: true },
+    });
+    if (!charge) {
+      throw new PaymentError("Charge not found", "chargeNotPending");
+    }
+
+    const left = Number(charge.amount) - Number(charge.paidAmount);
+    if (left <= 0) {
+      throw new PaymentError("Charge is already collected", "chargeNotPending");
+    }
+    // Cobrar más de lo que el cargo vale dejaría un pendiente en negativo y
+    // el préstamo diciendo que el cliente pagó de más por algo que no debía.
+    if (input.amount > left) {
+      throw new PaymentError("More than the charge is owed", "chargeTooMuch");
     }
 
     const cashBox = await tx.cashBox.findFirst({
@@ -623,6 +645,13 @@ export async function collectCharge(input: {
     if (!cashBox) {
       throw new PaymentError("A charge needs a cash box", "chargeCashBox");
     }
+
+    name = charge.name;
+
+    await tx.loanCharge.update({
+      where: { id: charge.id },
+      data: { paidAmount: Number(charge.paidAmount) + input.amount },
+    });
 
     const balanceAfter = Number(cashBox.balance) + input.amount;
     await tx.cashBox.update({
@@ -639,6 +668,7 @@ export async function collectCharge(input: {
         description: `${name} · ${loan.code}`,
         chargeName: name,
         loanId: loan.id,
+        loanChargeId: charge.id,
         createdById: input.collectedById ?? null,
         createdAt: collectedAt,
       },
@@ -652,8 +682,10 @@ export async function collectCharge(input: {
         entityType: "Loan",
         entityId: loan.id,
         metadata: {
+          chargeId: charge.id,
           name,
           amount: input.amount,
+          left: left - input.amount,
           collectedAt: collectedAt.toISOString(),
         },
       },

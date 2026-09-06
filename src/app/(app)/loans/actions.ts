@@ -5,7 +5,11 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { firstDueAfter } from "@/core/dates";
-import { ChargeError } from "@/core/loans/charges";
+import {
+  CHARGE_MODES,
+  ChargeError,
+  type ChargeMode,
+} from "@/core/loans/charges";
 import { RenewalError } from "@/core/loans/renewal";
 import { ScheduleError } from "@/core/loans/schedule";
 import {
@@ -24,10 +28,7 @@ import {
   disburseLoan,
   updateLoan,
 } from "@/server/services/loans";
-import {
-  fixAllFirstDue,
-  fixFirstDue,
-} from "@/server/services/first-due-fix";
+import { fixAllFirstDue, fixFirstDue } from "@/server/services/first-due-fix";
 import { moveLoan, resetLoanOrder } from "@/server/services/ordering";
 import { RenewLoanError, renewLoan } from "@/server/services/renewals";
 
@@ -83,9 +84,14 @@ function readCharges(formData: FormData) {
       {
         name,
         amount,
-        mode: (modes[index] === "FINANCED" ? "FINANCED" : "DEDUCTED") as
-          | "DEDUCTED"
-          | "FINANCED",
+        // Lo que no sea uno de los modos conocidos cae en descontado, que es
+        // el de siempre. Antes la lista estaba escrita a mano con dos, y un
+        // cargo guardado como «se lo cobro aparte» se descontaba al entregar:
+        // el cliente recibía menos por algo que todavía no se le había
+        // cobrado. Ahora sale de la misma lista que dibuja el desplegable.
+        mode: (CHARGE_MODES as readonly string[]).includes(modes[index] ?? "")
+          ? (modes[index] as ChargeMode)
+          : ("DEDUCTED" as ChargeMode),
       },
     ];
   });
@@ -415,14 +421,18 @@ export async function renewLoanAction(
       const message = t(`loans.errors.${error.code}`);
       return {
         error:
-          message === `loans.errors.${error.code}` ? t("common.error") : message,
+          message === `loans.errors.${error.code}`
+            ? t("common.error")
+            : message,
       };
     }
     if (error instanceof RenewLoanError || error instanceof RenewalError) {
       const message = t(`loans.errors.${error.code}`);
       return {
         error:
-          message === `loans.errors.${error.code}` ? t("common.error") : message,
+          message === `loans.errors.${error.code}`
+            ? t("common.error")
+            : message,
       };
     }
     if (error instanceof ScheduleError) {
@@ -551,7 +561,9 @@ export async function deleteLoanAction(
       const message = t(`loans.errors.${error.code}`);
       return {
         error:
-          message === `loans.errors.${error.code}` ? t("common.error") : message,
+          message === `loans.errors.${error.code}`
+            ? t("common.error")
+            : message,
       };
     }
     throw error;

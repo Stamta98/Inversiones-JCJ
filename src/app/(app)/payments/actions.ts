@@ -24,10 +24,8 @@ const paymentSchema = z.object({
    * Qué se está cobrando. Un cargo adicional entra a la caja pero no es un
    * abono: no se reparte entre las cuotas ni baja lo que el cliente debe.
    */
-  concept: z
-    .enum(["INSTALLMENT", "LATE_FEE", "CHARGE"])
-    .default("INSTALLMENT"),
-  chargeName: z.string().optional(),
+  concept: z.enum(["INSTALLMENT", "LATE_FEE", "CHARGE"]).default("INSTALLMENT"),
+  chargeId: z.string().optional(),
   method: z
     .enum(["CASH", "BANK_TRANSFER", "CARD", "CHECK", "MOBILE_WALLET", "OTHER"])
     .default("CASH"),
@@ -67,7 +65,7 @@ export async function postPaymentAction(
       const charge = await collectCharge({
         companyId: context.companyId,
         loanId: data.loanId,
-        name: data.chargeName ?? "",
+        chargeId: data.chargeId ?? "",
         amount: data.amount,
         cashBoxId: data.cashBoxId || "",
         collectedAt: data.paidAt

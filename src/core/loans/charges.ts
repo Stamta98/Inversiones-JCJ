@@ -9,16 +9,24 @@
  *   entregan 95.000. Debe los 120.000 de siempre; los 5.000 ya se cobraron.
  * - **Financiado.** Al cliente se le entregan los 100.000 completos y el
  *   cargo se reparte entre las cuotas: debe 120.000 + 5.000 = 125.000.
+ * - **Pendiente.** Ni lo uno ni lo otro: se le entregan los 100.000 y el
+ *   cargo queda anotado para cobrárselo aparte cuando se pueda. No sale de
+ *   la caja al entregar ni va en ninguna cuota — entra el día que se cobra.
  *
  * Poner uno donde iba el otro cambia lo que sale de la caja y lo que el
- * cliente debe, así que cada cargo lleva escrito cuál de los dos es.
+ * cliente debe, así que cada cargo lleva escrito cuál de los tres es.
  */
 
-import { addCents, roundToStep, type Cents, type MinorUnitStep } from "../money";
+import {
+  addCents,
+  roundToStep,
+  type Cents,
+  type MinorUnitStep,
+} from "../money";
 
-export type ChargeMode = "DEDUCTED" | "FINANCED";
+export type ChargeMode = "DEDUCTED" | "FINANCED" | "PENDING";
 
-export const CHARGE_MODES: ChargeMode[] = ["DEDUCTED", "FINANCED"];
+export const CHARGE_MODES: ChargeMode[] = ["DEDUCTED", "FINANCED", "PENDING"];
 
 export interface Charge {
   name: string;
@@ -31,6 +39,8 @@ export interface ChargeSummary {
   deductedCents: Cents;
   /** Se suma a lo que el cliente debe y se cobra con las cuotas. */
   financedCents: Cents;
+  /** Queda anotado para cobrarlo aparte: no toca ni la entrega ni las cuotas. */
+  pendingCents: Cents;
   totalCents: Cents;
 }
 
@@ -78,11 +88,16 @@ export function summarizeCharges(
 
   const deductedCents = of("DEDUCTED");
   const financedCents = of("FINANCED");
+  // El pendiente va en el total porque es plata que el cargo vale, pero no
+  // suma en ninguno de los dos de arriba: no se descuenta de lo que se
+  // entrega ni se reparte entre las cuotas.
+  const pendingCents = of("PENDING");
 
   return {
     deductedCents,
     financedCents,
-    totalCents: deductedCents + financedCents,
+    pendingCents,
+    totalCents: deductedCents + financedCents + pendingCents,
   };
 }
 

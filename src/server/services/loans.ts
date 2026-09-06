@@ -102,8 +102,10 @@ export function previewSchedule(
     customIntervalDays: input.customIntervalDays ?? undefined,
     nonCollectionDays: input.nonCollectionDays,
     minorUnitStep: step,
-    financedChargeCents: summarizeCharges(normalizedCharges(input.charges, step), step)
-      .financedCents,
+    financedChargeCents: summarizeCharges(
+      normalizedCharges(input.charges, step),
+      step,
+    ).financedCents,
   });
 }
 
@@ -114,7 +116,11 @@ export function normalizedCharges(
 ): Charge[] {
   return (charges ?? []).map((charge) =>
     normalizeCharge(
-      { name: charge.name, amountCents: toCents(charge.amount), mode: charge.mode },
+      {
+        name: charge.name,
+        amountCents: toCents(charge.amount),
+        mode: charge.mode,
+      },
       step,
     ),
   );
@@ -146,7 +152,8 @@ async function checkGuarantor(
         })) !== null;
 
   const problem = guarantorProblem(guarantorId, customerId, found);
-  if (problem) throw new LoanServiceError(`Invalid guarantor: ${problem}`, problem);
+  if (problem)
+    throw new LoanServiceError(`Invalid guarantor: ${problem}`, problem);
   return guarantorId;
 }
 
@@ -356,10 +363,7 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
     const step = stepForDecimals(
       input.terms?.decimalPlaces ?? input.decimalPlaces ?? 2,
     );
-    const charges = normalizedCharges(
-      input.charges ?? chargesOf(loan),
-      step,
-    );
+    const charges = normalizedCharges(input.charges ?? chargesOf(loan), step);
     const chargeSummary = summarizeCharges(charges, step);
     const previousDeducted = summarizeCharges(
       normalizedCharges(chargesOf(loan), step),
@@ -374,7 +378,10 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
     );
 
     const schedule = input.terms
-      ? previewSchedule({ ...input.terms, charges: input.charges ?? chargesOf(loan) })
+      ? previewSchedule({
+          ...input.terms,
+          charges: input.charges ?? chargesOf(loan),
+        })
       : null;
 
     await tx.loan.update({
@@ -409,6 +416,19 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
     });
 
     if (input.charges !== undefined) {
+      // Lo que ya se cobró de un cargo pendiente no se puede perder al
+      // reescribir la lista: borrarlo y volverlo a crear lo dejaba debiendo
+      // otra vez lo que el cliente ya había pagado, con la plata en la caja.
+      // Se rescata por nombre, que es con lo que el cobrador lo reconoce.
+      const paidBefore = new Map(
+        (
+          await tx.loanCharge.findMany({
+            where: { loanId: loan.id, paidAmount: { gt: 0 } },
+            select: { name: true, paidAmount: true },
+          })
+        ).map((charge) => [charge.name, Number(charge.paidAmount)]),
+      );
+
       await tx.loanCharge.deleteMany({ where: { loanId: loan.id } });
       await tx.loanCharge.createMany({
         data: charges.map((charge) => ({
@@ -416,6 +436,15 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
           name: charge.name,
           amount: fromCents(charge.amountCents),
           mode: charge.mode,
+          // Y nunca más de lo que el cargo vale: si le bajaron el monto por
+          // debajo de lo ya cobrado, queda saldado y no sobrando.
+          paidAmount:
+            charge.mode === "PENDING"
+              ? Math.min(
+                  paidBefore.get(charge.name) ?? 0,
+                  fromCents(charge.amountCents),
+                )
+              : 0,
         })),
       });
     }
@@ -460,7 +489,9 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
     const principalDelta = input.terms
       ? input.terms.principal - Number(loan.principal)
       : 0;
-    const chargeDelta = fromCents(chargeSummary.deductedCents - previousDeducted);
+    const chargeDelta = fromCents(
+      chargeSummary.deductedCents - previousDeducted,
+    );
     if (principalDelta !== 0) {
       await adjustLoanCash(tx, {
         loanId: loan.id,
@@ -497,7 +528,11 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
 
 /** Los cargos guardados del préstamo, en la forma que espera el motor. */
 function chargesOf(loan: {
-  charges?: Array<{ name: string; amount: Prisma.Decimal | number; mode: string }>;
+  charges?: Array<{
+    name: string;
+    amount: Prisma.Decimal | number;
+    mode: string;
+  }>;
 }): CreateLoanInput["charges"] {
   return (loan.charges ?? []).map((charge) => ({
     name: charge.name,

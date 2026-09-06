@@ -692,18 +692,24 @@ enum ChargeMode {
   DEDUCTED
   /// Se suma a lo que el cliente debe y se cobra repartido entre las cuotas.
   FINANCED
+  /// Ni lo uno ni lo otro: queda anotado para cobrárselo aparte cuando se
+  /// pueda. No sale de la caja al entregar ni va en ninguna cuota.
+  PENDING
 }
 
 /// Lo que se cobra aparte del interés, con el nombre que le pone la empresa:
 /// papelería, estudio, renovación.
 model LoanCharge {
-  id        String     @id @default(cuid())
-  loanId    String
-  loan      Loan       @relation(fields: [loanId], references: [id], onDelete: Cascade)
-  name      String
-  amount    Decimal    @db.Decimal(18, 2)
-  mode      ChargeMode
-  createdAt DateTime   @default(now())
+  id         String         @id @default(cuid())
+  loanId     String
+  loan       Loan           @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  name       String
+  amount     Decimal        @db.Decimal(18, 2)
+  mode       ChargeMode
+  /// Lo que ya se le cobró, para el pendiente que se abona por partes.
+  paidAmount Decimal        @default(0) @db.Decimal(18, 2)
+  movements  CashMovement[]
+  createdAt  DateTime       @default(now())
 
   @@index([loanId])
 }
@@ -789,12 +795,16 @@ model CashMovement {
   payment      Payment?         @relation(fields: [paymentId], references: [id], onDelete: SetNull)
   expenseId    String?
   expense      Expense?         @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  /// El cargo del préstamo que se cobró con este movimiento, cuando lo hubo.
+  loanChargeId String?
+  loanCharge   LoanCharge?      @relation(fields: [loanChargeId], references: [id], onDelete: SetNull)
   createdById  String?
   createdBy    User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt    DateTime         @default(now())
 
   @@index([cashBoxId, createdAt])
   @@index([loanId])
+  @@index([loanChargeId])
 }
 
 model ExpenseCategory {

@@ -48,7 +48,14 @@ export function LoanCharges({
   canEdit,
 }: {
   loanId: string;
-  charges: Array<{ id: string; name: string; amount: number; mode: string }>;
+  charges: Array<{
+    id: string;
+    name: string;
+    amount: number;
+    mode: string;
+    /** Lo que ya se le cobró, para el que se cobra aparte por partes. */
+    paid: number;
+  }>;
   principal: number;
   /**
    * La moneda viaja como datos, no como función: una función no cruza del
@@ -84,7 +91,9 @@ export function LoanCharges({
   // abierto. Sin esto la tarjeta seguía mostrando el cargo recién borrado
   // hasta que alguien recargara la página.
   const firma = charges
-    .map((charge) => `${charge.id}:${charge.name}:${charge.amount}:${charge.mode}`)
+    .map(
+      (charge) => `${charge.id}:${charge.name}:${charge.amount}:${charge.mode}`,
+    )
     .join("|");
   const [vista, setVista] = useState(firma);
   if (vista !== firma) {
@@ -101,7 +110,10 @@ export function LoanCharges({
     setRows(rows.map((row) => (row.key === key ? { ...row, ...patch } : row)));
 
   const agregar = () => {
-    setRows([...rows, { key: siguiente, name: "", amount: "", mode: "DEDUCTED" }]);
+    setRows([
+      ...rows,
+      { key: siguiente, name: "", amount: "", mode: "DEDUCTED" },
+    ]);
     setEditando(siguiente);
     setBorrando(null);
     setSiguiente(siguiente + 1);
@@ -116,6 +128,15 @@ export function LoanCharges({
   // Lo que se manda: todo menos la que se está borrando. Así el botón de
   // confirmar es un submit normal y no hay que esperar a que el estado cambie.
   const aEnviar = rows.filter((row) => row.key !== borrando);
+
+  // Lo que le falta a un cargo que se cobra aparte. Se lee de lo guardado,
+  // no de lo que se está escribiendo: mientras se edita, lo cobrado no cambia.
+  // Por nombre, que es con lo que el servidor rescata lo cobrado al
+  // reescribir la lista; la llave de la fila es de React y no existe en la base.
+  const falta = (row: Row) => {
+    const saved = charges.find((charge) => charge.name === row.name);
+    return saved ? Math.max(0, saved.amount - saved.paid) : 0;
+  };
 
   const descontado = charges.reduce(
     (total, charge) => total + (charge.mode === "DEDUCTED" ? charge.amount : 0),
@@ -228,7 +249,12 @@ export function LoanCharges({
                 </p>
 
                 <div className="flex flex-wrap gap-2">
-                  <Button type="submit" icon="check" size="sm" disabled={pending}>
+                  <Button
+                    type="submit"
+                    icon="check"
+                    size="sm"
+                    disabled={pending}
+                  >
                     {pending ? es.common.saving : es.common.save}
                   </Button>
                   <Button
@@ -256,6 +282,18 @@ export function LoanCharges({
                     </p>
                     <p className="mt-0.5 text-xs text-ink-muted">
                       {es.loans.charges.modeLabel[row.mode]}
+                      {/* Lo que le falta al que se cobra aparte: sin esto, un
+                          cargo abonado a medias se veía igual que uno intacto
+                          y había que ir a la caja a averiguarlo. */}
+                      {row.mode === "PENDING" && falta(row) > 0 ? (
+                        <>
+                          {" · "}
+                          {es.loans.charges.pendingLeft.replace(
+                            "{amount}",
+                            money(falta(row)),
+                          )}
+                        </>
+                      ) : null}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">

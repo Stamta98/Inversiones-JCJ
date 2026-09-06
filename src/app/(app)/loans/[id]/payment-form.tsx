@@ -13,7 +13,6 @@ import {
   type PaymentFormState,
 } from "../../payments/actions";
 
-
 /** Lo que se cobra cuando no es la cuota. */
 const CONCEPTS = ["LATE_FEE", "CHARGE"] as const;
 
@@ -27,6 +26,7 @@ export function PaymentForm({
   maxAmount,
   amountHint,
   cashBoxes,
+  pendingCharges,
   currencyCode,
   locale,
   decimalPlaces,
@@ -40,6 +40,11 @@ export function PaymentForm({
   /** De dónde salió el valor propuesto, dicho debajo del campo. */
   amountHint?: string;
   cashBoxes: Array<{ id: string; label: string }>;
+  /**
+   * Los cargos que este préstamo dejó anotados y todavía se le deben, con lo
+   * que le falta a cada uno. Sin ninguno no hay nada que cobrar aparte.
+   */
+  pendingCharges: Array<{ id: string; name: string; left: number }>;
   currencyCode: string;
   locale: string;
   /** Zero where the currency has no cents, so the field never suggests any. */
@@ -57,14 +62,19 @@ export function PaymentForm({
   // Qué se está cobrando. Un cargo adicional es plata que entra pero no baja
   // lo que el cliente debe, así que el formulario cambia de forma: no hay
   // contador de cuotas ni tope, y en cambio hay que decir de qué es el cargo.
-  const [concept, setConcept] = useState<
-    "INSTALLMENT" | "LATE_FEE" | "CHARGE"
-  >("INSTALLMENT");
+  const [concept, setConcept] = useState<"INSTALLMENT" | "LATE_FEE" | "CHARGE">(
+    "INSTALLMENT",
+  );
   const cobrandoCargo = concept === "CHARGE";
   // La forma de pago se guarda aparte del desplegable: mientras se cobra un
   // cargo la lista enseña "Cargo adicional", y al volver a una cuota tiene
   // que reaparecer la que estaba escogida, no la de por defecto.
   const [metodo, setMetodo] = useState("CASH");
+  // Cuál de los cargos del préstamo se está cobrando. El primero viene
+  // puesto: con uno solo pendiente, que es lo normal, no hay nada que escoger.
+  const [chargeId, setChargeId] = useState(pendingCharges[0]?.id ?? "");
+  const charge = pendingCharges.find((row) => row.id === chargeId);
+  const sinCargos = pendingCharges.length === 0;
 
   const [amount, setAmount] = useState(() => show(suggestedAmount));
   // Cuántas cuotas cubre lo que hay en el campo. Null cuando el cobrador
@@ -88,7 +98,10 @@ export function PaymentForm({
   // El contador de cuotas y el tope son de la cuota: un cargo no tiene ni lo
   // uno ni lo otro, se cobra lo que se acordó.
   const canStep = installmentAmount > 0 && !cobrandoCargo;
-  const atCeiling = !cobrandoCargo && maxAmount > 0 && value >= maxAmount;
+  // Cobrando un cargo el tope es lo que a ese cargo le falta: cobrar de más
+  // dejaría el préstamo diciendo que el cliente pagó por algo que no debía.
+  const ceiling = cobrandoCargo ? (charge?.left ?? 0) : maxAmount;
+  const atCeiling = ceiling > 0 && value >= ceiling;
 
   const setInstallments = (next: number) => {
     const whole = Math.max(1, next);
@@ -143,18 +156,28 @@ export function PaymentForm({
               value={concept === "INSTALLMENT" ? metodo : concept}
               onChange={(event) => {
                 const value = event.target.value;
-                const otraCosa = (CONCEPTS as readonly string[]).includes(value);
+                const otraCosa = (CONCEPTS as readonly string[]).includes(
+                  value,
+                );
                 if (!otraCosa) setMetodo(value);
                 setConcept(
-                  otraCosa
-                    ? (value as "LATE_FEE" | "CHARGE")
-                    : "INSTALLMENT",
+                  otraCosa ? (value as "LATE_FEE" | "CHARGE") : "INSTALLMENT",
                 );
                 // Al pasar a mora o a cargo el campo queda en blanco: la
                 // cuota que proponía no tiene nada que ver con lo que vale
                 // ninguna de las dos.
                 setCount(null);
-                setAmount(otraCosa ? "" : show(suggestedAmount));
+                // El cargo llega con lo que le falta puesto: es lo que se
+                // cobra casi siempre, y se puede bajar para abonarle.
+                setAmount(
+                  value === "CHARGE"
+                    ? show(pendingCharges[0]?.left ?? 0)
+                    : otraCosa
+                      ? ""
+                      : show(suggestedAmount),
+                );
+                if (value === "CHARGE")
+                  setChargeId(pendingCharges[0]?.id ?? "");
               }}
             >
               {/* Los cuatro seguidos, sin rótulos de grupo. Separarlos en
@@ -169,7 +192,13 @@ export function PaymentForm({
                 </option>
               ))}
               {CONCEPTS.map((value) => (
-                <option key={value} value={value}>
+                <option
+                  key={value}
+                  value={value}
+                  // Sin cargos anotados no hay nada que cobrar aparte: la
+                  // opción se ve pero no se escoge, y debajo dice por qué.
+                  disabled={value === "CHARGE" && sinCargos}
+                >
                   {es.payments.conceptLabel[value]}
                 </option>
               ))}
@@ -188,14 +217,46 @@ export function PaymentForm({
 
         {cobrandoCargo ? (
           <div className="sm:col-span-2">
-            <Field label={es.payments.chargeName} htmlFor="chargeName" required>
-              <Input
-                id="chargeName"
-                name="chargeName"
-                placeholder={es.payments.chargeNamePlaceholder}
+            {sinCargos ? (
+              <Alert tone="info">{es.payments.chargeNone}</Alert>
+            ) : (
+              <Field
+                label={es.payments.chargePick}
+                htmlFor="chargeId"
+                hint={es.payments.chargePickHint}
                 required
-              />
-            </Field>
+              >
+                <Select
+                  id="chargeId"
+                  name="chargeId"
+                  value={chargeId}
+                  required
+                  onChange={(event) => {
+                    const next = pendingCharges.find(
+                      (row) => row.id === event.target.value,
+                    );
+                    setChargeId(event.target.value);
+                    setAmount(show(next?.left ?? 0));
+                  }}
+                >
+                  {pendingCharges.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {es.payments.chargeOption
+                        .replace("{name}", row.name)
+                        .replace(
+                          "{amount}",
+                          formatCurrency(
+                            row.left,
+                            currencyCode,
+                            locale,
+                            decimalPlaces,
+                          ),
+                        )}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
           </div>
         ) : null}
 

@@ -738,6 +738,7 @@ export const es = {
       modeLabel: {
         DEDUCTED: "Se lo descuento al entregar",
         FINANCED: "Se lo sumo a las cuotas",
+        PENDING: "Se lo cobro aparte",
       },
       saved: "Cargos guardados.",
       empty2: "Este préstamo no tiene cargos adicionales.",
@@ -757,12 +758,17 @@ export const es = {
           "Si prestas 100.000 y el cargo es 5.000, le entregas 95.000. Debe los 120.000 de siempre y el cargo ya quedó cobrado.",
         FINANCED:
           "Le entregas los 100.000 completos y el cargo se reparte entre las cuotas: debe 125.000 en vez de 120.000.",
+        PENDING:
+          "Le entregas los 100.000 completos y el cargo queda anotado. Se lo cobras cuando puedas desde «Registrar cobro», y ahí entra a la caja.",
       },
       empty: "Sin cargos adicionales.",
       handedOver: "Le entregas en efectivo",
       handedOverHint: "El monto prestado menos los cargos que le descuentas.",
       deductedTotal: "Cargos descontados",
       financedTotal: "Cargos en las cuotas",
+      pendingTotal: "Cargos por cobrar",
+      // Lo que le falta a un cargo que se está cobrando por partes.
+      pendingLeft: "Falta {amount}",
       // «Cargo» a secas se confundía con «Cargos al entregar» de la tarjeta de
       // al lado, que es otra plata: este es el pedazo de cargo que venía
       // dentro de la cuota que el cliente acaba de pagar.
@@ -1099,8 +1105,15 @@ export const es = {
       CHARGE:
         "Entra a la caja como cargo cobrado. No baja lo que el cliente debe ni toca las cuotas.",
     },
-    chargeName: "Nombre del cargo",
-    chargeNamePlaceholder: "Papelería",
+    // El cargo no se escribe: se escoge de los que el préstamo dejó anotados.
+    // Escrito a mano, «Papeleria» y «Papelería» eran dos cargos distintos y el
+    // del préstamo seguía debiéndose después de haberlo cobrado.
+    chargePick: "¿Cuál cargo le cobras?",
+    chargePickHint:
+      "Solo los que este préstamo tiene por cobrar. Se pueden abonar por partes.",
+    chargeNone:
+      "Este préstamo no tiene cargos por cobrar. Para cobrarle uno, agrégalo primero en los cargos del préstamo como «Se lo cobro aparte».",
+    chargeOption: "{name} · falta {amount}",
     chargeCollected: "Cargo cobrado: {name}",
     collectCharge: "Cobrar {amount} de cargo",
     methodLabel: {
@@ -1126,7 +1139,10 @@ export const es = {
       nothingToApply: "Este préstamo no tiene cuotas pendientes.",
       noLateFee: "Este préstamo no tiene mora por cobrar.",
       reversed: "Este cobro está anulado. Elimínalo y registra uno nuevo.",
-      chargeName: "Ponle un nombre al cargo: papelería, estudio, lo que sea.",
+      chargeNotPending:
+        "Ese cargo ya no está por cobrar. Escoge uno de los que el préstamo tiene pendientes.",
+      chargeTooMuch:
+        "Estás cobrando más de lo que falta del cargo. Ajusta el monto a lo que queda.",
       chargeCashBox:
         "Escoge la caja donde entra la plata del cargo. Sin caja no hay dónde meterla.",
     },
