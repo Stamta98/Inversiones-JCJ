@@ -15,10 +15,11 @@ import {
   Td,
   Th,
 } from "@/components/ui";
+import { ShareDocument } from "@/components/ui/share-document";
 import { addDays, dayParam, parseDay, startOfDay } from "@/core/dates";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
-import { db } from "@/server/db";
+import { loadDaySummary } from "@/server/services/day-summary";
 
 import { DeletePaymentButton } from "./delete-payment-button";
 
@@ -36,265 +37,72 @@ export default async function PaymentsPage({
   // existe, es el de hoy.
   const today = startOfDay(new Date());
   const dayStart = parseDay(date) ?? today;
-  // "Hoy" tiene dos extremos. Con solo el de abajo, un cobro o un préstamo
-  // fechado adelante entraba en la cuenta del día y la inflaba.
-  const dayEnd = addDays(dayStart, 1);
-  const day = { gte: dayStart, lt: dayEnd };
   const isToday = dayStart.getTime() === today.getTime();
   const selected = dayParam(dayStart);
 
-  // Un traspaso de refinanciación se guarda como cobro para saldar el préstamo
-  // viejo, pero esa plata nunca entró a la caja: contarla en el día sería
-  // pedirle al cobrador que entregue lo que nadie le dio.
-  const collectedToday = {
-    companyId: context.companyId,
-    status: "POSTED" as const,
-    method: { not: "REFINANCE" as const },
-    paidAt: day,
-  };
-
-  const [
-    payments,
-    todayTotal,
-    applied,
-    byMethod,
-    chargesAtDisbursement,
-    chargesApart,
-    expenses,
-    newLoans,
-    carried,
-  ] = await Promise.all([
-    db.payment.findMany({
-      where: { companyId: context.companyId, paidAt: day },
-      include: { loan: { include: { customer: true } } },
-      orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
-      take: 50,
-    }),
-    db.payment.aggregate({
-      where: collectedToday,
-      _sum: { amount: true },
-      _count: true,
-    }),
-    // A qué se le abonó lo que entró: capital, interés, mora y cargos.
-    db.paymentAllocation.aggregate({
-      where: { payment: collectedToday },
-      _sum: {
-        principalAmount: true,
-        interestAmount: true,
-        chargeAmount: true,
-        lateFeeAmount: true,
-      },
-    }),
-    db.payment.groupBy({
-      by: ["method"],
-      where: collectedToday,
-      _sum: { amount: true },
-    }),
-    // El cargo que se le descontó a un préstamo viejo después de entregado:
-    // esa plata entró hoy aunque el préstamo sea de otro día. El del préstamo
-    // que se entregó hoy no se cuenta aquí — se lee del préstamo mismo, más
-    // abajo — o se contaría dos veces.
-    db.cashMovement.aggregate({
-      where: {
-        cashBox: { companyId: context.companyId },
-        kind: "CHARGE_COLLECTED",
-        createdAt: day,
-        // Sin nombre: es el que se netea al entregar la plata. El que se le
-        // cobró al cliente aparte lleva nombre y va en su propio renglón —
-        // juntos, el renglón decía «al entregar» de plata que no fue así.
-        chargeName: null,
-        NOT: { loan: { disbursedAt: day } },
-      },
-      _sum: { amount: true },
-      _count: true,
-    }),
-    // El cargo que se le cobró al cliente aparte de la cuota, en la puerta.
-    db.cashMovement.aggregate({
-      where: {
-        cashBox: { companyId: context.companyId },
-        kind: "CHARGE_COLLECTED",
-        createdAt: day,
-        chargeName: { not: null },
-      },
-      _sum: { amount: true },
-      _count: true,
-    }),
-    // El gasto se cuenta desde el gasto, no desde la caja: uno registrado sin
-    // caja igual salió del bolsillo, y el detalle lo lista aunque el cuadro
-    // dijera cero.
-    db.expense.aggregate({
-      where: { companyId: context.companyId, spentAt: day },
-      _sum: { amount: true },
-      _count: true,
-    }),
-    db.loan.findMany({
-      where: {
-        companyId: context.companyId,
-        disbursedAt: day,
-      },
-      select: {
-        id: true,
-        code: true,
-        origin: true,
-        principal: true,
-        parentLoanId: true,
-        customer: { select: { firstName: true, lastName: true } },
-        // El cargo que se le descontó al entregarle la plata: salió con el
-        // desembolso y volvió de una. Se lee del préstamo y no de la caja
-        // porque un préstamo entregado sin caja igual se lo cobró.
-        charges: { where: { mode: "DEDUCTED" }, select: { amount: true } },
-      },
-      orderBy: { disbursedAt: "desc" },
-    }),
-    // Lo que se trasladó de cada préstamo viejo al nuevo, para saber qué
-    // parte de una renovación fue plata entregada y qué parte fue traspaso.
-    db.payment.groupBy({
-      by: ["loanId"],
-      where: {
-        companyId: context.companyId,
-        status: "POSTED",
-        method: "REFINANCE",
-        paidAt: day,
-      },
-      _sum: { amount: true },
-    }),
-  ]);
+  const summary = await loadDaySummary(context.companyId, dayStart);
 
   const { t, money } = context;
   const canReverse = can(context, "payments.delete");
 
-  // Refinanciar no mueve plata: traslada un saldo. Renovar traslada el saldo
-  // y entrega la diferencia. Ninguna de las dos es "prestar" lo que dice el
-  // monto del préstamo nuevo.
-  const carriedFor = new Map(
-    carried.map((row) => [row.loanId, Number(row._sum.amount ?? 0)]),
-  );
-  const carriedOn = (parentLoanId: string | null) =>
-    parentLoanId ? (carriedFor.get(parentLoanId) ?? 0) : 0;
+  const {
+    collected,
+    principalPaid,
+    interestPaid,
+    lateFeePaid,
+    chargePaid,
+    surplus,
+    lent,
+    freshAmount,
+    freshCount,
+    renewedHandedOut,
+    renewalCount,
+    refinancedAmount,
+    refinanceCount,
+    chargesTaken,
+    chargesDeducted,
+    chargesApartTaken,
+    chargesCount,
+    spent,
+    expenseCount,
+    handOver,
+    profit,
+    paymentCount,
+    loanCount,
+    paidWith,
+    payments,
+    quiet,
+  } = summary;
 
-  const fresh = newLoans.filter((loan) => loan.origin === "NEW");
-  const freshAmount = fresh.reduce(
-    (total, loan) => total + Number(loan.principal),
-    0,
-  );
-  const refinances = newLoans.filter((loan) => loan.origin === "REFINANCE");
-  const renewals = newLoans.filter((loan) => loan.origin === "RENEWAL");
-  const refinancedAmount = refinances.reduce(
-    (total, loan) => total + carriedOn(loan.parentLoanId),
-    0,
-  );
-  const renewedHandedOut = renewals.reduce(
-    (total, loan) =>
-      total +
-      Math.max(0, Number(loan.principal) - carriedOn(loan.parentLoanId)),
-    0,
-  );
-
-  // La caja guarda las salidas en negativo; aquí se leen como lo que son.
-  const collected = Number(todayTotal._sum.amount ?? 0);
-  // Lo prestado se cuenta desde los préstamos, no desde la caja, igual que el
-  // gasto: uno entregado sin caja escogida igual salió del bolsillo, y la caja
-  // no se enteraba. El cuadro decía «Préstamos $1.200.000» arriba y abajo
-  // pedía entregar como si no hubiera salido un peso. Contados así, los seis
-  // recuadros y el total salen de la misma cuenta y cuadran a mano.
-  const lent = freshAmount + renewedHandedOut;
-  // Lo que se le descontó al cliente al entregarle: salió con el desembolso y
-  // volvió de una, así que es plata que se quedó en la caja. Del préstamo de
-  // hoy se lee en el préstamo; de uno viejo al que le cambiaron el cargo
-  // después, en el movimiento que lo anotó.
-  const chargesOnNewLoans = newLoans.reduce(
-    (total, loan) =>
-      total +
-      loan.charges.reduce((sum, charge) => sum + Number(charge.amount), 0),
-    0,
-  );
-  const chargesDeducted =
-    chargesOnNewLoans +
-    Math.abs(Number(chargesAtDisbursement._sum.amount ?? 0));
-  // Y lo que se le cobró aparte, que también entró a la caja pero por otra
-  // puerta: se suma igual, se muestra aparte.
-  const chargesApartTaken = Math.abs(Number(chargesApart._sum.amount ?? 0));
-  const chargesTaken = chargesDeducted + chargesApartTaken;
-  const spent = Math.abs(Number(expenses._sum.amount ?? 0));
-  const handOver = collected + chargesTaken - lent - spent;
-
-  const principalPaid = Number(applied._sum.principalAmount ?? 0);
-  const interestPaid = Number(applied._sum.interestAmount ?? 0);
-  const lateFeePaid = Number(applied._sum.lateFeeAmount ?? 0);
-  const chargePaid = Number(applied._sum.chargeAmount ?? 0);
-  // Lo cobrado que no alcanzó a entrar en ninguna cuota, porque el cliente
-  // pagó más de lo que debía.
-  const surplus =
-    collected - (principalPaid + interestPaid + lateFeePaid + chargePaid);
-  // El cargo que se repartió entre las cuotas no va en este recuadro: entró
-  // dentro del abono y ya está contado en «Total cobrado». Sumándolo aquí, los
-  // seis recuadros daban más de lo que pedía el total y la cuenta no cerraba a
-  // mano. Se ve igual, en el desglose de lo cobrado.
-  const chargesCount =
-    newLoans.filter((loan) => loan.charges.length > 0).length +
-    chargesAtDisbursement._count +
-    chargesApart._count;
-
-  // Lo que deja el día: el capital vuelve, no se gana. Los gastos sí salen.
-  const profit = interestPaid + lateFeePaid + chargePaid + chargesTaken - spent;
-
-  // De qué se compone lo que entró por abonos. Se arma aquí y no dentro del
-  // dibujo para que el «sin abonos» de al lado sea una sola pregunta.
-  const noPayments = todayTotal._count === 0;
+  const noPayments = paymentCount === 0;
   const incomeRows = [
     { label: t("loans.principalPart"), value: principalPaid },
     { label: t("loans.interestPart"), value: interestPaid },
     { label: t("loans.lateFeePart"), value: lateFeePaid },
     { label: t("loans.charges.installmentPart"), value: chargePaid },
-    // Cuando alguien paga más de lo que debía, ese sobrante no entró a ninguna
-    // cuota. Sin esta línea las cuatro de arriba no suman el total y la cuenta
-    // del día parece cuadrada cuando no lo está.
     ...(surplus > 0
       ? [{ label: t("payments.unapplied"), value: surplus }]
       : []),
   ];
 
-  // Cada préstamo del día con su cliente y lo que significó en plata: uno
-  // nuevo es lo prestado, una renovación lo que se entregó encima y una
-  // refinanciación lo que se trasladó sin mover un peso.
-  const loansToday = newLoans.map((loan) => {
-    const moved = carriedOn(loan.parentLoanId);
-    const amount =
+  // Cada préstamo del día con lo que significó en plata: uno nuevo es lo
+  // prestado, una renovación lo que se entregó encima y una refinanciación lo
+  // que se trasladó sin mover un peso.
+  const loansToday = summary.loans.map((loan) => ({
+    ...loan,
+    kind:
       loan.origin === "REFINANCE"
-        ? moved
+        ? t("loans.renewal.kindMenu.REFINANCE")
         : loan.origin === "RENEWAL"
-          ? Math.max(0, Number(loan.principal) - moved)
-          : Number(loan.principal);
-    return {
-      id: loan.id,
-      code: loan.code,
-      name: `${loan.customer.firstName} ${loan.customer.lastName}`,
-      kind:
-        loan.origin === "REFINANCE"
-          ? t("loans.renewal.kindMenu.REFINANCE")
-          : loan.origin === "RENEWAL"
-            ? t("loans.renewal.kindMenu.RENEWAL")
-            : t("payments.summary.kindNew"),
-      note:
-        loan.origin === "REFINANCE"
-          ? t("payments.summary.amountCarried")
-          : loan.origin === "RENEWAL"
-            ? t("payments.summary.amountHandedOut")
-            : t("payments.summary.amountLent"),
-      amount,
-    };
-  });
-
-  const paidWith = byMethod
-    .map((row) => ({
-      method: row.method,
-      amount: Number(row._sum.amount ?? 0),
-    }))
-    .filter((row) => row.amount > 0)
-    .sort((a, b) => b.amount - a.amount);
-
-  const quiet =
-    collected === 0 && lent === 0 && spent === 0 && newLoans.length === 0;
+          ? t("loans.renewal.kindMenu.RENEWAL")
+          : t("payments.summary.kindNew"),
+    note:
+      loan.origin === "REFINANCE"
+        ? t("payments.summary.amountCarried")
+        : loan.origin === "RENEWAL"
+          ? t("payments.summary.amountHandedOut")
+          : t("payments.summary.amountLent"),
+  }));
 
   return (
     <>
@@ -348,7 +156,7 @@ export default async function PaymentsPage({
             kind: "COLLECTED",
             icon: "credit-card" as const,
             value: collected,
-            count: todayTotal._count,
+            count: paymentCount,
             one: "payments.summary.countPaymentsOne",
             many: "payments.summary.countPayments",
             box: "border-border-strong bg-surface",
@@ -359,7 +167,7 @@ export default async function PaymentsPage({
             kind: "NEW",
             icon: "hand-coins" as const,
             value: freshAmount,
-            count: fresh.length,
+            count: freshCount,
             one: "payments.summary.countLoansOne",
             many: "payments.summary.countLoans",
             box: "border-info-soft bg-info-soft/60",
@@ -370,7 +178,7 @@ export default async function PaymentsPage({
             kind: "RENEWAL",
             icon: "refresh" as const,
             value: renewedHandedOut,
-            count: renewals.length,
+            count: renewalCount,
             one: "payments.summary.countRenewalsOne",
             many: "payments.summary.countRenewals",
             box: "border-positive-soft bg-positive-soft/60",
@@ -381,7 +189,7 @@ export default async function PaymentsPage({
             kind: "REFINANCE",
             icon: "file-text" as const,
             value: refinancedAmount,
-            count: refinances.length,
+            count: refinanceCount,
             one: "payments.summary.countRefinancesOne",
             many: "payments.summary.countRefinances",
             box: "border-warning-soft bg-warning-soft/60",
@@ -403,7 +211,7 @@ export default async function PaymentsPage({
             kind: "EXPENSE",
             icon: "receipt" as const,
             value: spent,
-            count: expenses._count,
+            count: expenseCount,
             one: "payments.summary.countExpensesOne",
             many: "payments.summary.countExpenses",
             box: "border-danger-soft bg-danger-soft/60",
@@ -460,15 +268,15 @@ export default async function PaymentsPage({
           {t("payments.summary.counts")
             .replace(
               "{payments} abonos",
-              todayTotal._count === 1
+              paymentCount === 1
                 ? t("payments.summary.countsPaymentOne")
-                : `${todayTotal._count} abonos`,
+                : `${paymentCount} abonos`,
             )
             .replace(
               "{loans} préstamos",
-              newLoans.length === 1
+              loanCount === 1
                 ? t("payments.summary.countsLoanOne")
-                : `${newLoans.length} préstamos`,
+                : `${loanCount} préstamos`,
             )}
         </p>
       </Card>
@@ -605,6 +413,31 @@ export default async function PaymentsPage({
         </div>
       )}
 
+      {/* El cierre del día en una hoja. El cobrador cuadra en la calle y le
+          manda el papel al dueño por WhatsApp sin tener que dictárselo. */}
+      <Card className="mb-4">
+        <CardHeader
+          title={t("payments.summary.pdfTitle")}
+          description={t("payments.summary.pdfHint")}
+        />
+        <CardBody>
+          <ShareDocument
+            url={`/api/payments/summary/pdf?date=${selected}`}
+            fileName={`resumen-${selected}.pdf`}
+            mimeType="application/pdf"
+            message={t("payments.summary.pdfMessage")
+              .replace("{day}", formatDate(dayStart))
+              .replace("{company}", context.companyName)}
+            phone={null}
+            shareLabel={t("payments.summary.pdfShare")}
+            downloadLabel={t("payments.summary.pdfDownload")}
+            busyLabel={t("payments.sharing")}
+            fallbackLabel={t("payments.shareFallback")}
+            downloadIcon="file-text"
+          />
+        </CardBody>
+      </Card>
+
       {/* A quién se le prestó hoy y cuánto. Sin los nombres, "prestado
           $680.000" no dice a quién hay que ir a cobrarle mañana. */}
       {loansToday.length > 0 ? (
@@ -673,16 +506,13 @@ export default async function PaymentsPage({
                       {payment.receiptNumber}
                     </Link>
                   </Td>
-                  <Td>
-                    {payment.loan.customer.firstName}{" "}
-                    {payment.loan.customer.lastName}
-                  </Td>
+                  <Td>{payment.name}</Td>
                   <Td numeric>
                     <Link
                       href={`/loans/${payment.loanId}`}
                       className="text-brand-strong hover:underline"
                     >
-                      {payment.loan.code}
+                      {payment.loanCode}
                     </Link>
                   </Td>
                   <Td numeric>{formatDate(payment.paidAt)}</Td>
