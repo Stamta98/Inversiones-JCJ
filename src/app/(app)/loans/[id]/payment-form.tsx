@@ -70,6 +70,9 @@ export function PaymentForm({
   // cargo la lista enseña "Cargo adicional", y al volver a una cuota tiene
   // que reaparecer la que estaba escogida, no la de por defecto.
   const [metodo, setMetodo] = useState("CASH");
+  // El día de hoy como lo ve el teléfono. `en-CA` lo escribe «2026-09-06»,
+  // que es lo que el servidor espera.
+  const hoy = new Date().toLocaleDateString("en-CA");
   // Cuál de los cargos del préstamo se está cobrando. El primero viene
   // puesto: con uno solo pendiente, que es lo normal, no hay nada que escoger.
   const [chargeId, setChargeId] = useState(pendingCharges[0]?.id ?? "");
@@ -328,40 +331,17 @@ export function PaymentForm({
           </Field>
         </div>
 
-        <Field label={es.payments.paidAt} htmlFor="paidAt">
-          <Input
-            id="paidAt"
-            name="paidAt"
-            type="date"
-            defaultValue={new Date().toISOString().slice(0, 10)}
-          />
-        </Field>
+        {/* El día y la caja ya no se preguntan: se cobra hoy y entra a la
+            caja de siempre, que es lo que pasa el noventa y nueve por ciento
+            de las veces. Van escondidos y no borrados — sin caja, un cargo no
+            se puede cobrar y un abono no entraría a ninguna parte, y el día
+            es el que decide en qué resumen cae la plata.
 
-        {cashBoxes.length > 0 ? (
-          <Field
-            label={es.payments.cashBox}
-            htmlFor="cashBoxId"
-            required={cobrandoCargo}
-          >
-            <Select
-              id="cashBoxId"
-              name="cashBoxId"
-              defaultValue={cashBoxes[0].id}
-              required={cobrandoCargo}
-            >
-              {/* Un cargo tiene que entrar a alguna caja: sin ella no hay
-                  dónde meter la plata que se acaba de recibir. */}
-              {cobrandoCargo ? null : (
-                <option value="">{es.common.none}</option>
-              )}
-              {cashBoxes.map((cashBox) => (
-                <option key={cashBox.id} value={cashBox.id}>
-                  {cashBox.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        ) : null}
+            El día se toma de la hora del teléfono y no en UTC: cobrando de
+            noche, `toISOString` daba el día siguiente y el abono se iba al
+            resumen de mañana. */}
+        <input type="hidden" name="paidAt" value={hoy} />
+        <input type="hidden" name="cashBoxId" value={cashBoxes[0]?.id ?? ""} />
       </div>
 
       {cobrandoCargo ? null : (
