@@ -15,13 +15,13 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { ShareDocument } from "@/components/ui/share-document";
 import { addDays, dayParam, parseDay, startOfDay } from "@/core/dates";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { loadDaySummary } from "@/server/services/day-summary";
 
 import { DeletePaymentButton } from "./delete-payment-button";
+import { SummaryMenu } from "./summary-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -112,6 +112,17 @@ export default async function PaymentsPage({
           isToday
             ? `${t("payments.summary.dayToday")} · ${formatDate(dayStart)}`
             : formatDate(dayStart)
+        }
+        /* Mandar el cierre y guardarlo, detrás de los tres puntos: el día que
+           se manda es el que se está mirando, no siempre el de hoy. */
+        action={
+          <SummaryMenu
+            url={`/api/payments/summary/pdf?date=${selected}`}
+            fileName={`resumen-${selected}.pdf`}
+            message={t("payments.summary.pdfMessage")
+              .replace("{day}", formatDate(dayStart))
+              .replace("{company}", context.companyName)}
+          />
         }
       />
 
@@ -412,31 +423,6 @@ export default async function PaymentsPage({
           </Card>
         </div>
       )}
-
-      {/* El cierre del día en una hoja. El cobrador cuadra en la calle y le
-          manda el papel al dueño por WhatsApp sin tener que dictárselo. */}
-      <Card className="mb-4">
-        <CardHeader
-          title={t("payments.summary.pdfTitle")}
-          description={t("payments.summary.pdfHint")}
-        />
-        <CardBody>
-          <ShareDocument
-            url={`/api/payments/summary/pdf?date=${selected}`}
-            fileName={`resumen-${selected}.pdf`}
-            mimeType="application/pdf"
-            message={t("payments.summary.pdfMessage")
-              .replace("{day}", formatDate(dayStart))
-              .replace("{company}", context.companyName)}
-            phone={null}
-            shareLabel={t("payments.summary.pdfShare")}
-            downloadLabel={t("payments.summary.pdfDownload")}
-            busyLabel={t("payments.sharing")}
-            fallbackLabel={t("payments.shareFallback")}
-            downloadIcon="file-text"
-          />
-        </CardBody>
-      </Card>
 
       {/* A quién se le prestó hoy y cuánto. Sin los nombres, "prestado
           $680.000" no dice a quién hay que ir a cobrarle mañana. */}

@@ -989,14 +989,17 @@ export const es = {
       detailEmpty: "No hay nada de esto registrado ese día.",
       // El resumen en papel, para mandárselo al dueño al cerrar el día.
       pdfTitle: "Resumen del día",
-      pdfHint:
-        "El cierre del día en una hoja: para mandarlo por WhatsApp o guardarlo.",
       pdfShare: "Enviar por WhatsApp",
       pdfDownload: "Descargar el PDF",
       pdfMessage: "Resumen del {day} · {company}",
       pdfFooter:
         "Generado por la aplicación. Las cifras son las del día que dice arriba.",
       pdfNoPayments: "Ese día no se registró ningún abono.",
+      // El aviso del recibo habla de una imagen; aquí es un PDF, y decirle
+      // "descarga la imagen" a quien acaba de bajar un PDF lo manda a buscar
+      // un archivo que no existe.
+      pdfFallback:
+        "Tu navegador no puede compartir archivos. Ya se descargó el PDF: adjúntalo en el chat.",
       detailTotal: "Total del día",
       back: "Volver al resumen",
       // El día que se está viendo, que no siempre es hoy.
