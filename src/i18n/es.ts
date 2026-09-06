@@ -815,9 +815,6 @@ export const es = {
     expiredDays: "Vencido hace {days} días",
     expiredDaysOne: "Vencido hace 1 día",
     expiredShort: "Vencido {days} d",
-    expiresOn: "Se vence el {date}",
-    oldestOverdue: "La más vieja, del {date}",
-    upToDate: "Al día",
     // Para pasar de un préstamo a otro sin devolverse a la lista, que es lo
     // que uno hace bajando una ruta.
     previousLoan: "Préstamo anterior",
@@ -828,22 +825,29 @@ export const es = {
     nextShort: "Siguiente",
     // Lo que el cliente tendría que pagar hoy para quedar al corriente, y de
     // cuántas cuotas y cada cuánto es el crédito.
-    toCatchUp: "Para ponerse al día",
-    // Lo mismo que «para ponerse al día», dicho como lo dice el prestamista.
     overdueBalance: "Saldo atrasado",
     // Cuántas de las que ya pasaron de fecha están sin pagar: «13 de 26» dice
     // mucho más que un 13 suelto.
     overdueOfDue: "de {count} vencidas",
     // La cuenta del préstamo, en renglones que suman a la vista.
-    accountTitle: "La cuenta",
-    accountHint: "De dónde sale lo que debe.",
+    detailsTitle: "Detalles del préstamo",
+    detailsHint: "Todo lo de este crédito en un solo lugar.",
+    // Los renglones del plan, que antes vivían sueltos en tiras de cuadritos.
+    installmentValue: "Valor de la cuota",
+    installmentsLabel: "Cuotas",
+    paidInstallments: "Cuotas pagadas",
+    paidOfTotal: "{paid} de {total}",
+    oldestOverdueLabel: "La más vieja",
+    // El plazo se acabó y el crédito sigue debiendo. No es «Vence», que es la
+    // fecha del final y ya está más arriba en la misma lista.
+    expiredLabel: "Crédito vencido",
+    // El número y cada cuánto, sin repetir la palabra que ya dice el rótulo.
+    countAndFrequency: "{count} ({frequency})",
     alreadyPaid: "Ya pagó",
     interestOf: "Interés ({rate}% {basis})",
     lateFeeOwed: "Mora acumulada",
     // El avance del préstamo contado como lo cuenta el cliente: cuántas
     // cuotas lleva, cuántas le faltan y cuánta plata ya entregó.
-    installmentsPaid: "Cuotas pagadas",
-    installmentsLeft: "Le faltan",
     paidPercent: "{percent}% pagado",
     // De cuándo a cuándo va el crédito, que es lo que el cliente pregunta
     // cuando quiere saber cuánto le falta para quedar libre.
@@ -867,7 +871,6 @@ export const es = {
       "Se corre la primera cuota de {count} préstamos al día siguiente de la entrega, y con ella todas las demás cuotas.\n\nLo que cada cliente ya haya abonado se vuelve a repartir sobre su plan nuevo, y desde cuándo está atrasado cambia. Solo se tocan los préstamos vivos: los saldados y los anulados se quedan como están.",
     shiftFirstDueConfirm:
       "La primera cuota pasa del {from} al {to}, y el préstamo se acaba el {endTo} en vez del {endFrom}.\n\nTodas las cuotas se corren un período. Lo que el cliente ya haya abonado se vuelve a repartir sobre el plan nuevo, y desde cuándo está atrasado cambia.",
-    installmentsOf: "{count} cuotas ({frequency})",
     nextDueOn: "Próxima cuota el {date}",
     installmentLate: "hace {days} d",
     installmentLateOne: "hace 1 d",

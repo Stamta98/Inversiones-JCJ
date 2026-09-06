@@ -11,7 +11,6 @@ import {
   Icon,
   LinkButton,
   Select,
-  StatCard,
   TableWrap,
   Td,
   Th,
@@ -632,88 +631,15 @@ export default async function LoanDetailPage({
         </form>
       ) : null}
 
-      {/* Lo urgente arriba y en color: es lo que decide si hay que ir hoy a
-          esa puerta. La cuenta completa va debajo, que se lee sentado. */}
-      {catchUp > 0 || lateFees > 0 || daysExpired > 0 ? (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-          {catchUp > 0 ? (
-            <StatCard
-              label={t("loans.overdueBalance")}
-              value={money(catchUp)}
-              hint={
-                collect.overdueSince
-                  ? t("loans.oldestOverdue").replace(
-                      "{date}",
-                      formatDate(collect.overdueSince),
-                    )
-                  : undefined
-              }
-              tone="warning"
-              icon="clock"
-            />
-          ) : null}
-          {/* Cuántas se quedaron atrás, y de cuántas que ya pasaron de fecha:
-              un 13 suelto no dice si va mal o si el préstamo apenas empieza.
-              Antes debajo decía cuándo se vence el crédito, que es otra cosa
-              y se leía como si esa fuera la fecha del atraso. */}
-          <StatCard
-            label={t("loans.overdueInstallments")}
-            value={String(overdueCount)}
-            hint={
-              daysExpired > 0
-                ? t(
-                    daysExpired === 1
-                      ? "loans.expiredDaysOne"
-                      : "loans.expiredDays",
-                  ).replace("{days}", String(daysExpired))
-                : dueSoFar > 0
-                  ? t("loans.overdueOfDue").replace("{count}", String(dueSoFar))
-                  : undefined
-            }
-            // Rojo solo si de verdad hay cuotas atrasadas: con un saldo
-            // atrasado que viene de una cuota a medio pagar, el cero salía
-            // con triángulo de alerta como si algo anduviera mal.
-            tone={overdueCount > 0 || daysExpired > 0 ? "danger" : "neutral"}
-            icon={
-              overdueCount > 0 || daysExpired > 0 ? "alert-triangle" : "check"
-            }
-          />
-          {lateFees > 0 ? (
-            <StatCard
-              label={t("loans.lateFeeOwed")}
-              value={money(lateFees)}
-              hint={t(`loans.lateFeeModeLabel.${loan.lateFeeMode}`)}
-              tone="danger"
-              icon="alert-triangle"
-            />
-          ) : null}
-        </div>
-      ) : openLoan ? (
-        <StatCard
-          label={t("loans.overdueInstallments")}
-          value={t("loans.upToDate")}
-          hint={
-            collect.lastDueDate
-              ? t("loans.expiresOn").replace(
-                  "{date}",
-                  formatDate(collect.lastDueDate),
-                )
-              : undefined
-          }
-          tone="positive"
-          icon="check"
-        />
-      ) : null}
-
-      {/* La cuenta en renglones que suman a la vista: capital más interés es
-          el total, total menos lo pagado es el saldo. Repartida en cuadros,
-          cada cifra se leía suelta y de dónde salía el saldo había que
-          adivinarlo — y el 20% quedaba debajo del capital como si el capital
-          fuera el 20% del préstamo. */}
+      {/* Todo lo del crédito en un solo cuadro, de arriba abajo: lo que se
+          prestó, en qué quedó el trato, cómo va y qué se atrasó. Repartido en
+          cuadritos sueltos, cada cifra se leía sola y de dónde salía el saldo
+          había que adivinarlo; en renglones, la cuenta se sigue con el dedo y
+          el cliente la puede comprobar en la puerta. */}
       <Card className="mt-3">
         <CardHeader
-          title={t("loans.accountTitle")}
-          description={t("loans.accountHint")}
+          title={t("loans.detailsTitle")}
+          description={t("loans.detailsHint")}
         />
         <CardBody className="space-y-1.5 text-sm">
           {accountRows.map((row) => (
@@ -753,98 +679,138 @@ export default async function LoanDetailPage({
               {money(Number(loan.outstanding))}
             </span>
           </p>
+
+          {/* Cuánto lleva andado, que es lo que el cliente pregunta primero.
+              La barra dice de un vistazo lo que el «1 de 30» dice exacto. */}
+          {loan.installments.length > 0 ? (
+            <div className="border-t border-border pt-2.5">
+              <p className="flex justify-between gap-3">
+                <span className="text-ink-muted">
+                  {t("loans.paidInstallments")}
+                </span>
+                <span className="numeric font-medium text-ink">
+                  {t("loans.paidOfTotal")
+                    .replace("{paid}", String(collect.paidCount))
+                    .replace("{total}", String(loan.installments.length))}
+                </span>
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
+                  <div
+                    className="h-full rounded-full bg-positive"
+                    style={{ width: `${paidPercent}%` }}
+                  />
+                </div>
+                <span className="numeric text-[0.6875rem] font-semibold text-positive">
+                  {t("loans.paidPercent").replace(
+                    "{percent}",
+                    String(paidPercent),
+                  )}
+                </span>
+              </div>
+            </div>
+          ) : null}
+
+          {/* En qué quedó el trato: cuántas cuotas, de a cuánto y entre qué
+              fechas. Es lo que vuelve comprobable el día del final en vez de
+              pedir que se crea. */}
+          <div className="space-y-1.5 border-t border-border pt-2.5">
+            {[
+              loan.installments.length > 0
+                ? {
+                    label: t("loans.installmentsLabel"),
+                    value: t("loans.countAndFrequency")
+                      .replace("{count}", String(loan.installments.length))
+                      .replace(
+                        "{frequency}",
+                        t(`loans.frequencyLabel.${loan.frequency}`),
+                      ),
+                  }
+                : null,
+              collect.installmentCents > 0
+                ? {
+                    label: t("loans.installmentValue"),
+                    value: money(fromCents(collect.installmentCents)),
+                  }
+                : null,
+              { label: t("loans.startLabel"), value: formatDate(startedOn) },
+              // El día en que empieza el cobro solo cuando no es el mismo en
+              // que salió la plata: repetir la fecha no dice nada.
+              showFirstDue
+                ? {
+                    label: t("loans.firstDueShort"),
+                    value: formatDate(firstDueDate),
+                  }
+                : null,
+              {
+                label: t(
+                  loan.closingDate ? "loans.endedLabel" : "loans.endLabel",
+                ),
+                value: endsOn ? formatDate(endsOn) : "—",
+              },
+            ]
+              .filter((row) => row !== null)
+              .map((row) => (
+                <p key={row.label} className="flex justify-between gap-3">
+                  <span className="text-ink-muted">{row.label}</span>
+                  <span className="numeric font-medium text-ink">
+                    {row.value}
+                  </span>
+                </p>
+              ))}
+          </div>
+
+          {/* Lo que se atrasó, en rojo y de último: es lo que decide si hay
+              que ir hoy a esa puerta, y se lee después de saber de qué
+              préstamo se está hablando. */}
+          {overdueCount > 0 || catchUp > 0 || daysExpired > 0 ? (
+            <div className="space-y-1.5 border-t border-border pt-2.5">
+              {[
+                overdueCount > 0
+                  ? {
+                      label: t("loans.overdueInstallments"),
+                      value:
+                        dueSoFar > 0
+                          ? `${overdueCount} ${t("loans.overdueOfDue").replace(
+                              "{count}",
+                              String(dueSoFar),
+                            )}`
+                          : String(overdueCount),
+                    }
+                  : null,
+                catchUp > 0
+                  ? { label: t("loans.overdueBalance"), value: money(catchUp) }
+                  : null,
+                collect.overdueSince
+                  ? {
+                      label: t("loans.oldestOverdueLabel"),
+                      value: formatDate(collect.overdueSince),
+                    }
+                  : null,
+                daysExpired > 0
+                  ? {
+                      label: t("loans.expiredLabel"),
+                      value: t(
+                        daysExpired === 1
+                          ? "loans.expiredDaysOne"
+                          : "loans.expiredDays",
+                      ).replace("{days}", String(daysExpired)),
+                    }
+                  : null,
+              ]
+                .filter((row) => row !== null)
+                .map((row) => (
+                  <p key={row.label} className="flex justify-between gap-3">
+                    <span className="text-danger">{row.label}</span>
+                    <span className="numeric font-semibold text-danger">
+                      {row.value}
+                    </span>
+                  </p>
+                ))}
+            </div>
+          ) : null}
         </CardBody>
       </Card>
-
-      {/* Lo que el cliente pregunta cuando abre la puerta: cuántas llevo y
-          cuántas me faltan. Cuánto ha dado ya está arriba, en la cuenta:
-          tenerlo aquí también era la misma plata dos veces en la misma
-          pantalla. */}
-      {loan.installments.length > 0 ? (
-        <Card className="mt-3 p-3">
-          <div className="grid grid-cols-2 divide-x divide-border">
-            {[
-              {
-                label: t("loans.installmentsPaid"),
-                value: `${collect.paidCount}/${loan.installments.length}`,
-                tone: "text-positive",
-              },
-              {
-                label: t("loans.installmentsLeft"),
-                value: String(loan.installments.length - collect.paidCount),
-                tone: "text-ink",
-              },
-            ].map((tile) => (
-              // En el teléfono "Cuotas pagadas" ocupa dos renglones y las
-              // otras uno: los números se alinean abajo para que se lean en
-              // fila y no escalonados.
-              <div
-                key={tile.label}
-                className="flex h-full flex-col justify-between px-2 text-center"
-              >
-                <p className="text-[0.625rem] font-medium tracking-wide text-ink-muted uppercase">
-                  {tile.label}
-                </p>
-                <p className={`numeric text-sm font-bold ${tile.tone}`}>
-                  {tile.value}
-                </p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-2.5 flex items-center gap-2">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
-              <div
-                className="h-full rounded-full bg-positive"
-                style={{ width: `${paidPercent}%` }}
-              />
-            </div>
-            <span className="numeric text-[0.6875rem] font-semibold text-positive">
-              {t("loans.paidPercent").replace("{percent}", String(paidPercent))}
-            </span>
-          </div>
-
-          {/* De cuándo a cuándo va, en dos columnas: en una sola línea, con
-              el rótulo delante de cada fecha, se salía del cuadro en el
-              teléfono. El rótulo arriba y la fecha debajo caben siempre. */}
-          <div className="mt-2 grid grid-cols-2 divide-x divide-border border-t border-border pt-2.5">
-            <div className="px-2 text-center">
-              <p className="text-[0.625rem] font-medium tracking-wide text-ink-muted uppercase">
-                {t("loans.startLabel")}
-              </p>
-              <p className="numeric text-sm font-bold text-ink">
-                {formatDate(startedOn)}
-              </p>
-              {/* El día en que empieza el cobro, debajo del día en que salió
-                  la plata: sin él no se entiende por qué el crédito se acaba
-                  el día que se acaba, y esa es justo la cuenta que la gente
-                  hace de cabeza en la calle. */}
-              {showFirstDue ? (
-                <p className="numeric text-[0.625rem] text-ink-muted">
-                  {t("loans.firstDueShort")} {formatDate(firstDueDate)}
-                </p>
-              ) : null}
-            </div>
-            <div className="px-2 text-center">
-              <p className="text-[0.625rem] font-medium tracking-wide text-ink-muted uppercase">
-                {t(loan.closingDate ? "loans.endedLabel" : "loans.endLabel")}
-              </p>
-              <p className="numeric text-sm font-bold text-ink">
-                {endsOn ? formatDate(endsOn) : "—"}
-              </p>
-              {/* Cuántas cuotas caben entre las dos fechas: es lo que vuelve
-                  comprobable el día del final en vez de pedir que se crea. */}
-              <p className="numeric text-[0.625rem] text-ink-muted">
-                {t("loans.installmentsOf")
-                  .replace("{count}", String(loan.installments.length))
-                  .replace(
-                    "{frequency}",
-                    t(`loans.frequencyLabel.${loan.frequency}`),
-                  )}
-              </p>
-            </div>
-          </div>
-        </Card>
-      ) : null}
 
       {/* La tarjeta del cliente se fue: el nombre, la foto y la cédula ya
           están arriba, y para llamarlo o escribirle están los tres puntos.
