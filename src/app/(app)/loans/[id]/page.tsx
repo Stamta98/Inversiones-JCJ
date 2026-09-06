@@ -397,8 +397,22 @@ export default async function LoanDetailPage({
   // Lo vencido hasta hoy y la mora que se le ha sumado: dos cifras que solo
   // valen cuando existen, así que solo entonces ocupan una tarjeta.
   const catchUp = openLoan ? fromCents(collect.overdueCents) : 0;
+  // Cuántas cuotas ya pasaron de fecha. Sirve para decir «13 de 26» en vez de
+  // un 13 suelto: trece atrasadas de catorce que van corridas es un préstamo
+  // perdido, y de cien es uno que apenas tropezó.
+  // El cargo que se reparte entre las cuotas. No está en «totalPrincipal» ni
+  // en «totalInterest», así que el total lo dejaba por fuera: un préstamo de
+  // 200.000 con 10.000 de cargo decía «Total a pagar 240.000» cuando el
+  // cliente debía 250.000. Se lee de las cuotas, que es donde de verdad está.
+  const financedCharges = loan.installments.reduce(
+    (total, installment) => total + Number(installment.chargeAmount),
+    0,
+  );
+
+  const dueSoFar = loan.installments.filter(
+    (installment) => installment.dueDate.getTime() < today.getTime(),
+  ).length;
   const lateFees = Number(loan.totalLateFees);
-  const extraStats = (catchUp > 0 ? 1 : 0) + (lateFees > 0 ? 1 : 0);
 
   // La barra va por plata, no por cuotas: un abono a medias también avanza.
   const dueTotal =
@@ -412,6 +426,24 @@ export default async function LoanDetailPage({
 
   const displayStatus =
     loan.status === "ACTIVE" && overdueCount > 0 ? "IN_ARREARS" : loan.status;
+
+  // Los renglones de la cuenta y su total, armados de una vez: el total es la
+  // suma de lo que se ve, no otra cuenta por su lado que pueda decir algo
+  // distinto de lo que está escrito encima.
+  const accountRows = [
+    { label: t("loans.principal"), value: Number(loan.totalPrincipal) },
+    {
+      label: t("loans.interestOf")
+        .replace("{rate}", String(Number(loan.interestRate)))
+        .replace("{basis}", t(`loans.rateBasisShort.${loan.rateBasis}`)),
+      value: Number(loan.totalInterest),
+    },
+    { label: t("loans.charges.installmentPart"), value: financedCharges },
+    // Solo los que pesan: un renglón en cero le hace creer al cliente que se
+    // le está cobrando algo que no se le cobra.
+    { label: t("loans.lateFeeOwed"), value: lateFees },
+  ].filter((row) => row.value > 0);
+  const totalToPay = accountRows.reduce((total, row) => total + row.value, 0);
 
   return (
     <>
@@ -600,101 +632,137 @@ export default async function LoanDetailPage({
         </form>
       ) : null}
 
-      {/* Con mora o con atraso son seis cifras y no caben en una fila de
-          cuatro sin apretarse; en dos filas de tres se leen. */}
-      <div
-        className={`grid grid-cols-2 gap-3 ${
-          extraStats > 0 ? "lg:grid-cols-3" : "lg:grid-cols-4"
-        }`}
-      >
-        <StatCard
-          label={t("loans.principal")}
-          value={money(Number(loan.principal))}
-          hint={`${Number(loan.interestRate)}% ${t(
-            `loans.rateBasisShort.${loan.rateBasis}`,
-          )}`}
-        />
-        <StatCard
-          label={t("loans.totalToPay")}
-          value={money(
-            Number(loan.totalPrincipal) +
-              Number(loan.totalInterest) +
-              Number(loan.totalLateFees),
-          )}
-          hint={`${t("loans.totalInterest")}: ${money(Number(loan.totalInterest))}`}
-        />
-        <StatCard
-          label={t("loans.outstanding")}
-          value={money(Number(loan.outstanding))}
-          hint={`${t("loans.paidAmount")}: ${money(Number(loan.totalPaid))}`}
-          tone="brand"
-        />
-        {/* Lo grande son las cuotas, que es lo que se atrasa. Debajo, si el
-            plazo ya se acabó, cuántos días lleva vencido el crédito; si no,
-            desde cuándo viene debiendo. */}
+      {/* Lo urgente arriba y en color: es lo que decide si hay que ir hoy a
+          esa puerta. La cuenta completa va debajo, que se lee sentado. */}
+      {catchUp > 0 || lateFees > 0 || daysExpired > 0 ? (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          {catchUp > 0 ? (
+            <StatCard
+              label={t("loans.overdueBalance")}
+              value={money(catchUp)}
+              hint={
+                collect.overdueSince
+                  ? t("loans.oldestOverdue").replace(
+                      "{date}",
+                      formatDate(collect.overdueSince),
+                    )
+                  : undefined
+              }
+              tone="warning"
+              icon="clock"
+            />
+          ) : null}
+          {/* Cuántas se quedaron atrás, y de cuántas que ya pasaron de fecha:
+              un 13 suelto no dice si va mal o si el préstamo apenas empieza.
+              Antes debajo decía cuándo se vence el crédito, que es otra cosa
+              y se leía como si esa fuera la fecha del atraso. */}
+          <StatCard
+            label={t("loans.overdueInstallments")}
+            value={String(overdueCount)}
+            hint={
+              daysExpired > 0
+                ? t(
+                    daysExpired === 1
+                      ? "loans.expiredDaysOne"
+                      : "loans.expiredDays",
+                  ).replace("{days}", String(daysExpired))
+                : dueSoFar > 0
+                  ? t("loans.overdueOfDue").replace("{count}", String(dueSoFar))
+                  : undefined
+            }
+            // Rojo solo si de verdad hay cuotas atrasadas: con un saldo
+            // atrasado que viene de una cuota a medio pagar, el cero salía
+            // con triángulo de alerta como si algo anduviera mal.
+            tone={overdueCount > 0 || daysExpired > 0 ? "danger" : "neutral"}
+            icon={
+              overdueCount > 0 || daysExpired > 0 ? "alert-triangle" : "check"
+            }
+          />
+          {lateFees > 0 ? (
+            <StatCard
+              label={t("loans.lateFeeOwed")}
+              value={money(lateFees)}
+              hint={t(`loans.lateFeeModeLabel.${loan.lateFeeMode}`)}
+              tone="danger"
+              icon="alert-triangle"
+            />
+          ) : null}
+        </div>
+      ) : openLoan ? (
         <StatCard
           label={t("loans.overdueInstallments")}
-          value={String(overdueCount)}
+          value={t("loans.upToDate")}
           hint={
-            daysExpired > 0
-              ? t(
-                  daysExpired === 1
-                    ? "loans.expiredDaysOne"
-                    : "loans.expiredDays",
-                ).replace("{days}", String(daysExpired))
-              : !openLoan
-                ? `${t("loans.lateFeePart")}: ${money(Number(loan.totalLateFees))}`
-                : // Desde cuándo viene debiendo lo dice la tarjeta de al lado;
-                  // aquí sirve más cuánto plazo le queda para arreglarlo.
-                  collect.lastDueDate
-                  ? t("loans.expiresOn").replace(
-                      "{date}",
-                      formatDate(collect.lastDueDate),
-                    )
-                  : t("loans.upToDate")
+            collect.lastDueDate
+              ? t("loans.expiresOn").replace(
+                  "{date}",
+                  formatDate(collect.lastDueDate),
+                )
+              : undefined
           }
-          tone={overdueCount > 0 || daysExpired > 0 ? "danger" : "positive"}
-          icon={
-            overdueCount > 0 || daysExpired > 0 ? "alert-triangle" : "check"
-          }
+          tone="positive"
+          icon="check"
         />
+      ) : null}
 
-        {/* Lo que tendría que pagar hoy para quedar al corriente: es el
-            número que uno le dice en la puerta, y hasta ahora solo estaba
-            chiquito debajo del campo de cobro. */}
-        {catchUp > 0 ? (
-          <StatCard
-            label={t("loans.toCatchUp")}
-            value={money(catchUp)}
-            hint={
-              collect.overdueSince
-                ? t("loans.oldestOverdue").replace(
-                    "{date}",
-                    formatDate(collect.overdueSince),
-                  )
-                : undefined
-            }
-            tone="warning"
-            icon="clock"
-          />
-        ) : null}
+      {/* La cuenta en renglones que suman a la vista: capital más interés es
+          el total, total menos lo pagado es el saldo. Repartida en cuadros,
+          cada cifra se leía suelta y de dónde salía el saldo había que
+          adivinarlo — y el 20% quedaba debajo del capital como si el capital
+          fuera el 20% del préstamo. */}
+      <Card className="mt-3">
+        <CardHeader
+          title={t("loans.accountTitle")}
+          description={t("loans.accountHint")}
+        />
+        <CardBody className="space-y-1.5 text-sm">
+          {accountRows.map((row) => (
+            <p key={row.label} className="flex justify-between gap-3">
+              <span className="text-ink-muted">{row.label}</span>
+              <span className="numeric font-medium text-ink">
+                {money(row.value)}
+              </span>
+            </p>
+          ))}
 
-        {lateFees > 0 ? (
-          <StatCard
-            label={t("loans.lateFeeOwed")}
-            value={money(lateFees)}
-            hint={t(`loans.lateFeeModeLabel.${loan.lateFeeMode}`)}
-            tone="danger"
-            icon="alert-triangle"
-          />
-        ) : null}
-      </div>
+          {/* El total es la suma de los renglones de arriba, no una cuenta
+              aparte: lo que se ve cuadra siempre con lo que está escrito. */}
+          <p className="flex justify-between gap-3 border-t border-border pt-1.5">
+            <span className="font-medium text-ink">
+              {t("loans.totalToPay")}
+            </span>
+            <span className="numeric font-bold text-ink">
+              {money(totalToPay)}
+            </span>
+          </p>
 
-      {/* Lo que el cliente pregunta cuando abre la puerta: cuántas llevo,
-          cuántas me faltan y cuánto he dado. */}
+          {/* Con el menos delante: es lo único que baja en esta cuenta, y sin
+              el signo se leía como una cifra más que se suma. */}
+          <p className="flex justify-between gap-3">
+            <span className="text-ink-muted">{t("loans.alreadyPaid")}</span>
+            <span className="numeric font-medium text-positive">
+              −{money(Number(loan.totalPaid))}
+            </span>
+          </p>
+
+          <p className="flex justify-between gap-3 border-t border-border pt-1.5">
+            <span className="font-semibold text-ink">
+              {t("loans.outstanding")}
+            </span>
+            <span className="numeric text-base font-bold text-brand-strong">
+              {money(Number(loan.outstanding))}
+            </span>
+          </p>
+        </CardBody>
+      </Card>
+
+      {/* Lo que el cliente pregunta cuando abre la puerta: cuántas llevo y
+          cuántas me faltan. Cuánto ha dado ya está arriba, en la cuenta:
+          tenerlo aquí también era la misma plata dos veces en la misma
+          pantalla. */}
       {loan.installments.length > 0 ? (
         <Card className="mt-3 p-3">
-          <div className="grid grid-cols-3 divide-x divide-border">
+          <div className="grid grid-cols-2 divide-x divide-border">
             {[
               {
                 label: t("loans.installmentsPaid"),
@@ -705,11 +773,6 @@ export default async function LoanDetailPage({
                 label: t("loans.installmentsLeft"),
                 value: String(loan.installments.length - collect.paidCount),
                 tone: "text-ink",
-              },
-              {
-                label: t("loans.paidSoFar"),
-                value: money(Number(loan.totalPaid)),
-                tone: "text-brand",
               },
             ].map((tile) => (
               // En el teléfono "Cuotas pagadas" ocupa dos renglones y las

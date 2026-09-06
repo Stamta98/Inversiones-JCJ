@@ -556,7 +556,7 @@ export const es = {
     code: "Número de préstamo",
     customer: "Cliente",
     product: "Tipo de préstamo",
-    principal: "Monto prestado",
+    principal: "Capital prestado",
     // --- Comprobante del préstamo ---
     documentTitle: "Comprobante de préstamo",
     documentHint:
@@ -829,12 +829,21 @@ export const es = {
     // Lo que el cliente tendría que pagar hoy para quedar al corriente, y de
     // cuántas cuotas y cada cuánto es el crédito.
     toCatchUp: "Para ponerse al día",
+    // Lo mismo que «para ponerse al día», dicho como lo dice el prestamista.
+    overdueBalance: "Saldo atrasado",
+    // Cuántas de las que ya pasaron de fecha están sin pagar: «13 de 26» dice
+    // mucho más que un 13 suelto.
+    overdueOfDue: "de {count} vencidas",
+    // La cuenta del préstamo, en renglones que suman a la vista.
+    accountTitle: "La cuenta",
+    accountHint: "De dónde sale lo que debe.",
+    alreadyPaid: "Ya pagó",
+    interestOf: "Interés ({rate}% {basis})",
     lateFeeOwed: "Mora acumulada",
     // El avance del préstamo contado como lo cuenta el cliente: cuántas
     // cuotas lleva, cuántas le faltan y cuánta plata ya entregó.
     installmentsPaid: "Cuotas pagadas",
     installmentsLeft: "Le faltan",
-    paidSoFar: "Ya ha pagado",
     paidPercent: "{percent}% pagado",
     // De cuándo a cuándo va el crédito, que es lo que el cliente pregunta
     // cuando quiere saber cuánto le falta para quedar libre.
