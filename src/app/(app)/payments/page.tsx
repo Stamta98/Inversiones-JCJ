@@ -58,10 +58,8 @@ export default async function PaymentsPage({
     todayTotal,
     applied,
     byMethod,
-    disbursed,
     chargesAtDisbursement,
     chargesApart,
-    chargesInPayments,
     expenses,
     newLoans,
     carried,
@@ -92,21 +90,10 @@ export default async function PaymentsPage({
       where: collectedToday,
       _sum: { amount: true },
     }),
-    // La plata que salió y la que se gastó las dice la caja, no los préstamos:
-    // de una renovación solo sale la diferencia.
-    db.cashMovement.aggregate({
-      where: {
-        cashBox: { companyId: context.companyId },
-        kind: "LOAN_DISBURSEMENT",
-        createdAt: day,
-      },
-      _sum: { amount: true },
-      _count: true,
-    }),
-    // El cargo que se le descuenta al cliente al entregarle la plata vuelve a
-    // la caja el mismo día. Sin contarlo, el resumen dice que salieron los
-    // 200.000 completos cuando salieron 190.000, y la ganancia se queda sin
-    // los 10.000 que el negocio sí se ganó.
+    // El cargo que se le descontó a un préstamo viejo después de entregado:
+    // esa plata entró hoy aunque el préstamo sea de otro día. El del préstamo
+    // que se entregó hoy no se cuenta aquí — se lee del préstamo mismo, más
+    // abajo — o se contaría dos veces.
     db.cashMovement.aggregate({
       where: {
         cashBox: { companyId: context.companyId },
@@ -116,6 +103,7 @@ export default async function PaymentsPage({
         // cobró al cliente aparte lleva nombre y va en su propio renglón —
         // juntos, el renglón decía «al entregar» de plata que no fue así.
         chargeName: null,
+        NOT: { loan: { disbursedAt: day } },
       },
       _sum: { amount: true },
       _count: true,
@@ -130,13 +118,6 @@ export default async function PaymentsPage({
       },
       _sum: { amount: true },
       _count: true,
-    }),
-    // El cargo que se reparte entre las cuotas no llega de una: va entrando
-    // con cada abono. Agrupado por abono para poder decir cuántos fueron.
-    db.paymentAllocation.groupBy({
-      by: ["paymentId"],
-      where: { payment: collectedToday, chargeAmount: { gt: 0 } },
-      _sum: { chargeAmount: true },
     }),
     // El gasto se cuenta desde el gasto, no desde la caja: uno registrado sin
     // caja igual salió del bolsillo, y el detalle lo lista aunque el cuadro
@@ -158,6 +139,10 @@ export default async function PaymentsPage({
         principal: true,
         parentLoanId: true,
         customer: { select: { firstName: true, lastName: true } },
+        // El cargo que se le descontó al entregarle la plata: salió con el
+        // desembolso y volvió de una. Se lee del préstamo y no de la caja
+        // porque un préstamo entregado sin caja igual se lo cobró.
+        charges: { where: { mode: "DEDUCTED" }, select: { amount: true } },
       },
       orderBy: { disbursedAt: "desc" },
     }),
@@ -177,57 +162,6 @@ export default async function PaymentsPage({
 
   const { t, money } = context;
   const canReverse = can(context, "payments.delete");
-
-  // La caja guarda las salidas en negativo; aquí se leen como lo que son.
-  const collected = Number(todayTotal._sum.amount ?? 0);
-  const lent = Math.abs(Number(disbursed._sum.amount ?? 0));
-  // Lo que se le descontó al cliente al entregarle: salió con el desembolso y
-  // volvió de una, así que es plata que se quedó en la caja.
-  const chargesDeducted = Math.abs(
-    Number(chargesAtDisbursement._sum.amount ?? 0),
-  );
-  // Y lo que se le cobró aparte, que también entró a la caja pero por otra
-  // puerta: se suma igual, se muestra aparte.
-  const chargesApartTaken = Math.abs(Number(chargesApart._sum.amount ?? 0));
-  const chargesTaken = chargesDeducted + chargesApartTaken;
-  const spent = Math.abs(Number(expenses._sum.amount ?? 0));
-  const handOver = collected + chargesTaken - lent - spent;
-
-  const principalPaid = Number(applied._sum.principalAmount ?? 0);
-  const interestPaid = Number(applied._sum.interestAmount ?? 0);
-  const lateFeePaid = Number(applied._sum.lateFeeAmount ?? 0);
-  const chargePaid = Number(applied._sum.chargeAmount ?? 0);
-  // Lo cobrado que no alcanzó a entrar en ninguna cuota, porque el cliente
-  // pagó más de lo que debía.
-  const surplus =
-    collected - (principalPaid + interestPaid + lateFeePaid + chargePaid);
-  // Lo que los cargos dejaron en el día, venga como venga: el que se
-  // descontó al entregar la plata y la parte de cargo de lo que se cobró.
-  // Las dos son plata que entró hoy por el mismo concepto.
-  const chargesEarned = chargesTaken + chargePaid;
-  const chargesCount =
-    chargesAtDisbursement._count +
-    chargesApart._count +
-    chargesInPayments.length;
-
-  // Lo que deja el día: el capital vuelve, no se gana. Los gastos sí salen.
-  const profit = interestPaid + lateFeePaid + chargePaid + chargesTaken - spent;
-
-  // De qué se compone lo que entró por abonos. Se arma aquí y no dentro del
-  // dibujo para que el «sin abonos» de al lado sea una sola pregunta.
-  const noPayments = todayTotal._count === 0;
-  const incomeRows = [
-    { label: t("loans.principalPart"), value: principalPaid },
-    { label: t("loans.interestPart"), value: interestPaid },
-    { label: t("loans.lateFeePart"), value: lateFeePaid },
-    { label: t("loans.charges.installmentPart"), value: chargePaid },
-    // Cuando alguien paga más de lo que debía, ese sobrante no entró a ninguna
-    // cuota. Sin esta línea las cuatro de arriba no suman el total y la cuenta
-    // del día parece cuadrada cuando no lo está.
-    ...(surplus > 0
-      ? [{ label: t("payments.unapplied"), value: surplus }]
-      : []),
-  ];
 
   // Refinanciar no mueve plata: traslada un saldo. Renovar traslada el saldo
   // y entrega la diferencia. Ninguna de las dos es "prestar" lo que dice el
@@ -255,6 +189,70 @@ export default async function PaymentsPage({
       Math.max(0, Number(loan.principal) - carriedOn(loan.parentLoanId)),
     0,
   );
+
+  // La caja guarda las salidas en negativo; aquí se leen como lo que son.
+  const collected = Number(todayTotal._sum.amount ?? 0);
+  // Lo prestado se cuenta desde los préstamos, no desde la caja, igual que el
+  // gasto: uno entregado sin caja escogida igual salió del bolsillo, y la caja
+  // no se enteraba. El cuadro decía «Préstamos $1.200.000» arriba y abajo
+  // pedía entregar como si no hubiera salido un peso. Contados así, los seis
+  // recuadros y el total salen de la misma cuenta y cuadran a mano.
+  const lent = freshAmount + renewedHandedOut;
+  // Lo que se le descontó al cliente al entregarle: salió con el desembolso y
+  // volvió de una, así que es plata que se quedó en la caja. Del préstamo de
+  // hoy se lee en el préstamo; de uno viejo al que le cambiaron el cargo
+  // después, en el movimiento que lo anotó.
+  const chargesOnNewLoans = newLoans.reduce(
+    (total, loan) =>
+      total +
+      loan.charges.reduce((sum, charge) => sum + Number(charge.amount), 0),
+    0,
+  );
+  const chargesDeducted =
+    chargesOnNewLoans +
+    Math.abs(Number(chargesAtDisbursement._sum.amount ?? 0));
+  // Y lo que se le cobró aparte, que también entró a la caja pero por otra
+  // puerta: se suma igual, se muestra aparte.
+  const chargesApartTaken = Math.abs(Number(chargesApart._sum.amount ?? 0));
+  const chargesTaken = chargesDeducted + chargesApartTaken;
+  const spent = Math.abs(Number(expenses._sum.amount ?? 0));
+  const handOver = collected + chargesTaken - lent - spent;
+
+  const principalPaid = Number(applied._sum.principalAmount ?? 0);
+  const interestPaid = Number(applied._sum.interestAmount ?? 0);
+  const lateFeePaid = Number(applied._sum.lateFeeAmount ?? 0);
+  const chargePaid = Number(applied._sum.chargeAmount ?? 0);
+  // Lo cobrado que no alcanzó a entrar en ninguna cuota, porque el cliente
+  // pagó más de lo que debía.
+  const surplus =
+    collected - (principalPaid + interestPaid + lateFeePaid + chargePaid);
+  // El cargo que se repartió entre las cuotas no va en este recuadro: entró
+  // dentro del abono y ya está contado en «Total cobrado». Sumándolo aquí, los
+  // seis recuadros daban más de lo que pedía el total y la cuenta no cerraba a
+  // mano. Se ve igual, en el desglose de lo cobrado.
+  const chargesCount =
+    newLoans.filter((loan) => loan.charges.length > 0).length +
+    chargesAtDisbursement._count +
+    chargesApart._count;
+
+  // Lo que deja el día: el capital vuelve, no se gana. Los gastos sí salen.
+  const profit = interestPaid + lateFeePaid + chargePaid + chargesTaken - spent;
+
+  // De qué se compone lo que entró por abonos. Se arma aquí y no dentro del
+  // dibujo para que el «sin abonos» de al lado sea una sola pregunta.
+  const noPayments = todayTotal._count === 0;
+  const incomeRows = [
+    { label: t("loans.principalPart"), value: principalPaid },
+    { label: t("loans.interestPart"), value: interestPaid },
+    { label: t("loans.lateFeePart"), value: lateFeePaid },
+    { label: t("loans.charges.installmentPart"), value: chargePaid },
+    // Cuando alguien paga más de lo que debía, ese sobrante no entró a ninguna
+    // cuota. Sin esta línea las cuatro de arriba no suman el total y la cuenta
+    // del día parece cuadrada cuando no lo está.
+    ...(surplus > 0
+      ? [{ label: t("payments.unapplied"), value: surplus }]
+      : []),
+  ];
 
   // Cada préstamo del día con su cliente y lo que significó en plata: uno
   // nuevo es lo prestado, una renovación lo que se entregó encima y una
@@ -393,7 +391,7 @@ export default async function PaymentsPage({
             label: t("payments.summary.tileCharges"),
             kind: "CHARGE",
             icon: "wallet" as const,
-            value: chargesEarned,
+            value: chargesTaken,
             count: chargesCount,
             one: "payments.summary.countChargesOne",
             many: "payments.summary.countCharges",
