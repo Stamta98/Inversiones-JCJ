@@ -411,6 +411,18 @@ export default async function CustomerDetailPage({
           <CardHeader title={t("customers.identitySection")} />
           <CardBody>
             <DetailGrid>
+              {/* De primeras y cada uno por su lado: arriba el nombre sale
+                  junto y en un solo renglón, y para llenar un papel a mano
+                  hace falta saber dónde acaba el nombre y empieza el
+                  apellido. */}
+              <DetailRow
+                label={t("customers.firstName")}
+                value={customer.firstName}
+              />
+              <DetailRow
+                label={t("customers.lastName")}
+                value={customer.lastName}
+              />
               <DetailRow
                 label={t("customers.documentNumber")}
                 value={customer.documentNumber ?? "—"}
