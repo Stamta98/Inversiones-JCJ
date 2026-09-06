@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { firstDueAfter } from "@/core/dates";
+import { NoCollectionDayError, firstDueAfter } from "@/core/dates";
 import {
   CHARGE_MODES,
   ChargeError,
@@ -47,7 +47,13 @@ const loanSchema = z.object({
       value === undefined || value.length === 0 ? null : Number(value),
     ),
   /** Checkbox group: absent when nothing is ticked. */
-  nonCollectionDays: z.array(z.coerce.number().int().min(0).max(6)).default([]),
+  // Como mucho seis: con los siete bloqueados no hay día en que cobrar, y
+  // el cálculo de la primera cuota reventaba con un error que nadie atrapaba
+  // — la pantalla se caía en vez de decir qué pasaba.
+  nonCollectionDays: z
+    .array(z.coerce.number().int().min(0).max(6))
+    .max(6)
+    .default([]),
   termCount: z.coerce.number().int().positive(),
   startDate: z.string().min(1),
   lateFeeMode: z.enum(LATE_FEE_MODES as [string, ...string[]]).default("NONE"),
@@ -152,6 +158,9 @@ export async function createLoanAction(
       createdById: context.userId,
     });
   } catch (error) {
+    if (error instanceof NoCollectionDayError) {
+      return { error: t("loans.errors.nonCollectionDays") };
+    }
     if (
       error instanceof ChargeError ||
       error instanceof ScheduleError ||

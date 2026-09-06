@@ -19,7 +19,7 @@ import {
 } from "@/components/loans/charges-field";
 import type { ChargeMode } from "@/core/loans/charges";
 import { SchedulePreview } from "@/components/loans/schedule-preview";
-import { firstDueAfter, parseDay } from "@/core/dates";
+import { NoCollectionDayError, firstDueAfter, parseDay } from "@/core/dates";
 import { ScheduleError, buildSchedule } from "@/core/loans/schedule";
 import { fromCents, stepForDecimals, toCents } from "@/core/money";
 import {
@@ -98,10 +98,18 @@ function primeraCuota(
 ): Date | null {
   const dia = parseDay(inicio);
   if (!dia) return null;
-  return firstDueAfter(dia, frequency, {
-    customIntervalDays,
-    nonCollectionDays,
-  });
+  try {
+    return firstDueAfter(dia, frequency, {
+      customIntervalDays,
+      nonCollectionDays,
+    });
+  } catch {
+    // Sin un solo día libre para cobrar no hay primera cuota que calcular.
+    // Sin este intento, marcar los siete días de la semana reventaba el
+    // formulario entero — «Application error» — y se perdía todo lo escrito.
+    // Ahora no hay fecha, y el aviso de abajo dice por qué.
+    return null;
+  }
 }
 
 function SubmitButton({ pending }: { pending: boolean }) {
@@ -210,6 +218,9 @@ export function LoanForm({
     [startDate, frequency, customIntervalDays, nonCollectionDays],
   );
 
+  // Sin ningún día libre no hay cómo armar el plan: se dice y no se calcula.
+  const sinDiaParaCobrar = nonCollectionDays.length >= 7;
+
   const preview = useMemo(() => {
     try {
       return {
@@ -238,7 +249,9 @@ export function LoanForm({
         error instanceof ScheduleError
           ? ((es.loans.errors as Record<string, string>)[error.code] ??
             error.message)
-          : es.common.error;
+          : error instanceof NoCollectionDayError
+            ? es.loans.errors.nonCollectionDays
+            : es.common.error;
       return { schedule: null, error: message };
     }
   }, [
@@ -508,7 +521,9 @@ export function LoanForm({
                         "{date}",
                         formatDate(firstDue, locale),
                       )
-                    : es.loans.startDateHintEmpty}
+                    : sinDiaParaCobrar
+                      ? es.loans.errors.nonCollectionDays
+                      : es.loans.startDateHintEmpty}
                 </p>
               </Field>
 

@@ -69,6 +69,24 @@ const INSTALLMENT_TONES: Record<string, Tone> = {
   WAIVED: "warning",
 };
 
+/** A dónde se correría la primera cuota, o nada si no hay día para cobrar. */
+function diaCorrido(loan: {
+  disbursedAt: Date | null;
+  frequency: string;
+  customIntervalDays: number | null;
+  nonCollectionDays: number[];
+}): Date | null {
+  if (!loan.disbursedAt) return null;
+  try {
+    return firstDueAfter(loan.disbursedAt, loan.frequency as never, {
+      customIntervalDays: loan.customIntervalDays ?? undefined,
+      nonCollectionDays: loan.nonCollectionDays,
+    });
+  } catch {
+    return null;
+  }
+}
+
 export default async function LoanDetailPage({
   params,
 }: {
@@ -363,12 +381,10 @@ export default async function LoanDetailPage({
     },
     context.timezone,
   );
-  const shiftedFirst = torcido
-    ? firstDueAfter(loan.disbursedAt!, loan.frequency as never, {
-        customIntervalDays: loan.customIntervalDays ?? undefined,
-        nonCollectionDays: loan.nonCollectionDays,
-      })
-    : null;
+  // Envuelto: un préstamo guardado sin un solo día libre para cobrar hacía
+  // caer la ficha entera al abrirla, y una ficha que no abre no se puede ni
+  // mirar ni arreglar. Sin fecha, sencillamente no se ofrece correrla.
+  const shiftedFirst = torcido ? diaCorrido(loan) : null;
   // A dónde se correría el final: las cuotas se mueven todas igual, así que
   // el último día se corre lo mismo que el primero.
   const shiftedEnd =

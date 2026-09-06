@@ -18,7 +18,11 @@ import {
   Input,
   Select,
 } from "@/components/ui";
-import { RenewalError, planRenewal, type RenewalKind } from "@/core/loans/renewal";
+import {
+  RenewalError,
+  planRenewal,
+  type RenewalKind,
+} from "@/core/loans/renewal";
 import { ScheduleError, buildSchedule } from "@/core/loans/schedule";
 import { fromCents, stepForDecimals, toCents } from "@/core/money";
 import {
@@ -121,10 +125,16 @@ export function RenewForm({
   const firstDue = useMemo(() => {
     const dia = parseDay(startDate);
     if (!dia) return null;
-    return firstDueAfter(dia, frequency, {
-      customIntervalDays: Number(customIntervalDays) || 1,
-      nonCollectionDays: loan.nonCollectionDays,
-    });
+    try {
+      return firstDueAfter(dia, frequency, {
+        customIntervalDays: Number(customIntervalDays) || 1,
+        nonCollectionDays: loan.nonCollectionDays,
+      });
+    } catch {
+      // Un préstamo viejo sin un solo día libre para cobrar tumbaba esta
+      // pantalla al abrirla. Sin fecha se sigue pudiendo leer y corregir.
+      return null;
+    }
   }, [startDate, frequency, customIntervalDays, loan.nonCollectionDays]);
 
   const money = (value: number) =>
@@ -236,9 +246,7 @@ export function RenewForm({
             <CardBody className="space-y-3">
               <dl className="space-y-2 text-sm">
                 <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-ink-muted">
-                    {es.loans.renewal.settled}
-                  </dt>
+                  <dt className="text-ink-muted">{es.loans.renewal.settled}</dt>
                   <dd className="font-semibold tabular-nums">
                     {money(loan.outstanding)}
                   </dd>
@@ -246,7 +254,9 @@ export function RenewForm({
                 <div className="flex items-baseline justify-between gap-3">
                   <dt className="text-ink-muted">{es.loans.principal}</dt>
                   <dd className="font-semibold tabular-nums">
-                    {plan.value ? money(fromCents(plan.value.newPrincipalCents)) : "—"}
+                    {plan.value
+                      ? money(fromCents(plan.value.newPrincipalCents))
+                      : "—"}
                   </dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-3 border-t border-border pt-2">
