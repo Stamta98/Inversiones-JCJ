@@ -173,8 +173,30 @@ export default async function DayDetailPage({
         })
       : [];
 
-  // Los cargos que se descontaron al entregar la plata: entraron a la caja
-  // ese mismo día y ya quedaron cobrados.
+  // El cargo que se le descontó al cliente al entregarle la plata, leído del
+  // préstamo y no de la caja: uno entregado sin caja escogida igual se lo
+  // cobró, y la lista salía vacía mientras el recuadro decía que sí hubo.
+  const chargedLoans =
+    kind === "CHARGE"
+      ? await db.loan.findMany({
+          where: {
+            companyId: context.companyId,
+            disbursedAt: today,
+            charges: { some: { mode: "DEDUCTED" } },
+          },
+          select: {
+            id: true,
+            code: true,
+            customer: { select: { firstName: true, lastName: true } },
+            charges: { where: { mode: "DEDUCTED" }, select: { amount: true } },
+          },
+          orderBy: { disbursedAt: "desc" },
+        })
+      : [];
+
+  // Los cargos que pasaron por la caja: el que se le cobró al cliente aparte
+  // de la cuota, y el que se le descontó después a un préstamo de otro día.
+  // El del préstamo de hoy sale de la lista de arriba, o iría dos veces.
   const chargeMovements =
     kind === "CHARGE"
       ? await db.cashMovement.findMany({
@@ -182,6 +204,10 @@ export default async function DayDetailPage({
             cashBox: { companyId: context.companyId },
             kind: "CHARGE_COLLECTED",
             createdAt: today,
+            OR: [
+              { chargeName: { not: null } },
+              { chargeName: null, NOT: { loan: { disbursedAt: today } } },
+            ],
           },
           select: {
             id: true,
@@ -200,37 +226,21 @@ export default async function DayDetailPage({
         })
       : [];
 
-  // El cargo que se repartió entre las cuotas no llega de una: va entrando
-  // con cada abono, y ese pedazo también es cargo cobrado ese día.
-  const chargePayments =
-    kind === "CHARGE"
-      ? await db.payment.findMany({
-          where: {
-            companyId: context.companyId,
-            status: "POSTED",
-            // Un traspaso de refinanciación no es plata que entró.
-            method: { not: "REFINANCE" },
-            paidAt: today,
-            allocations: { some: { chargeAmount: { gt: 0 } } },
-          },
-          select: {
-            id: true,
-            loan: {
-              select: {
-                id: true,
-                code: true,
-                customer: { select: { firstName: true, lastName: true } },
-              },
-            },
-            allocations: { select: { chargeAmount: true } },
-          },
-          orderBy: { paidAt: "desc" },
-        })
-      : [];
-
   // Los dos orígenes en una sola lista: para quien cierra el día son lo
-  // mismo, cargos que se cobraron.
+  // mismo, cargos que se cobraron. El cargo que se repartió entre las cuotas
+  // no está aquí: entró dentro del abono y ya se cuenta en «Total cobrado».
   const charges = [
+    ...chargedLoans.map((loan) => ({
+      id: loan.id,
+      loanId: loan.id,
+      who: `${loan.customer.firstName} ${loan.customer.lastName}`,
+      code: loan.code,
+      how: t("payments.summary.chargeDeducted"),
+      amount: loan.charges.reduce(
+        (sum, charge) => sum + Number(charge.amount),
+        0,
+      ),
+    })),
     ...chargeMovements.map((movement) => ({
       id: movement.id,
       loanId: movement.loan?.id ?? null,
@@ -245,17 +255,6 @@ export default async function DayDetailPage({
         ? `${t("payments.summary.chargeApart")} · ${movement.chargeName}`
         : t("payments.summary.chargeDeducted"),
       amount: Math.abs(Number(movement.amount)),
-    })),
-    ...chargePayments.map((payment) => ({
-      id: payment.id,
-      loanId: payment.loan.id,
-      who: `${payment.loan.customer.firstName} ${payment.loan.customer.lastName}`,
-      code: payment.loan.code,
-      how: t("payments.summary.chargeInstallment"),
-      amount: payment.allocations.reduce(
-        (sum, allocation) => sum + Number(allocation.chargeAmount),
-        0,
-      ),
     })),
   ].filter((charge) => charge.amount > 0);
 

@@ -980,13 +980,12 @@ export const es = {
       collectedHint:
         "Cada abono del día: quién pagó, cuánto entró y cuánto le queda debiendo.",
       collectedNoBalance: "Queda al día",
-      // De dónde salió cada cargo: uno se cobró de una al entregar la plata,
-      // el otro va llegando repartido en las cuotas.
+      // De dónde salió cada cargo: uno se le descontó al entregarle la plata,
+      // el otro se le cobró aparte de la cuota, en la puerta.
       chargeDeducted: "Descontado al entregar",
-      chargeInstallment: "Cobrado en la cuota",
       chargeApart: "Cobrado aparte",
       chargesHint:
-        "Lo que dejaron los cargos ese día: los que se descontaron al entregar, los que se cobraron aparte y la parte de cargo de lo que se cobró.",
+        "Lo que dejaron los cargos ese día: los que se descontaron al entregar la plata y los que se cobraron aparte. El cargo repartido en las cuotas llega dentro del abono y se ve en lo cobrado.",
       detailEmpty: "No hay nada de esto registrado ese día.",
       detailTotal: "Total del día",
       back: "Volver al resumen",
@@ -1706,7 +1705,8 @@ export const es = {
     severityHint: {
       LATE: "Se atrasó y se puso al día tarde, pero pagó. Se borra a los 2 años.",
       DEFAULT: "Dejó de pagar y quedó debiendo. Se borra a los 4 años.",
-      FRAUD: "Dio datos falsos o desapareció con la plata. Se borra a los 6 años.",
+      FRAUD:
+        "Dio datos falsos o desapareció con la plata. Se borra a los 6 años.",
     },
     // Reportar
     reportAction: "Reportar al cliente",
