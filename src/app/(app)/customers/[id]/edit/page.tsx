@@ -59,6 +59,7 @@ export default async function EditCustomerPage({
 
       <CustomerForm
         stateLabel={context.stateLabel}
+        countryCode={context.countryCode}
         decimalPlaces={context.decimalPlaces}
         customer={{
           id: customer.id,

@@ -13,6 +13,7 @@ import {
   Input,
   Select,
 } from "@/components/ui";
+import { HomePlace } from "@/components/customers/home-place";
 import { LocationField } from "@/components/ui/location-field";
 import { PhotoUpload } from "@/components/ui/photo-upload";
 
@@ -99,12 +100,15 @@ export function CustomerForm({
   customer,
   decimalPlaces,
   stateLabel,
+  countryCode,
 }: {
   customer?: CustomerDefaults;
   /** Zero where the currency has no cents, so the income field offers none. */
   decimalPlaces: number;
   /** Departamento, provincia o estado: depende del país de la empresa. */
   stateLabel: string;
+  /** El país de la empresa: decide si la ciudad se escoge o se escribe. */
+  countryCode: string | null;
 }) {
   // Un mismo formulario sirve para crear y para editar: la única diferencia es
   // a qué acción se envía y de dónde salen los valores iniciales.
@@ -344,12 +348,12 @@ export function CustomerForm({
               />
             </Field>
           </div>
-          <Field label={es.customers.city} htmlFor="city">
-            <Input id="city" name="city" defaultValue={v(customer?.city)} />
-          </Field>
-          <Field label={stateLabel} htmlFor="state">
-            <Input id="state" name="state" defaultValue={v(customer?.state)} />
-          </Field>
+          <HomePlace
+            countryCode={countryCode}
+            stateLabel={stateLabel}
+            city={customer?.city ?? null}
+            state={customer?.state ?? null}
+          />
           <div className="sm:col-span-2">
             <Field
               label={es.customers.landmark}

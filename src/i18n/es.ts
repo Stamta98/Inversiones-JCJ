@@ -330,6 +330,9 @@ export const es = {
     address: "Dirección de la casa",
     neighborhood: "Barrio / sector",
     city: "Ciudad",
+    // La lista de ciudades sale del departamento, así que sin él no hay de
+    // dónde sacarla.
+    cityNeedsState: "Escoge primero el departamento.",
     state: "Provincia / Estado",
     country: "País",
     location: "Ubicación GPS",

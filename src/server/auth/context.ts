@@ -41,6 +41,12 @@ export interface AuthContext {
   locale: string;
   timezone: string;
   /**
+   * El país de la empresa, en ISO de dos letras. Decide, entre otras cosas, si
+   * la ciudad del cliente se escoge de una lista o se escribe: la de
+   * Colombia no le sirve a una oficina dominicana.
+   */
+  countryCode: string | null;
+  /**
    * Cómo se llama la división administrativa donde opera la empresa:
    * departamento en Colombia, provincia en República Dominicana, estado en
    * México. Poner la palabra equivocada en el formulario se nota.
@@ -144,6 +150,7 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
     decimalPlaces: membership.company.decimalPlaces,
     locale: membership.company.locale,
     timezone: membership.company.timezone,
+    countryCode: membership.company.country ?? null,
     stateLabel:
       findCountry(membership.company.country ?? "")?.stateLabel ??
       es.customers.state,

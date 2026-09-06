@@ -12,6 +12,7 @@ export default async function NewCustomerPage() {
       <CustomerForm
         decimalPlaces={context.decimalPlaces}
         stateLabel={context.stateLabel}
+        countryCode={context.countryCode}
       />
     </>
   );
