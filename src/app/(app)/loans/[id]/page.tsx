@@ -538,7 +538,16 @@ export default async function LoanDetailPage({
                   >
                     {t("payments.cashBox")}
                   </label>
-                  <Select id="cashBoxId" name="cashBoxId" defaultValue="">
+                  {/* Viene con la primera caja puesta, igual que el
+                      formulario de crear. Con "Ninguno" por delante, entregar
+                      un préstamo guardado en borrador sacaba la plata sin que
+                      la caja se enterara: ni el desembolso ni el cargo salían
+                      en el resumen del día. */}
+                  <Select
+                    id="cashBoxId"
+                    name="cashBoxId"
+                    defaultValue={cashBoxes[0]?.id ?? ""}
+                  >
                     <option value="">{t("common.none")}</option>
                     {cashBoxes.map((cashBox) => (
                       <option key={cashBox.id} value={cashBox.id}>

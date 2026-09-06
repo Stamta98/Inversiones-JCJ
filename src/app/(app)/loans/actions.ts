@@ -342,7 +342,11 @@ export async function disburseLoanAction(formData: FormData): Promise<void> {
   const loanId = String(formData.get("loanId") ?? "");
   const cashBoxId = String(formData.get("cashBoxId") ?? "") || null;
 
-  await disburseLoan(loanId, { cashBoxId, userId: context.userId });
+  await disburseLoan(loanId, {
+    cashBoxId,
+    userId: context.userId,
+    decimalPlaces: context.decimalPlaces,
+  });
 
   revalidatePath(`/loans/${loanId}`);
   revalidatePath("/loans");

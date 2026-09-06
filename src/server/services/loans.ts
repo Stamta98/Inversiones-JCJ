@@ -452,15 +452,28 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
     // caja tiene que moverse por la diferencia o diría que se entregó lo que
     // no se entregó. Un préstamo más grande saca más; un cargo más alto deja
     // más adentro.
+    //
+    // Van en dos movimientos y no en uno solo: corregir el monto es una
+    // corrección, pero un cargo es un cargo, y juntos en un renglón el
+    // resumen del día no podía ver los cargos que se agregan después de
+    // crear el préstamo — decía «ninguno» de plata que sí había entrado.
     const principalDelta = input.terms
       ? input.terms.principal - Number(loan.principal)
       : 0;
     const chargeDelta = fromCents(chargeSummary.deductedCents - previousDeducted);
-    if (principalDelta !== 0 || chargeDelta !== 0) {
+    if (principalDelta !== 0) {
       await adjustLoanCash(tx, {
         loanId: loan.id,
         loanCode: loan.code,
-        cashDelta: chargeDelta - principalDelta,
+        cashDelta: -principalDelta,
+        createdById: input.updatedById ?? null,
+      });
+    }
+    if (chargeDelta !== 0) {
+      await adjustLoanCharges(tx, {
+        loanId: loan.id,
+        loanCode: loan.code,
+        amount: chargeDelta,
         createdById: input.updatedById ?? null,
       });
     }
@@ -817,6 +830,56 @@ export async function recordDeductedCharges(
   });
 }
 
+/**
+ * Mueve la caja por un cargo que cambió después de entregar la plata.
+ *
+ * Es un cargo, no una corrección: entra al cajón con su propia clase para que
+ * el resumen del día lo cuente entre los cargos y no lo pierda dentro de un
+ * renglón de ajustes. Sin nombre, como el que se netea al entregar: el que se
+ * cobra aparte en la puerta lleva el suyo y va en otro renglón.
+ */
+async function adjustLoanCharges(
+  tx: Prisma.TransactionClient,
+  input: {
+    loanId: string;
+    loanCode: string;
+    /** Positivo si el cargo subió — entra plata —, negativo si bajó. */
+    amount: number;
+    createdById: string | null;
+  },
+): Promise<void> {
+  if (input.amount === 0) return;
+
+  const disbursement = await tx.cashMovement.findFirst({
+    where: { loanId: input.loanId, kind: "LOAN_DISBURSEMENT" },
+    orderBy: { createdAt: "asc" },
+    select: { cashBoxId: true },
+  });
+  if (!disbursement) return;
+
+  const cashBox = await tx.cashBox.findUniqueOrThrow({
+    where: { id: disbursement.cashBoxId },
+    select: { balance: true },
+  });
+  const balanceAfter = Number(cashBox.balance) + input.amount;
+
+  await tx.cashBox.update({
+    where: { id: disbursement.cashBoxId },
+    data: { balance: balanceAfter },
+  });
+  await tx.cashMovement.create({
+    data: {
+      cashBoxId: disbursement.cashBoxId,
+      kind: "CHARGE_COLLECTED",
+      amount: input.amount,
+      balanceAfter,
+      description: `Cargos ${input.loanCode}`,
+      loanId: input.loanId,
+      createdById: input.createdById,
+    },
+  });
+}
+
 export function lateFeePolicyOf(
   loan: {
     lateFeeMode: string;
@@ -952,7 +1015,12 @@ export async function refreshLoan(
 
 export async function disburseLoan(
   loanId: string,
-  options: { cashBoxId?: string | null; userId?: string | null } = {},
+  options: {
+    cashBoxId?: string | null;
+    userId?: string | null;
+    /** Decimales de la moneda, para redondear el cargo como se cobra. */
+    decimalPlaces?: number;
+  } = {},
 ): Promise<void> {
   await db.$transaction(async (tx) => {
     const loan = await tx.loan.findUniqueOrThrow({ where: { id: loanId } });
@@ -967,6 +1035,37 @@ export async function disburseLoan(
       await recordDisbursement(tx, {
         cashBoxId: options.cashBoxId,
         amount: Number(loan.principal),
+        loanCode: loan.code,
+        loanId: loan.id,
+        createdById: options.userId ?? null,
+      });
+      // Y el cargo descontado vuelve al cajón, igual que cuando el préstamo
+      // se entrega en el momento de crearlo. Sin esto, un préstamo guardado
+      // en borrador y entregado después dejaba el cargo sin cobrar: la caja
+      // decía que salieron los 500.000 completos cuando salieron 490.000, y
+      // el resumen del día no veía el cargo por ninguna parte.
+      const charges = await tx.loanCharge.findMany({
+        where: { loanId: loan.id },
+        select: { name: true, amount: true, mode: true },
+      });
+      const step = stepForDecimals(options.decimalPlaces ?? 2);
+      const deducted = summarizeCharges(
+        charges.map((charge) =>
+          normalizeCharge(
+            {
+              name: charge.name,
+              amountCents: toCents(Number(charge.amount)),
+              mode: charge.mode as Charge["mode"],
+            },
+            step,
+          ),
+        ),
+        step,
+      ).deductedCents;
+
+      await recordDeductedCharges(tx, {
+        cashBoxId: options.cashBoxId,
+        amount: fromCents(deducted),
         loanCode: loan.code,
         loanId: loan.id,
         createdById: options.userId ?? null,
