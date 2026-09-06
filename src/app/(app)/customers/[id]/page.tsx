@@ -419,9 +419,21 @@ export default async function CustomerDetailPage({
                 label={t("customers.birthDate")}
                 value={
                   customer.birthDate
-                    ? `${formatDate(customer.birthDate, context.locale)} · ${t(
-                        "customers.ageYears",
-                      ).replace("{years}", String(ageOn(customer.birthDate)))}`
+                    ? formatDate(customer.birthDate, context.locale)
+                    : "—"
+                }
+              />
+              {/* La edad en su propio renglón y no pegada a la fecha: es lo
+                  que se pregunta de una — «¿de qué edad es el cliente?» — y
+                  al final de la fecha había que leerla dos veces. */}
+              <DetailRow
+                label={t("customers.age")}
+                value={
+                  customer.birthDate
+                    ? t("customers.ageYears").replace(
+                        "{years}",
+                        String(ageOn(customer.birthDate)),
+                      )
                     : "—"
                 }
               />
