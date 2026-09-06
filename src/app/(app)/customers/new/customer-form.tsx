@@ -14,11 +14,11 @@ import {
   Select,
 } from "@/components/ui";
 import { HomePlace } from "@/components/customers/home-place";
+import { NationalityField } from "@/components/customers/nationality-field";
 import { LocationField } from "@/components/ui/location-field";
 import { PhotoUpload } from "@/components/ui/photo-upload";
 
 import { GENDERS } from "@/core/customers/identity";
-import { NATIONALITY_SUGGESTIONS } from "@/core/locales/nationalities";
 
 import { es } from "@/i18n/es";
 import { useFormAction } from "@/lib/use-form-action";
@@ -254,26 +254,7 @@ export function CustomerForm({
             </Select>
           </Field>
           <div className="sm:col-span-2">
-            <Field
-              label={es.customers.nationality}
-              htmlFor="nationality"
-              hint={es.customers.nationalityHint}
-            >
-              <Input
-                id="nationality"
-                name="nationality"
-                defaultValue={v(customer?.nationality)}
-                list="nationality-options"
-                autoComplete="off"
-              />
-            </Field>
-            {/* A suggestion list rather than a closed one: a customer whose
-                country is missing must still be registrable. */}
-            <datalist id="nationality-options">
-              {NATIONALITY_SUGGESTIONS.map((option) => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
+            <NationalityField value={customer?.nationality ?? null} />
           </div>
         </CardBody>
       </FormSection>

@@ -1,32 +1,25 @@
 /**
- * Nationality suggestions.
+ * La nacionalidad del cliente.
  *
- * Free text, not a closed list: a Haitian customer in Santo Domingo or a
- * Venezuelan in Bogotá is ordinary, and a picker that cannot spell their
- * nationality is a picker that stops the loan. The suggestions cover the
- * countries the app knows plus the ones people in the region actually come
- * from, so the common case is one tap and the rest is still typeable.
+ * Es una lista corta y no un catálogo: en la puerta se escoge de un tirón, y
+ * los seis de aquí cubren a casi todo el que pide un préstamo en la costa —
+ * el colombiano y el venezolano, sobre todo. Van por países y no por
+ * gentilicios («Colombia», no «Colombiana») porque es como quedó escrito en
+ * las fichas que ya existen y como lo dice la gente.
+ *
+ * Con «Otra» se escribe la que sea: un haitiano en Santa Marta o un
+ * argentino de paso son clientes normales, y una lista cerrada que no sepa
+ * escribir su país es una lista que no deja prestar.
  */
 
-import { COUNTRIES } from "./countries";
-
-/** Nationalities from outside the country catalogue, common in the region. */
-const ADDITIONAL_NATIONALITIES = [
-  "Boricua",
-  "China",
-  "Cubana",
-  "Española",
-  "Estadounidense",
-  "Haitiana",
-  "Italiana",
-  "Jamaiquina",
-  "Portuguesa",
+export const NATIONALITIES = [
+  "Colombia",
+  "Venezuela",
+  "México",
+  "Ecuador",
+  "Perú",
+  "Chile",
 ] as const;
 
-/** Alphabetical, so a long datalist stays scannable. */
-export const NATIONALITY_SUGGESTIONS: readonly string[] = [
-  ...new Set([
-    ...COUNTRIES.map((country) => country.demonym),
-    ...ADDITIONAL_NATIONALITIES,
-  ]),
-].sort((a, b) => a.localeCompare(b, "es"));
+/** La que trae la ficha en blanco: casi siempre acierta y ahorra un toque. */
+export const DEFAULT_NATIONALITY = "Colombia";

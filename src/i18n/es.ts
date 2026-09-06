@@ -348,7 +348,11 @@ export const es = {
     },
     genderUnset: "Prefiere no decirlo",
     nationality: "Nacionalidad",
-    nationalityHint: "Escríbela o elige una de la lista.",
+    // La lista es corta a propósito; «Otra» abre el campo de escribir para el
+    // cliente que viene de un país que no está en ella.
+    nationalityOther: "Otra…",
+    nationalityHint: "Escribe el país del cliente.",
+    nationalityPlaceholder: "País",
     workSection: "Trabajo",
     employmentType: "¿De qué vive?",
     occupation: "Ocupación / oficio",
