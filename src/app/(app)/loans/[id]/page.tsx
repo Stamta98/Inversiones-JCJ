@@ -888,43 +888,6 @@ export default async function LoanDetailPage({
         />
       </div>
 
-      {/* Los cargos que se le cobraron aparte, con la fecha de cada uno. Esa
-          plata ya entró a la caja y no baja lo que el cliente debe: va en su
-          propia lista, no mezclada con los cargos del préstamo. */}
-      {chargesApart.length > 0 ? (
-        <div className="mt-4">
-          <Card>
-            <CardHeader
-              title={t("loans.charges.apartTitle")}
-              description={t("loans.charges.apartHint")}
-            />
-            <CardBody className="divide-y divide-border py-0">
-              {chargesApart.map((charge) => (
-                <div
-                  key={charge.id}
-                  className="flex items-center justify-between gap-3 py-2.5"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-ink">
-                      {charge.chargeName}
-                    </span>
-                    <span className="numeric block text-xs text-ink-muted">
-                      {/* Cobrado a una hora, no en un día suelto: se baja al
-                          día de la oficina para que un cargo cobrado de
-                          noche no aparezca con la fecha de mañana. */}
-                      {formatDate(dayIn(charge.createdAt, context.timezone))}
-                    </span>
-                  </span>
-                  <span className="numeric shrink-0 text-sm font-bold text-brand-strong">
-                    {money(Number(charge.amount))}
-                  </span>
-                </div>
-              ))}
-            </CardBody>
-          </Card>
-        </div>
-      ) : null}
-
       <div className="mt-4 space-y-4">
         <CollapsibleCard
           title={t("loans.schedule")}

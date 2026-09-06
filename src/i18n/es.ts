@@ -742,11 +742,6 @@ export const es = {
       },
       saved: "Cargos guardados.",
       empty2: "Este préstamo no tiene cargos adicionales.",
-      // Los que se cobraron en la puerta, aparte de la cuota: ya entraron a
-      // la caja, así que se muestran pero no se editan desde aquí.
-      apartTitle: "Cargos cobrados aparte",
-      apartHint:
-        "Plata que ya entró a la caja por un cargo. No baja lo que el cliente debe.",
       removeConfirm:
         "Al quitarlo se rehacen las cuotas y la caja se mueve por lo que se le había descontado al cliente.",
       // Cambiar un cargo mueve las cuotas y la caja: hay que decirlo antes,
