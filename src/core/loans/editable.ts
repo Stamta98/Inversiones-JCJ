@@ -48,10 +48,6 @@ export function canEditAtAll(status: LoanStatus): boolean {
   return status !== "CANCELLED" && status !== "WRITTEN_OFF";
 }
 
-export function canCancel(status: LoanStatus): boolean {
-  return status !== "PAID" && status !== "CANCELLED" && status !== "WRITTEN_OFF";
-}
-
 export type EditableField = FinancialField | DescriptiveField;
 
 export function editableFields(status: LoanStatus): EditableField[] {

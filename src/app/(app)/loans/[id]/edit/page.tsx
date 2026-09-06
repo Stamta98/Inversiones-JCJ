@@ -8,7 +8,6 @@ import {
   PageHeader,
 } from "@/components/ui";
 import {
-  canCancel,
   canEditTerms,
   lockedReasonKey,
 } from "@/core/loans/editable";
@@ -18,7 +17,6 @@ import { db } from "@/server/db";
 
 import { LoanForm } from "../../new/loan-form";
 import {
-  CancelLoanForm,
   DeleteLoanForm,
 } from "./loan-edit-forms";
 
@@ -152,13 +150,6 @@ export default async function EditLoanPage({
             label: cashBox.name,
           }))}
         />
-      ) : null}
-
-      {canCancel(status) ? (
-        <Card className="mt-4 max-w-2xl">
-          <CardHeader title={t("loans.cancel")} />
-          <CancelLoanForm loanId={loan.id} />
-        </Card>
       ) : null}
 
       {/* Con ancla: el menú del préstamo trae directo aquí. */}

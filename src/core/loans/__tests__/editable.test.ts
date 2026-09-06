@@ -4,7 +4,6 @@ import type { LoanStatus } from "../../types";
 import {
   DESCRIPTIVE_FIELDS,
   FINANCIAL_FIELDS,
-  canCancel,
   canEditAtAll,
   canEditTerms,
   editableFields,
@@ -91,16 +90,6 @@ describe("canEditAtAll", () => {
     expect(canEditAtAll("CANCELLED")).toBe(false);
     expect(canEditAtAll("WRITTEN_OFF")).toBe(false);
     expect(canEditAtAll("PAID")).toBe(true);
-  });
-});
-
-describe("canCancel", () => {
-  it("only allows cancelling a loan that is still open", () => {
-    expect(canCancel("DRAFT")).toBe(true);
-    expect(canCancel("ACTIVE")).toBe(true);
-    expect(canCancel("IN_ARREARS")).toBe(true);
-    expect(canCancel("PAID")).toBe(false);
-    expect(canCancel("CANCELLED")).toBe(false);
   });
 });
 

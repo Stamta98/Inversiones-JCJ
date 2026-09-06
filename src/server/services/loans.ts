@@ -15,7 +15,7 @@ import {
   type Charge,
 } from "@/core/loans/charges";
 import { allocatePayment } from "@/core/loans/allocation";
-import { canCancel, canEditAtAll } from "@/core/loans/editable";
+import { canEditAtAll } from "@/core/loans/editable";
 import { guarantorProblem } from "@/core/loans/guarantor";
 import { buildSchedule, type Schedule } from "@/core/loans/schedule";
 import { fromCents, stepForDecimals, toCents } from "@/core/money";
@@ -28,7 +28,6 @@ import type {
 } from "@/core/types";
 
 import { db } from "../db";
-import { reversePayment } from "./payments";
 import { nextLoanCode, withCodeRetry } from "./sequences";
 
 export interface CreateLoanInput {
@@ -279,7 +278,6 @@ export class LoanServiceError extends Error {
       | "notFound"
       | "termsLocked"
       | "closed"
-      | "cannotCancel"
       | "alreadyRenewed"
       | "guarantorNotFound"
       | "guarantorIsBorrower",
@@ -614,83 +612,12 @@ async function adjustLoanCash(
 }
 
 /**
- * Cancels a loan. Nothing is deleted: the record and its schedule stay, so the
- * history of what was agreed and what was collected remains readable.
- */
-export async function cancelLoan(input: {
-  companyId: string;
-  loanId: string;
-  reason?: string | null;
-  cancelledById?: string | null;
-}): Promise<void> {
-  await db.$transaction(async (tx) => {
-    const loan = await tx.loan.findFirst({
-      where: { id: input.loanId, companyId: input.companyId },
-    });
-    if (!loan) throw new LoanServiceError("Loan not found", "notFound");
-    if (!canCancel(loan.status)) {
-      throw new LoanServiceError("Loan cannot be cancelled", "cannotCancel");
-    }
-
-    await tx.loan.update({
-      where: { id: loan.id },
-      data: { status: "CANCELLED", closingDate: new Date() },
-    });
-
-    // Cancelling a refinance or a renewal is how one gets undone: the balance
-    // this loan absorbed goes back onto the loan it came from. Only the
-    // bookkeeping is reversed — cash already handed over is not clawed back
-    // here, exactly as it is not for an ordinary cancelled loan.
-    if (loan.parentLoanId) {
-      const settlement = await tx.payment.findFirst({
-        where: {
-          loanId: loan.parentLoanId,
-          method: "REFINANCE",
-          status: "POSTED",
-        },
-        select: { id: true },
-      });
-
-      if (settlement) {
-        await reversePayment(settlement.id, {
-          reason: `${loan.code}`,
-          userId: input.cancelledById ?? null,
-          allowRefinanceSettlement: true,
-        });
-      }
-    }
-
-    await tx.auditLog.create({
-      data: {
-        companyId: input.companyId,
-        userId: input.cancelledById ?? null,
-        action: "loan.cancelled",
-        entityType: "Loan",
-        entityId: loan.id,
-        metadata: {
-          code: loan.code,
-          reason: input.reason ?? null,
-          releasedLoanId: loan.parentLoanId,
-        },
-      },
-    });
-  });
-}
-
-/**
- * Takes money out of a cash box for a loan.
- *
- * Shared with the refinance service, where the amount handed over is the net
- * of a renewal rather than the loan's principal.
- */
-/**
  * Borra un préstamo para siempre.
  *
- * Anular deja el préstamo cerrado y a la vista, que es lo correcto casi
- * siempre. Esto es para el préstamo que nunca debió existir — el monto mal
- * tecleado, el cliente equivocado — y por eso lo deja como si nunca hubiera
- * pasado, empezando por la caja: vuelve el desembolso, se van los cobros y el
- * saldo queda exactamente donde estaba antes de crearlo.
+ * Es para el préstamo que nunca debió existir — el monto mal tecleado, el
+ * cliente equivocado — y por eso lo deja como si nunca hubiera pasado,
+ * empezando por la caja: vuelve el desembolso, se van los cobros y el saldo
+ * queda exactamente donde estaba antes de crearlo.
  *
  * Lo único que sobrevive es la auditoría, que es la razón por la que se puede
  * borrar del todo sin perder el rastro de que se borró.

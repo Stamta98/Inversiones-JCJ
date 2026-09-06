@@ -18,7 +18,6 @@ import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import {
   LoanServiceError,
-  cancelLoan,
   createLoan,
   deleteLoan,
   disburseLoan,
@@ -312,30 +311,6 @@ function loanErrorMessage(error: unknown): string {
     return message === `loans.errors.${error.code}` ? error.message : message;
   }
   throw error;
-}
-
-export async function cancelLoanAction(
-  _previous: LoanFormState,
-  formData: FormData,
-): Promise<LoanFormState> {
-  const context = await requirePermission("loans.update");
-  const loanId = String(formData.get("loanId") ?? "");
-  if (!loanId) return { error: t("common.error") };
-
-  try {
-    await cancelLoan({
-      companyId: context.companyId,
-      loanId,
-      reason: String(formData.get("reason") ?? "") || null,
-      cancelledById: context.userId,
-    });
-  } catch (error) {
-    return { error: loanErrorMessage(error) };
-  }
-
-  revalidatePath(`/loans/${loanId}`);
-  revalidatePath("/loans");
-  redirect(`/loans/${loanId}`);
 }
 
 export async function disburseLoanAction(formData: FormData): Promise<void> {

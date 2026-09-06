@@ -610,7 +610,6 @@ export const es = {
     daysInArrears: "Días de mora",
     disburse: "Desembolsar",
     approve: "Aprobar",
-    cancel: "Anular préstamo",
     contract: "Contrato",
     openEndedNotice:
       "Este es un préstamo indefinido: solo se programa el interés y el capital queda pendiente hasta que el cliente lo salde.",
@@ -693,8 +692,6 @@ export const es = {
       "Se borra el préstamo con sus cuotas y sus cobros, y la plata vuelve a la caja como si nunca se hubiera prestado. Esto no se puede deshacer.",
     deleted: "Préstamo eliminado.",
     editLockedClosed: "Este préstamo está cerrado y no se puede modificar.",
-    cancelConfirm:
-      "Al anular el préstamo se cierra y deja de cobrarse. Los cobros ya registrados quedan como están.",
     emptyTitle: "Todavía no hay préstamos",
     emptyHint: "Crea el primer préstamo para empezar a cobrar.",
     errors: {
@@ -713,8 +710,6 @@ export const es = {
       customerRequired: "Debes seleccionar un cliente.",
       notFound: "No se encontró el préstamo.",
       closed: "Este préstamo está cerrado y no se puede modificar.",
-      cannotCancel:
-        "Este préstamo no se puede anular: ya está saldado, anulado o dado por incobrable.",
       termsLocked:
         "Este préstamo está saldado: solo se pueden cambiar las notas.",
       noBalance:
@@ -856,8 +851,6 @@ export const es = {
     filterLate: "Atrasados",
     filterExpired: "Vencidos",
     filterPaid: "Saldados",
-    cancelReason: "Motivo de la anulación",
-    cancelled: "Préstamo anulado.",
     saved: "Préstamo actualizado.",
 
     // --- Refinanciación y renovación ---
