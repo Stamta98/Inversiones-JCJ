@@ -70,9 +70,19 @@ function outstandingParts(installment: AllocatableInstallment): {
   };
 }
 
+/**
+ * Qué partes de la cuota puede tocar un cobro.
+ *
+ * Lo normal es que las toque todas, en orden. Cobrar solo la mora es otra
+ * cosa: el cliente paga lo que se le sumó por atrasarse y la cuota se queda
+ * como estaba, esperando su plata.
+ */
+export type AllocationScope = "ALL" | "LATE_FEE";
+
 export function allocatePayment(
   amountCents: Cents,
   installments: AllocatableInstallment[],
+  scope: AllocationScope = "ALL",
 ): AllocationResult {
   if (amountCents <= 0) {
     return { allocations: [], appliedCents: 0, unappliedCents: 0 };
@@ -95,16 +105,20 @@ export function allocatePayment(
     if (remaining <= 0) break;
 
     const owed = outstandingParts(installment);
+    const soloMora = scope === "LATE_FEE";
+
     const lateFeeCents = Math.min(remaining, owed.lateFee);
     remaining -= lateFeeCents;
 
-    const chargeCents = Math.min(remaining, owed.charge);
+    // Cobrando solo la mora, la plata se para aquí: no baja el cargo, ni el
+    // interés, ni el capital, por mucha que sea.
+    const chargeCents = soloMora ? 0 : Math.min(remaining, owed.charge);
     remaining -= chargeCents;
 
-    const interestCents = Math.min(remaining, owed.interest);
+    const interestCents = soloMora ? 0 : Math.min(remaining, owed.interest);
     remaining -= interestCents;
 
-    const principalCents = Math.min(remaining, owed.principal);
+    const principalCents = soloMora ? 0 : Math.min(remaining, owed.principal);
     remaining -= principalCents;
 
     const totalCents =

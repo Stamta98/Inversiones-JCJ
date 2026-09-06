@@ -1078,11 +1078,14 @@ export const es = {
     conceptGroup: "O cóbrale otra cosa",
     conceptLabel: {
       INSTALLMENT: "Cuota del préstamo",
+      LATE_FEE: "Mora",
       CHARGE: "Cargo adicional",
     },
     conceptHint: {
       INSTALLMENT:
         "Se reparte entre lo vencido: primero la mora, después el cargo, el interés y por último el capital.",
+      LATE_FEE:
+        "Solo se cobra lo que se le sumó por atrasarse. La cuota sigue debiendo lo suyo.",
       CHARGE:
         "Entra a la caja como cargo cobrado. No baja lo que el cliente debe ni toca las cuotas.",
     },
@@ -1111,6 +1114,7 @@ export const es = {
       settlesRefinance:
         "Este cobro es el saldo que se pasó a otro préstamo, no plata que entró. Para deshacerlo, anula el préstamo con el que se refinanció.",
       nothingToApply: "Este préstamo no tiene cuotas pendientes.",
+      noLateFee: "Este préstamo no tiene mora por cobrar.",
       reversed: "Este cobro está anulado. Elimínalo y registra uno nuevo.",
       chargeName: "Ponle un nombre al cargo: papelería, estudio, lo que sea.",
       chargeCashBox:

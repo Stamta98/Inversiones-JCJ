@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Alert, Button, Field, Input, Select } from "@/components/ui";
+import { COLLECT_METHODS } from "@/core/types";
 import { es } from "@/i18n/es";
 import { formatCurrency } from "@/lib/format";
 import { useFormAction } from "@/lib/use-form-action";
@@ -12,14 +13,9 @@ import {
   type PaymentFormState,
 } from "../../payments/actions";
 
-const METHODS = [
-  "CASH",
-  "BANK_TRANSFER",
-  "CARD",
-  "CHECK",
-  "MOBILE_WALLET",
-  "OTHER",
-] as const;
+
+/** Lo que se cobra cuando no es la cuota. */
+const CONCEPTS = ["LATE_FEE", "CHARGE"] as const;
 
 const STEP_BUTTON =
   "flex size-8 items-center justify-center rounded-md text-lg leading-none font-semibold text-ink transition-colors hover:bg-surface disabled:opacity-30";
@@ -61,9 +57,9 @@ export function PaymentForm({
   // Qué se está cobrando. Un cargo adicional es plata que entra pero no baja
   // lo que el cliente debe, así que el formulario cambia de forma: no hay
   // contador de cuotas ni tope, y en cambio hay que decir de qué es el cargo.
-  const [concept, setConcept] = useState<"INSTALLMENT" | "CHARGE">(
-    "INSTALLMENT",
-  );
+  const [concept, setConcept] = useState<
+    "INSTALLMENT" | "LATE_FEE" | "CHARGE"
+  >("INSTALLMENT");
   const cobrandoCargo = concept === "CHARGE";
   // La forma de pago se guarda aparte del desplegable: mientras se cobra un
   // cargo la lista enseña "Cargo adicional", y al volver a una cuota tiene
@@ -144,29 +140,36 @@ export function PaymentForm({
           >
             <Select
               id="method"
-              value={cobrandoCargo ? "CHARGE" : metodo}
+              value={concept === "INSTALLMENT" ? metodo : concept}
               onChange={(event) => {
                 const value = event.target.value;
-                const cargo = value === "CHARGE";
-                if (!cargo) setMetodo(value);
-                setConcept(cargo ? "CHARGE" : "INSTALLMENT");
-                // Al pasar a cargo el campo queda en blanco: la cuota que
-                // proponía no tiene nada que ver con lo que vale el cargo.
+                const otraCosa = (CONCEPTS as readonly string[]).includes(value);
+                if (!otraCosa) setMetodo(value);
+                setConcept(
+                  otraCosa
+                    ? (value as "LATE_FEE" | "CHARGE")
+                    : "INSTALLMENT",
+                );
+                // Al pasar a mora o a cargo el campo queda en blanco: la
+                // cuota que proponía no tiene nada que ver con lo que vale
+                // ninguna de las dos.
                 setCount(null);
-                setAmount(cargo ? "" : show(suggestedAmount));
+                setAmount(otraCosa ? "" : show(suggestedAmount));
               }}
             >
               <optgroup label={es.payments.methodGroup}>
-                {METHODS.map((method) => (
+                {COLLECT_METHODS.map((method) => (
                   <option key={method} value={method}>
                     {es.payments.methodLabel[method]}
                   </option>
                 ))}
               </optgroup>
               <optgroup label={es.payments.conceptGroup}>
-                <option value="CHARGE">
-                  {es.payments.conceptLabel.CHARGE}
-                </option>
+                {CONCEPTS.map((value) => (
+                  <option key={value} value={value}>
+                    {es.payments.conceptLabel[value]}
+                  </option>
+                ))}
               </optgroup>
             </Select>
           </Field>
@@ -174,11 +177,7 @@ export function PaymentForm({
 
         {/* Lo que de verdad se manda: la lista de arriba contesta las dos
             cosas, pero el servidor las recibe separadas como siempre. */}
-        <input
-          type="hidden"
-          name="concept"
-          value={cobrandoCargo ? "CHARGE" : "INSTALLMENT"}
-        />
+        <input type="hidden" name="concept" value={concept} />
         <input
           type="hidden"
           name="method"
@@ -202,7 +201,9 @@ export function PaymentForm({
           <Field
             label={es.payments.amount}
             htmlFor="amount"
-            hint={cobrandoCargo ? undefined : amountHint}
+            // De dónde salió el monto propuesto solo tiene sentido
+            // cobrando la cuota: ni la mora ni el cargo valen eso.
+            hint={concept === "INSTALLMENT" ? amountHint : undefined}
             required
           >
             <div className="flex items-stretch gap-2">

@@ -45,6 +45,17 @@ export type PaymentFrequency =
   /// Every N days, where N is set per loan.
   | "CUSTOM";
 
+/**
+ * Con qué se cobra en la calle.
+ *
+ * Solo dos: efectivo y transferencia. Tarjeta, cheque, billetera y "otro"
+ * salieron del formulario porque no se usaban y hacían buscar el efectivo
+ * entre seis renglones. No se borraron de la base ni de las etiquetas: los
+ * cobros viejos que las tengan se siguen leyendo, lo único que ya no se puede
+ * es escoger una de esas para un cobro nuevo.
+ */
+export const COLLECT_METHODS = ["CASH", "BANK_TRANSFER"] as const;
+
 export type LoanStatus =
   | "DRAFT"
   | "PENDING_APPROVAL"

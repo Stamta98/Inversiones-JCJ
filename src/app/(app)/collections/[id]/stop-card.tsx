@@ -18,6 +18,7 @@ import {
   needsPromiseDate,
   type StopStatus,
 } from "@/core/collections/route";
+import { COLLECT_METHODS } from "@/core/types";
 import { es } from "@/i18n/es";
 import { formatCurrency } from "@/lib/format";
 import { useFormAction } from "@/lib/use-form-action";
@@ -296,13 +297,11 @@ export function StopCard({
                   name="method"
                   defaultValue="CASH"
                 >
-                  {Object.entries(es.payments.methodLabel).map(
-                    ([key, label]) => (
-                      <option key={key} value={key}>
-                        {label}
-                      </option>
-                    ),
-                  )}
+                  {COLLECT_METHODS.map((method) => (
+                    <option key={method} value={method}>
+                      {es.payments.methodLabel[method]}
+                    </option>
+                  ))}
                 </Select>
               </Field>
 

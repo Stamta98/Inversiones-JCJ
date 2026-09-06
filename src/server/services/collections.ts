@@ -296,10 +296,14 @@ export async function collectAtStop(
     // The payment service already knows why an amount cannot be taken; the
     // route screen only needs the same reason back in its own vocabulary.
     if (error instanceof PaymentError) {
-      // Los dos motivos de un cargo cobrado aparte no salen de aquí: en la
-      // ruta solo se registran abonos. Si alguna vez llegaran, van tal cual
-      // en vez de disfrazarse de otra cosa.
-      if (error.code === "chargeName" || error.code === "chargeCashBox") {
+      // Los motivos que no salen de aquí —los de un cargo cobrado aparte y
+      // el de cobrar solo mora— van tal cual en vez de disfrazarse de otra
+      // cosa: en la ruta solo se registran abonos.
+      if (
+        error.code === "chargeName" ||
+        error.code === "chargeCashBox" ||
+        error.code === "noLateFee"
+      ) {
         throw error;
       }
       throw new CollectionError(error.message, error.code);

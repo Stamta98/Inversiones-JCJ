@@ -7,7 +7,10 @@
 
 import type { Prisma } from "@prisma/client";
 
-import { allocatePayment } from "@/core/loans/allocation";
+import {
+  allocatePayment,
+  type AllocationScope,
+} from "@/core/loans/allocation";
 import { fromCents, toCents } from "@/core/money";
 
 import { db } from "../db";
@@ -35,6 +38,12 @@ export interface PostPaymentInput {
   collectedById?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  /**
+   * Qué se está cobrando. Por defecto la cuota, que se reparte entre todo lo
+   * vencido. "LATE_FEE" cobra solo la mora: la cuota se queda debiendo lo
+   * suyo y solo se limpia lo que se le sumó por atrasarse.
+   */
+  scope?: AllocationScope;
 }
 
 export class PaymentError extends Error {
@@ -47,7 +56,8 @@ export class PaymentError extends Error {
       | "settlesRefinance"
       | "reversed"
       | "chargeName"
-      | "chargeCashBox",
+      | "chargeCashBox"
+      | "noLateFee",
   ) {
     super(message);
     this.name = "PaymentError";
@@ -96,11 +106,17 @@ export async function postPayment(
         status: installment.status,
       }));
 
-      const result = allocatePayment(toCents(input.amount), allocatable);
+      const result = allocatePayment(
+        toCents(input.amount),
+        allocatable,
+        input.scope ?? "ALL",
+      );
       if (result.allocations.length === 0) {
         throw new PaymentError(
-          "This loan has no open installments",
-          "nothingToApply",
+          input.scope === "LATE_FEE"
+            ? "This loan has no late fees to collect"
+            : "This loan has no open installments",
+          input.scope === "LATE_FEE" ? "noLateFee" : "nothingToApply",
         );
       }
 

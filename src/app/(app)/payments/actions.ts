@@ -24,7 +24,9 @@ const paymentSchema = z.object({
    * Qué se está cobrando. Un cargo adicional entra a la caja pero no es un
    * abono: no se reparte entre las cuotas ni baja lo que el cliente debe.
    */
-  concept: z.enum(["INSTALLMENT", "CHARGE"]).default("INSTALLMENT"),
+  concept: z
+    .enum(["INSTALLMENT", "LATE_FEE", "CHARGE"])
+    .default("INSTALLMENT"),
   chargeName: z.string().optional(),
   method: z
     .enum(["CASH", "BANK_TRANSFER", "CARD", "CHECK", "MOBILE_WALLET", "OTHER"])
@@ -88,6 +90,9 @@ export async function postPaymentAction(
       companyId: context.companyId,
       loanId: data.loanId,
       amount: data.amount,
+      // Cobrar solo la mora es un abono como cualquier otro: lleva su recibo
+      // y entra a la caja. Lo único distinto es hasta dónde llega la plata.
+      scope: data.concept === "LATE_FEE" ? "LATE_FEE" : "ALL",
       method: data.method as PaymentMethod,
       paidAt: data.paidAt
         ? new Date(`${data.paidAt}T12:00:00.000Z`)

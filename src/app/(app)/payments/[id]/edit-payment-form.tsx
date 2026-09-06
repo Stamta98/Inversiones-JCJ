@@ -8,19 +8,12 @@ import {
   Input,
   Select,
 } from "@/components/ui";
+import { COLLECT_METHODS } from "@/core/types";
 import { es } from "@/i18n/es";
 import { useFormAction } from "@/lib/use-form-action";
 
 import { updatePaymentAction, type PaymentFormState } from "../actions";
 
-const METHODS = [
-  "CASH",
-  "BANK_TRANSFER",
-  "CARD",
-  "CHECK",
-  "MOBILE_WALLET",
-  "OTHER",
-] as const;
 
 /**
  * Corrige un cobro ya registrado.
@@ -80,9 +73,19 @@ export function EditPaymentForm({
 
           <Field label={es.payments.method} htmlFor="method">
             <Select id="method" name="method" defaultValue={method}>
-              {METHODS.map((option) => (
+              {/* Las dos de siempre, y además la que el cobro ya traiga si
+                  es de las que salieron de la lista: dejarla fuera se la
+                  cambiaría a escondidas al guardar. */}
+              {[
+                ...COLLECT_METHODS,
+                ...((COLLECT_METHODS as readonly string[]).includes(method)
+                  ? []
+                  : [method]),
+              ].map((option) => (
                 <option key={option} value={option}>
-                  {es.payments.methodLabel[option]}
+                  {es.payments.methodLabel[
+                    option as keyof typeof es.payments.methodLabel
+                  ] ?? option}
                 </option>
               ))}
             </Select>
