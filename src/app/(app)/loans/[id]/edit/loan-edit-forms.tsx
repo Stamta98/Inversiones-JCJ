@@ -2,40 +2,27 @@
 
 import { Alert, Button, CardBody } from "@/components/ui";
 import { es } from "@/i18n/es";
-import { useFormAction } from "@/lib/use-form-action";
 
-import {
-  deleteLoanAction,
-  type LoanFormState,
-} from "../../actions";
+import { useDeleteLoan } from "../use-delete-loan";
 
 export function DeleteLoanForm({ loanId }: { loanId: string }) {
-  const { state, pending, onSubmit } = useFormAction<LoanFormState>(
-    deleteLoanAction,
-    {},
-  );
+  const { remove, pending, error } = useDeleteLoan(loanId);
 
   return (
-    <form
-      method="post"
-      onSubmit={(event) => {
-        if (!window.confirm(es.loans.deleteConfirm)) {
-          event.preventDefault();
-          return;
-        }
-        onSubmit(event);
-      }}
-    >
-      <input type="hidden" name="loanId" value={loanId} />
-      <CardBody className="space-y-4">
-        {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
-        <Alert tone="danger">{es.loans.deleteConfirm}</Alert>
-        <div className="flex justify-end">
-          <Button type="submit" variant="danger" icon="trash" disabled={pending}>
-            {pending ? es.common.saving : es.loans.delete}
-          </Button>
-        </div>
-      </CardBody>
-    </form>
+    <CardBody className="space-y-4">
+      {error ? <Alert tone="danger">{error}</Alert> : null}
+      <Alert tone="danger">{es.loans.deleteConfirm}</Alert>
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="danger"
+          icon="trash"
+          onClick={remove}
+          disabled={pending}
+        >
+          {pending ? es.common.saving : es.loans.delete}
+        </Button>
+      </div>
+    </CardBody>
   );
 }

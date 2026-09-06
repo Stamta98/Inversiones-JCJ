@@ -152,9 +152,12 @@ export default async function EditLoanPage({
         />
       ) : null}
 
-      {/* Con ancla: el menú del préstamo trae directo aquí. */}
+      {/* Borrar también se puede desde los tres puntos del préstamo, que es
+          por donde se pide casi siempre. Aquí se queda porque quien vino a
+          corregir las condiciones y descubre que el préstamo estaba mal desde
+          el principio no tiene por qué devolverse a buscarlo. */}
       {can(context, "loans.delete") ? (
-        <Card className="mt-4 max-w-2xl" id="eliminar">
+        <Card className="mt-4 max-w-2xl">
           <CardHeader title={t("loans.delete")} />
           <DeleteLoanForm loanId={loan.id} />
         </Card>

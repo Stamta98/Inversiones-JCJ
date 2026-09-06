@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Icon } from "@/components/ui";
 import { es } from "@/i18n/es";
 
+import { useDeleteLoan } from "./use-delete-loan";
+
 /**
  * Las acciones del préstamo, detrás de los tres puntos.
  *
@@ -63,6 +65,8 @@ export function LoanMenu({
   // El color va aparte: junto en la misma cadena, `text-ink` le ganaba a
   // `text-danger` y el renglón de eliminar salía del mismo color que los
   // demás, que es justo lo que no puede pasar con el que borra.
+  const { remove, pending, error } = useDeleteLoan(loanId);
+
   const row =
     "flex w-full items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted";
   const item = `${row} text-ink`;
@@ -176,13 +180,26 @@ export function LoanMenu({
                 </Link>
               ) : null}
               {canDelete ? (
-                <Link
-                  className={danger}
-                  href={`/loans/${loanId}/edit#eliminar`}
-                >
-                  <Icon name="trash" size={16} />
-                  {es.loans.delete}
-                </Link>
+                <>
+                  {/* Se borra desde aquí. Antes llevaba a la pantalla de
+                      editar a buscar el cuadro del final: un viaje para
+                      volver a pedir lo que ya se había pedido. El aviso de
+                      qué se lleva por delante sigue saliendo. */}
+                  <button
+                    type="button"
+                    className={danger}
+                    disabled={pending}
+                    onClick={remove}
+                  >
+                    <Icon name="trash" size={16} />
+                    {pending ? es.common.saving : es.loans.delete}
+                  </button>
+                  {/* Si no se pudo, el motivo se queda a la vista dentro del
+                      menú: al cerrarlo nadie lo leería. */}
+                  {error ? (
+                    <p className="px-3 pb-2 text-xs text-danger">{error}</p>
+                  ) : null}
+                </>
               ) : null}
             </div>
           ) : null}
