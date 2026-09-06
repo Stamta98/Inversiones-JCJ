@@ -713,7 +713,13 @@ export default async function LoanDetailPage({
         </div>
       ) : null}
 
-      {collect.nextDueDate && openLoan ? (
+      {/* Solo cuando la que sigue todavía no ha llegado. En un préstamo
+          atrasado, la siguiente por cobrar es de hace un mes: decía «Próxima
+          cuota» de una fecha vieja y repetía la que la franja roja ya da como
+          la más vieja. */}
+      {collect.nextDueDate &&
+      openLoan &&
+      collect.nextDueDate.getTime() >= today.getTime() ? (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-[--radius-card] border border-warning-soft bg-warning-soft/40 p-3">
           <span>
             <span className="block text-xs font-semibold text-warning">
@@ -761,11 +767,13 @@ export default async function LoanDetailPage({
           </p>
 
           {/* Con el menos delante: es lo único que baja en esta cuenta, y sin
-              el signo se leía como una cifra más que se suma. */}
+              el signo se leía como una cifra más que se suma. Sin abonos no
+              lleva signo: «−$ 0» no es una resta, es un renglón mal escrito. */}
           <p className="flex justify-between gap-3">
             <span className="text-ink-muted">{t("loans.alreadyPaid")}</span>
             <span className="numeric font-medium text-positive">
-              −{money(Number(loan.totalPaid))}
+              {Number(loan.totalPaid) > 0 ? "−" : ""}
+              {money(Number(loan.totalPaid))}
             </span>
           </p>
 
@@ -850,7 +858,11 @@ export default async function LoanDetailPage({
                     value: formatDate(firstDueDate),
                   }
                 : null,
-              collect.nextDueDate
+              // Misma regla que la franja: cuando la que sigue ya pasó de
+              // fecha no es «la próxima», es la más vieja sin pagar, y esa la
+              // dice el renglón rojo de abajo con su nombre.
+              collect.nextDueDate &&
+              collect.nextDueDate.getTime() >= today.getTime()
                 ? {
                     label: t("loans.nextDueLabel"),
                     value: formatDate(collect.nextDueDate),
