@@ -19,7 +19,7 @@ import {
 } from "@/components/loans/charges-field";
 import type { ChargeMode } from "@/core/loans/charges";
 import { SchedulePreview } from "@/components/loans/schedule-preview";
-import { firstDueAfter } from "@/core/dates";
+import { firstDueAfter, parseDay } from "@/core/dates";
 import { ScheduleError, buildSchedule } from "@/core/loans/schedule";
 import { stepForDecimals, toCents } from "@/core/money";
 import {
@@ -35,7 +35,7 @@ import {
 } from "@/core/types";
 import { es } from "@/i18n/es";
 import { useFormAction } from "@/lib/use-form-action";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 
 import {
   createLoanAction,
@@ -66,7 +66,7 @@ export interface LoanDefaults {
   nonCollectionDays: number[];
   termCount: number;
   /** ISO date, `YYYY-MM-DD`. */
-  firstDueDate: string;
+  startDate: string;
   lateFeeMode: LateFeeMode;
   lateFeeValue: number;
   gracePeriodDays: number;
@@ -78,24 +78,30 @@ export interface CashBoxOption {
   label: string;
 }
 
+/** El día de hoy, que es cuando se entrega la plata si no se dice otra cosa. */
+function hoy(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 /**
- * La primera cuota de un préstamo entregado hoy.
+ * La primera cuota que sale de un día de inicio.
  *
  * El día que se entrega no se cobra: diario es mañana, semanal es el mismo día
  * de la otra semana, mensual el mismo día del mes que viene. La regla vive en
  * el núcleo y aquí solo se pinta.
  */
 function primeraCuota(
+  inicio: string,
   frequency: PaymentFrequency,
   customIntervalDays: number,
   nonCollectionDays: number[],
-): string {
-  return firstDueAfter(new Date(), frequency, {
+): Date | null {
+  const dia = parseDay(inicio);
+  if (!dia) return null;
+  return firstDueAfter(dia, frequency, {
     customIntervalDays,
     nonCollectionDays,
-  })
-    .toISOString()
-    .slice(0, 10);
+  });
 }
 
 function SubmitButton({ pending }: { pending: boolean }) {
@@ -152,12 +158,7 @@ export function LoanForm({
   const [termCount, setTermCount] = useState(
     loan ? String(loan.termCount) : "0",
   );
-  const [firstDueDate, setFirstDueDate] = useState(
-    loan?.firstDueDate ?? primeraCuota("DAILY", 1, []),
-  );
-  // Mientras nadie la toque, la fecha sigue a la frecuencia. Puesta a mano, se
-  // queda quieta: si no, cambiar de frecuencia le borraría lo que escribió.
-  const [dateTouched, setDateTouched] = useState(false);
+  const [startDate, setStartDate] = useState(loan?.startDate ?? hoy());
   const [customerId, setCustomerId] = useState(
     loan?.customerId ?? defaultCustomerId ?? "",
   );
@@ -180,16 +181,6 @@ export function LoanForm({
     })),
   );
 
-  // La primera cuota, cuando la manda la frecuencia y no la mano.
-  const seguirFrecuencia = (
-    next: PaymentFrequency,
-    intervalo: string,
-    sinCobro: number[],
-  ) => {
-    if (dateTouched || editando) return;
-    setFirstDueDate(primeraCuota(next, Number(intervalo) || 1, sinCobro));
-  };
-
   const money = (value: number) =>
     formatCurrency(value, currencyCode, locale, decimalPlaces);
 
@@ -198,13 +189,26 @@ export function LoanForm({
       ? nonCollectionDays.filter((value) => value !== day)
       : [...nonCollectionDays, day].sort();
     setNonCollectionDays(next);
-    // Si la primera cuota caía en un día que ahora no se cobra, se corre.
-    if (next.length < 7) seguirFrecuencia(frequency, customIntervalDays, next);
   };
 
   // The schedule engine is pure, so the preview runs in the browser with the
   // exact same code the server uses when the loan is saved.
   const chargeTotals = summarizeRows(charges);
+
+  // La primera cuota sale del día de inicio y de la frecuencia. No se guarda
+  // en un estado aparte: si se guardara, cambiar la frecuencia tendría que
+  // acordarse de moverla, y ese olvido es lo que dejaba préstamos cobrando el
+  // mismo día en que se entregaba la plata.
+  const firstDue = useMemo(
+    () =>
+      primeraCuota(
+        startDate,
+        frequency,
+        Number(customIntervalDays) || 1,
+        nonCollectionDays,
+      ),
+    [startDate, frequency, customIntervalDays, nonCollectionDays],
+  );
 
   const preview = useMemo(() => {
     try {
@@ -216,7 +220,7 @@ export function LoanForm({
           interestMethod,
           frequency,
           termCount: Number(termCount) || 0,
-          firstDueDate: new Date(`${firstDueDate}T00:00:00.000Z`),
+          firstDueDate: firstDue ?? new Date(),
           customIntervalDays: Number(customIntervalDays) || 0,
           nonCollectionDays,
           // El mismo paso que usa el servidor, para que la vista previa no
@@ -244,7 +248,7 @@ export function LoanForm({
     interestMethod,
     frequency,
     termCount,
-    firstDueDate,
+    firstDue,
     customIntervalDays,
     nonCollectionDays,
     decimalPlaces,
@@ -403,16 +407,7 @@ export function LoanForm({
                   name="frequency"
                   value={frequency}
                   onChange={(event) => {
-                    const next = event.target.value as PaymentFrequency;
-                    setFrequency(next);
-                    // La primera cuota sigue a la frecuencia: cambiar a
-                    // semanal sin que la fecha se mueva dejaba la primera
-                    // cuota el mismo día que se entrega la plata.
-                    seguirFrecuencia(
-                      next,
-                      customIntervalDays,
-                      nonCollectionDays,
-                    );
+                    setFrequency(event.target.value as PaymentFrequency);
                   }}
                 >
                   {PAYMENT_FREQUENCIES.map((option) => (
@@ -439,14 +434,9 @@ export function LoanForm({
                     min="1"
                     required
                     value={customIntervalDays}
-                    onChange={(event) => {
-                      setCustomIntervalDays(event.target.value);
-                      seguirFrecuencia(
-                        frequency,
-                        event.target.value,
-                        nonCollectionDays,
-                      );
-                    }}
+                    onChange={(event) =>
+                      setCustomIntervalDays(event.target.value)
+                    }
                   />
                 </Field>
               ) : null}
@@ -465,25 +455,25 @@ export function LoanForm({
                 />
               </Field>
 
-              <Field
-                label={es.loans.firstDueDate}
-                htmlFor="firstDueDate"
-                required
-              >
+              <Field label={es.loans.startDate} htmlFor="startDate" required>
                 <Input
-                  id="firstDueDate"
-                  name="firstDueDate"
+                  id="startDate"
+                  name="startDate"
                   type="date"
                   required
-                  value={firstDueDate}
-                  onChange={(event) => {
-                    setDateTouched(true);
-                    setFirstDueDate(event.target.value);
-                  }}
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
                 />
-                {/* Por qué está en esa fecha, dicho donde se ve. */}
+                {/* Qué día va a caer la primera cuota, dicho aquí mismo: es
+                    la cuenta que hace la persona de cabeza al escribir la
+                    fecha, y se mueve sola al cambiar la frecuencia. */}
                 <p className="mt-1 text-xs text-ink-subtle">
-                  {es.loans.firstDueHint}
+                  {firstDue
+                    ? es.loans.startDateHint.replace(
+                        "{date}",
+                        formatDate(firstDue, locale),
+                      )
+                    : es.loans.startDateHintEmpty}
                 </p>
               </Field>
 

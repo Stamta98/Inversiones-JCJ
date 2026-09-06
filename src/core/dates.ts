@@ -220,6 +220,32 @@ export function firstDueAfter(
 }
 
 /** How many payment periods fit in a year. Used to annualize a rate. */
+/**
+ * El día de inicio del que sale esta primera cuota.
+ *
+ * Lo contrario de `firstDueAfter`: el formulario pregunta cuándo empieza el
+ * préstamo y calcula la cuota, pero al abrir uno ya hecho solo se tiene la
+ * cuota y hay que volver atrás para llenar la casilla.
+ *
+ * Es un período antes. Para las frecuencias de verdad —diaria, semanal,
+ * quincenal, mensual— vuelve exacto: adelantar un período desde aquí devuelve
+ * la misma cuota. Las raras (dos veces por semana, pago único) no invierten
+ * limpio, y por eso la pantalla siempre enseña la cuota que va a quedar en
+ * vez de dar por hecho que no se movió.
+ */
+export function startForFirstDue(
+  firstDue: Date,
+  frequency: PaymentFrequency,
+  options: { customIntervalDays?: number } = {},
+): Date {
+  return advanceByFrequency(
+    startOfDay(firstDue),
+    frequency,
+    -1,
+    options.customIntervalDays ?? 1,
+  );
+}
+
 export function periodsPerYear(frequency: PaymentFrequency): number {
   switch (frequency) {
     case "DAILY":

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { firstDueAfter } from "@/core/dates";
 import { ChargeError } from "@/core/loans/charges";
 import { RenewalError } from "@/core/loans/renewal";
 import { ScheduleError } from "@/core/loans/schedule";
@@ -47,7 +48,7 @@ const loanSchema = z.object({
   /** Checkbox group: absent when nothing is ticked. */
   nonCollectionDays: z.array(z.coerce.number().int().min(0).max(6)).default([]),
   termCount: z.coerce.number().int().positive(),
-  firstDueDate: z.string().min(1),
+  startDate: z.string().min(1),
   lateFeeMode: z.enum(LATE_FEE_MODES as [string, ...string[]]).default("NONE"),
   lateFeeValue: z.coerce.number().min(0).default(0),
   gracePeriodDays: z.coerce.number().int().min(0).default(0),
@@ -133,7 +134,7 @@ export async function createLoanAction(
       customIntervalDays: data.customIntervalDays,
       nonCollectionDays: data.nonCollectionDays,
       termCount: data.termCount,
-      firstDueDate: new Date(`${data.firstDueDate}T00:00:00.000Z`),
+      firstDueDate: primeraCuotaDe(data),
       lateFeeMode: data.lateFeeMode as never,
       lateFeeValue: data.lateFeeValue,
       gracePeriodDays: data.gracePeriodDays,
@@ -202,7 +203,7 @@ export async function updateLoanAction(
         customIntervalDays: data.customIntervalDays,
         nonCollectionDays: data.nonCollectionDays,
         termCount: data.termCount,
-        firstDueDate: new Date(`${data.firstDueDate}T00:00:00.000Z`),
+        firstDueDate: primeraCuotaDe(data),
         lateFeeMode: data.lateFeeMode as never,
         lateFeeValue: data.lateFeeValue,
         gracePeriodDays: data.gracePeriodDays,
@@ -292,6 +293,29 @@ export async function updateLoanChargesAction(
   return { success: t("loans.charges.saved") };
 }
 
+/**
+ * La primera cuota que sale de lo que se escribió en el formulario.
+ *
+ * El formulario pregunta cuándo empieza el préstamo, no cuándo se cobra la
+ * primera cuota: eso lo manda la frecuencia. Se calcula aquí, en el servidor,
+ * para que sea el mismo número pase lo que pase en el navegador.
+ */
+function primeraCuotaDe(data: {
+  startDate: string;
+  frequency: string;
+  customIntervalDays?: number | null;
+  nonCollectionDays?: number[];
+}): Date {
+  return firstDueAfter(
+    new Date(`${data.startDate}T00:00:00.000Z`),
+    data.frequency as never,
+    {
+      customIntervalDays: data.customIntervalDays ?? undefined,
+      nonCollectionDays: data.nonCollectionDays,
+    },
+  );
+}
+
 /** Turns a service or schedule failure into a message the user can read. */
 function loanErrorMessage(error: unknown): string {
   if (error instanceof ChargeError) {
@@ -373,7 +397,7 @@ export async function renewLoanAction(
       customIntervalDays: data.customIntervalDays,
       nonCollectionDays: data.nonCollectionDays,
       termCount: data.termCount,
-      firstDueDate: new Date(`${data.firstDueDate}T00:00:00.000Z`),
+      firstDueDate: primeraCuotaDe(data),
       lateFeeMode: data.lateFeeMode as never,
       lateFeeValue: data.lateFeeValue,
       gracePeriodDays: data.gracePeriodDays,

@@ -30,8 +30,9 @@ import {
   type PaymentFrequency,
   type RateBasis,
 } from "@/core/types";
+import { firstDueAfter, parseDay } from "@/core/dates";
 import { es } from "@/i18n/es";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { useFormAction } from "@/lib/use-form-action";
 
 import { renewLoanAction, type LoanFormState } from "../../actions";
@@ -107,12 +108,24 @@ export function RenewForm({
   );
   const [frequency, setFrequency] = useState<PaymentFrequency>(loan.frequency);
   const [termCount, setTermCount] = useState(String(loan.termCount));
-  const [firstDueDate, setFirstDueDate] = useState(todayIso());
+  const [startDate, setStartDate] = useState(todayIso());
   const [customIntervalDays, setCustomIntervalDays] = useState(
     loan.customIntervalDays ? String(loan.customIntervalDays) : "10",
   );
   const [charges, setCharges] = useState<ChargeRow[]>([]);
   const chargeTotals = summarizeRows(charges);
+
+  // Renovar entrega plata de nuevo, así que vale la misma regla: el día que
+  // se entrega no se cobra. Antes esta pantalla ponía la primera cuota hoy y
+  // creaba justo los préstamos torcidos que hubo que corregir después.
+  const firstDue = useMemo(() => {
+    const dia = parseDay(startDate);
+    if (!dia) return null;
+    return firstDueAfter(dia, frequency, {
+      customIntervalDays: Number(customIntervalDays) || 1,
+      nonCollectionDays: loan.nonCollectionDays,
+    });
+  }, [startDate, frequency, customIntervalDays, loan.nonCollectionDays]);
 
   const money = (value: number) =>
     formatCurrency(value, currencyCode, locale, decimalPlaces);
@@ -153,7 +166,7 @@ export function RenewForm({
           interestMethod,
           frequency,
           termCount: Number(termCount) || 0,
-          firstDueDate: new Date(`${firstDueDate}T00:00:00.000Z`),
+          firstDueDate: firstDue ?? new Date(),
           customIntervalDays: Number(customIntervalDays) || 0,
           nonCollectionDays: loan.nonCollectionDays,
           minorUnitStep: step,
@@ -176,7 +189,7 @@ export function RenewForm({
     interestMethod,
     frequency,
     termCount,
-    firstDueDate,
+    firstDue,
     customIntervalDays,
     loan.nonCollectionDays,
     step,
@@ -383,15 +396,23 @@ export function RenewForm({
                 </Select>
               </Field>
 
-              <Field label={es.loans.firstDueDate} htmlFor="firstDueDate" required>
+              <Field label={es.loans.startDate} htmlFor="startDate" required>
                 <Input
-                  id="firstDueDate"
-                  name="firstDueDate"
+                  id="startDate"
+                  name="startDate"
                   type="date"
                   required
-                  value={firstDueDate}
-                  onChange={(event) => setFirstDueDate(event.target.value)}
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
                 />
+                <p className="mt-1 text-xs text-ink-subtle">
+                  {firstDue
+                    ? es.loans.startDateHint.replace(
+                        "{date}",
+                        formatDate(firstDue, locale),
+                      )
+                    : es.loans.startDateHintEmpty}
+                </p>
               </Field>
 
               {frequency === "CUSTOM" ? (

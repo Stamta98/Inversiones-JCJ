@@ -11,7 +11,8 @@ import {
   canEditTerms,
   lockedReasonKey,
 } from "@/core/loans/editable";
-import type { LoanStatus } from "@/core/types";
+import { startForFirstDue } from "@/core/dates";
+import type { LoanStatus, PaymentFrequency } from "@/core/types";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -134,7 +135,18 @@ export default async function EditLoanPage({
             customIntervalDays: loan.customIntervalDays,
             nonCollectionDays: loan.nonCollectionDays,
             termCount: loan.termCount,
-            firstDueDate: loan.firstDueDate.toISOString().slice(0, 10),
+            // El formulario pide el día de inicio, y del préstamo solo se
+            // tiene la primera cuota: se hace el camino de vuelta. Debajo de
+            // la casilla se ve qué cuota queda, así que si la vuelta no cae
+            // exacta —las frecuencias raras no invierten limpio— se nota
+            // antes de guardar y no después.
+            startDate: startForFirstDue(
+              loan.firstDueDate,
+              loan.frequency as PaymentFrequency,
+              { customIntervalDays: loan.customIntervalDays ?? undefined },
+            )
+              .toISOString()
+              .slice(0, 10),
             lateFeeMode: loan.lateFeeMode,
             lateFeeValue: Number(loan.lateFeeValue),
             gracePeriodDays: loan.gracePeriodDays,
