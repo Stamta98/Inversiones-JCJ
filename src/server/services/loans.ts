@@ -13,6 +13,7 @@ import {
   normalizeCharge,
   summarizeCharges,
   type Charge,
+  type ChargeMode,
 } from "@/core/loans/charges";
 import { allocatePayment } from "@/core/loans/allocation";
 import { canEditAtAll } from "@/core/loans/editable";
@@ -363,7 +364,29 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
     const step = stepForDecimals(
       input.terms?.decimalPlaces ?? input.decimalPlaces ?? 2,
     );
-    const charges = normalizedCharges(input.charges ?? chargesOf(loan), step);
+    // Con la plata ya entregada, cómo se cobra un cargo deja de escogerse.
+    // Descontarle 50.000 a una entrega que ya pasó no le quita nada al
+    // cliente — la plata está en su bolsillo — pero le sumaba 50.000 a la
+    // caja que nadie había dado, y no quedaba ni deuda ni dueño. Un cargo
+    // puesto después queda debiéndose y se cobra aparte; uno que ya venía
+    // conserva el suyo, que era parte del trato el día que se firmó.
+    const charges = normalizedCharges(
+      input.charges === undefined
+        ? chargesOf(loan)
+        : loan.disbursedAt
+          ? input.charges.map((charge) => {
+              const before = loan.charges.find(
+                (saved) =>
+                  saved.name === charge.name.trim().replace(/\s+/g, " "),
+              );
+              return {
+                ...charge,
+                mode: (before?.mode ?? "PENDING") as ChargeMode,
+              };
+            })
+          : input.charges,
+      step,
+    );
     const chargeSummary = summarizeCharges(charges, step);
     const previousDeducted = summarizeCharges(
       normalizedCharges(chargesOf(loan), step),

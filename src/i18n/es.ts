@@ -753,6 +753,11 @@ export const es = {
       // no después.
       editHint:
         "Al guardar se rehacen las cuotas, se vuelve a aplicar lo cobrado y la caja se mueve por la diferencia.",
+      // Con la plata ya entregada no hay cómo descontarle nada al cliente: la
+      // tiene en el bolsillo. Un cargo puesto después queda debiéndose.
+      modeFixed: "no se cambia con el préstamo ya entregado",
+      editHintDisbursed:
+        "El préstamo ya se entregó, así que el cargo queda por cobrar y las cuotas no se tocan. Se lo cobras desde «Registrar cobro».",
       modeHint: {
         DEDUCTED:
           "Si prestas 100.000 y el cargo es 5.000, le entregas 95.000. Debe los 120.000 de siempre y el cargo ya quedó cobrado.",

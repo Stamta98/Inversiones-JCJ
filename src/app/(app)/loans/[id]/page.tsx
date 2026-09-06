@@ -861,6 +861,7 @@ export default async function LoanDetailPage({
             can(context, "loans.update") &&
             canEditAtAll(loan.status as LoanStatus)
           }
+          disbursed={loan.disbursedAt !== null}
         />
       </div>
 

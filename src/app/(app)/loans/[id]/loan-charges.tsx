@@ -46,6 +46,7 @@ export function LoanCharges({
   locale,
   decimalPlaces,
   canEdit,
+  disbursed,
 }: {
   loanId: string;
   charges: Array<{
@@ -65,6 +66,14 @@ export function LoanCharges({
   locale: string;
   decimalPlaces: number;
   canEdit: boolean;
+  /**
+   * Si la plata ya se entregó. Después de entregarla no se puede escoger cómo
+   * se cobra un cargo nuevo: descontarlo de una entrega que ya pasó no le
+   * quita nada al cliente — la plata está en su bolsillo — y solo hacía que la
+   * caja dijera tener 50.000 que nadie le dio. Un cargo puesto después queda
+   * debiéndose, y se cobra aparte.
+   */
+  disbursed: boolean;
 }) {
   const guardadas = (): Row[] =>
     charges.map((charge, index) => ({
@@ -112,7 +121,15 @@ export function LoanCharges({
   const agregar = () => {
     setRows([
       ...rows,
-      { key: siguiente, name: "", amount: "", mode: "DEDUCTED" },
+      // Con la plata ya entregada solo cabe una forma: queda debiéndose. El
+      // servidor lo fuerza igual, pero la fila tiene que decir lo que va a
+      // pasar en vez de enseñar un modo que no se va a guardar.
+      {
+        key: siguiente,
+        name: "",
+        amount: "",
+        mode: disbursed ? "PENDING" : "DEDUCTED",
+      },
     ]);
     setEditando(siguiente);
     setBorrando(null);
@@ -221,31 +238,48 @@ export function LoanCharges({
                   />
                 </Field>
 
-                <Field
-                  label={es.loans.charges.mode}
-                  htmlFor={`chargeMode-${row.key}`}
-                  hint={es.loans.charges.modeHint[row.mode]}
-                >
-                  <Select
-                    id={`chargeMode-${row.key}`}
-                    name="chargeMode"
-                    value={row.mode}
-                    onChange={(event) =>
-                      actualizar(row.key, {
-                        mode: event.target.value as ChargeMode,
-                      })
-                    }
+                {/* Con la plata ya entregada no hay nada que escoger: el
+                    cargo queda debiéndose y se cobra aparte. El modo viaja
+                    escondido igual, porque el servidor recibe la lista
+                    entera. Uno que ya venía de antes conserva el suyo: era
+                    parte del trato el día que se firmó. */}
+                {disbursed ? (
+                  <>
+                    <input type="hidden" name="chargeMode" value={row.mode} />
+                    <p className="text-xs text-ink-muted">
+                      {es.loans.charges.modeLabel[row.mode]} ·{" "}
+                      {es.loans.charges.modeFixed}
+                    </p>
+                  </>
+                ) : (
+                  <Field
+                    label={es.loans.charges.mode}
+                    htmlFor={`chargeMode-${row.key}`}
+                    hint={es.loans.charges.modeHint[row.mode]}
                   >
-                    {CHARGE_MODES.map((mode) => (
-                      <option key={mode} value={mode}>
-                        {es.loans.charges.modeLabel[mode]}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
+                    <Select
+                      id={`chargeMode-${row.key}`}
+                      name="chargeMode"
+                      value={row.mode}
+                      onChange={(event) =>
+                        actualizar(row.key, {
+                          mode: event.target.value as ChargeMode,
+                        })
+                      }
+                    >
+                      {CHARGE_MODES.map((mode) => (
+                        <option key={mode} value={mode}>
+                          {es.loans.charges.modeLabel[mode]}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
 
                 <p className="text-xs text-ink-subtle">
-                  {es.loans.charges.editHint}
+                  {disbursed
+                    ? es.loans.charges.editHintDisbursed
+                    : es.loans.charges.editHint}
                 </p>
 
                 <div className="flex flex-wrap gap-2">
