@@ -12,10 +12,12 @@ import { SortableRows } from "@/components/ui/sortable-rows";
 import { startOfDay } from "@/core/dates";
 import { isManuallyOrdered } from "@/core/ordering";
 import { can, requirePermission } from "@/server/auth/context";
+import { crookedLoans } from "@/server/services/first-due-fix";
 import { db } from "@/server/db";
 import { LOAN_ORDER } from "@/server/services/ordering";
 
 import { moveLoanAction } from "./actions";
+import { FixAllFirstDue } from "./fix-all-first-due";
 
 export const dynamic = "force-dynamic";
 
@@ -114,6 +116,13 @@ export default async function LoansPage({
     ...filters[filter],
   };
 
+  // Los que vienen de antes de la regla de no cobrar el día de la entrega:
+  // se ofrecen para enderezarlos todos juntos, y el aviso se va solo cuando
+  // no queda ninguno.
+  const crooked = can(context, "loans.update")
+    ? await crookedLoans(context.companyId, context.timezone)
+    : [];
+
   const [loans, totals] = await Promise.all([
     db.loan.findMany({
       where,
@@ -171,6 +180,13 @@ export default async function LoansPage({
           ) : null
         }
       />
+
+      {crooked.length > 0 ? (
+        <FixAllFirstDue
+          count={crooked.length}
+          codes={crooked.slice(0, 6).map((loan) => loan.code)}
+        />
+      ) : null}
 
       {/* Cuánto hay en la calle y cuánto ha vuelto. */}
       <Card className="mb-3 p-3">

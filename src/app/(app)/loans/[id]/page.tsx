@@ -26,6 +26,7 @@ import {
   startOfDay,
 } from "@/core/dates";
 import { collectionSnapshot } from "@/core/loans/collection";
+import { chargesOnDeliveryDay } from "@/server/services/first-due-fix";
 import { canEditAtAll } from "@/core/loans/editable";
 import { fromCents, toCents } from "@/core/money";
 import type { LoanStatus } from "@/core/types";
@@ -321,10 +322,15 @@ export default async function LoanDetailPage({
   // que salió la plata, así que se acaba un período antes de lo que debería.
   // Se ofrece correrlo, pero solo mientras el préstamo siga vivo y solo a
   // quien puede editarlo.
-  const chargesOnDeliveryDay =
-    loan.disbursedAt !== null &&
-    firstDueDate.getTime() <= registeredOn.getTime();
-  const shiftedFirst = chargesOnDeliveryDay
+  const torcido = chargesOnDeliveryDay(
+    {
+      status: loan.status,
+      disbursedAt: loan.disbursedAt,
+      installments: [{ dueDate: firstDueDate }],
+    },
+    context.timezone,
+  );
+  const shiftedFirst = torcido
     ? firstDueAfter(loan.disbursedAt!, loan.frequency as never, {
         customIntervalDays: loan.customIntervalDays ?? undefined,
         nonCollectionDays: loan.nonCollectionDays,
@@ -343,7 +349,7 @@ export default async function LoanDetailPage({
         )
       : null;
   const canShift =
-    chargesOnDeliveryDay &&
+    torcido &&
     shiftedFirst !== null &&
     shiftedEnd !== null &&
     can(context, "loans.update") &&

@@ -838,6 +838,12 @@ export const es = {
     shiftFirstDueNotice:
       "Este préstamo cobra la primera cuota el mismo día en que se entregó la plata ({first}), y por eso se acaba el {end} en vez del {proposedEnd}. Es de antes de la regla de no cobrar el día de la entrega.",
     shiftFirstDueAction: "Correr la primera cuota al {to}",
+    fixAllNotice:
+      "Hay {count} préstamos que cobran la primera cuota el mismo día en que se entregó la plata, y por eso se acaban un período antes de lo que deberían. Son de antes de la regla de no cobrar el día de la entrega.",
+    fixAllMore: "y {rest} más",
+    fixAllAction: "Corregir los {count} de una vez",
+    fixAllConfirm:
+      "Se corre la primera cuota de {count} préstamos al día siguiente de la entrega, y con ella todas las demás cuotas.\n\nLo que cada cliente ya haya abonado se vuelve a repartir sobre su plan nuevo, y desde cuándo está atrasado cambia. Solo se tocan los préstamos vivos: los saldados y los anulados se quedan como están.",
     shiftFirstDueConfirm:
       "La primera cuota pasa del {from} al {to}, y el préstamo se acaba el {endTo} en vez del {endFrom}.\n\nTodas las cuotas se corren un período. Lo que el cliente ya haya abonado se vuelve a repartir sobre el plan nuevo, y desde cuándo está atrasado cambia.",
     installmentsOf: "{count} cuotas ({frequency})",
