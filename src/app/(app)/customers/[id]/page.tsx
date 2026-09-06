@@ -19,6 +19,7 @@ import { ageOn } from "@/core/customers/identity";
 import { startOfDay } from "@/core/dates";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
+import { customerDeletionSummary } from "@/server/services/customers";
 import { db } from "@/server/db";
 import { countActiveReports } from "@/server/services/credit";
 
@@ -130,6 +131,13 @@ export default async function CustomerDetailPage({
   });
 
   if (!customer) notFound();
+
+  // Cuántos préstamos, cuánto debe y cuánto había pagado: es lo que el aviso
+  // de borrar tiene que decir antes de llevárselo todo. Solo se pregunta a
+  // quien puede borrar; a los demás no les hace falta.
+  const deletion = can(context, "customers.delete")
+    ? await customerDeletionSummary(context.companyId, customer.id)
+    : null;
 
   const paymentCount = await db.payment.count({
     where: { companyId: context.companyId, loan: { customerId: customer.id } },
@@ -266,6 +274,17 @@ export default async function CustomerDetailPage({
             canCreateLoan={can(context, "loans.create")}
             canEdit={can(context, "customers.update")}
             canDelete={can(context, "customers.delete")}
+            deletion={
+              deletion
+                ? {
+                    ...deletion,
+                    money: {
+                      outstanding: context.money(deletion.outstanding),
+                      paid: context.money(deletion.paid),
+                    },
+                  }
+                : undefined
+            }
             hasAttachments={customer._count.attachments > 0}
             canReport={
               can(context, "credit.create") &&

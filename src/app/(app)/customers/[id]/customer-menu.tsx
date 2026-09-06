@@ -6,6 +6,11 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Icon } from "@/components/ui";
 import { es } from "@/i18n/es";
 
+import {
+  useDeleteCustomer,
+  type DeletionSummary,
+} from "./use-delete-customer";
+
 /**
  * Las acciones del cliente, detrás de los tres puntos.
  *
@@ -20,6 +25,7 @@ export function CustomerMenu({
   canCreateLoan,
   canEdit,
   canDelete,
+  deletion,
   canReport,
   hasAttachments,
 }: {
@@ -29,6 +35,11 @@ export function CustomerMenu({
   canCreateLoan: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  /**
+   * Qué se lleva por delante borrarlo, para poder avisarlo en el momento.
+   * Falta cuando no hay permiso de borrar, que es cuando no hace falta.
+   */
+  deletion?: DeletionSummary;
   /** Reportarlo a la central de riesgo: con permiso y con cédula. */
   canReport: boolean;
   /** Sin fotos guardadas, el renglón llevaría a un cuadro vacío. */
@@ -36,6 +47,10 @@ export function CustomerMenu({
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const { remove, pending } = useDeleteCustomer(
+    customerId,
+    deletion ?? { loans: 0, outstanding: 0, paid: 0, money: { outstanding: "", paid: "" } },
+  );
 
   // Tocar fuera lo cierra, que es lo que uno espera de un menú.
   useEffect(() => {
@@ -173,16 +188,25 @@ export function CustomerMenu({
             </div>
           ) : null}
 
-          {canDelete ? (
+          {canDelete && deletion ? (
             <div className="border-t border-border">
-              <Link
+              {/* Se borra desde aquí. Antes llevaba a la pantalla de editar
+                  a buscar el cuadro del final: un viaje para volver a pedir
+                  lo que ya se había pedido. El aviso de qué se lleva por
+                  delante sigue saliendo, que eso no es el viaje sino el
+                  freno. */}
+              <button
+                type="button"
                 className={danger}
-                href={`/customers/${customerId}/edit#eliminar`}
-                onClick={() => setOpen(false)}
+                disabled={pending}
+                onClick={() => {
+                  setOpen(false);
+                  remove();
+                }}
               >
                 <Icon name="trash" size={16} />
-                {es.customers.delete}
-              </Link>
+                {pending ? es.common.saving : es.customers.delete}
+              </button>
             </div>
           ) : null}
         </div>

@@ -123,8 +123,10 @@ export default async function EditCustomerPage({
         </Card>
       ) : null}
 
-      {/* El menú del cliente enlaza directo aquí, para no hacer buscar el
-          cuadro de eliminar al final de un formulario largo. */}
+      {/* Borrar también se puede desde los tres puntos de la ficha, que es
+          por donde se pide casi siempre. Aquí se queda porque quien vino a
+          corregir un dato y descubre que el cliente estaba repetido no
+          tiene por qué devolverse a buscarlo. */}
       {can(context, "customers.delete") && summary ? (
         <Card className="mt-4 max-w-2xl" id="eliminar">
           <CardHeader title={context.t("customers.delete")} />
