@@ -23,7 +23,6 @@ import { customerDeletionSummary } from "@/server/services/customers";
 import { db } from "@/server/db";
 import { countActiveReports } from "@/server/services/credit";
 
-
 import { PhotoZoom } from "@/components/ui/photo-zoom";
 
 import { CustomerMenu } from "./customer-menu";
@@ -78,15 +77,6 @@ function DetailRow({
 /** La rejilla de los datos: dos por renglón. */
 function DetailGrid({ children }: { children: React.ReactNode }) {
   return <dl className="grid grid-cols-2 gap-x-4 gap-y-3">{children}</dl>;
-}
-
-/** Un rótulo dentro de la ficha, para no dejar quince renglones seguidos. */
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <p className="mt-4 mb-1 text-[0.6875rem] font-semibold tracking-wide text-ink-muted uppercase first:mt-0">
-      {children}
-    </p>
-  );
 }
 
 export default async function CustomerDetailPage({
@@ -287,8 +277,7 @@ export default async function CustomerDetailPage({
             }
             hasAttachments={customer._count.attachments > 0}
             canReport={
-              can(context, "credit.create") &&
-              Boolean(customer.documentNumber)
+              can(context, "credit.create") && Boolean(customer.documentNumber)
             }
           />
         }
@@ -411,11 +400,17 @@ export default async function CustomerDetailPage({
         />
       </div>
 
-      <div className="mt-4 grid items-start gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
-          <CardHeader title={t("customers.singular")} />
+      {/* Los datos del cliente, por temas y en tarjetas sueltas. Antes era
+          una sola columna de un tercio con todo apilado dentro: en el
+          escritorio quedaba un hilo de texto con media pantalla vacía al
+          lado, y en el teléfono había que bajar mucho para llegar al final.
+          Repartidos en la rejilla, cada tema se lee entero y el ancho se
+          usa. En el teléfono la rejilla es de una columna y quedan uno
+          debajo de otro, en el orden en que se preguntan. */}
+      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <Card>
+          <CardHeader title={t("customers.identitySection")} />
           <CardBody>
-            <SectionLabel>{t("customers.identitySection")}</SectionLabel>
             <DetailGrid>
               <DetailRow
                 label={t("customers.documentNumber")}
@@ -448,8 +443,12 @@ export default async function CustomerDetailPage({
                 value={t(`customers.status.${customer.status}`)}
               />
             </DetailGrid>
+          </CardBody>
+        </Card>
 
-            <SectionLabel>{t("customers.contactSection")}</SectionLabel>
+        <Card>
+          <CardHeader title={t("customers.contactSection")} />
+          <CardBody>
             <DetailGrid>
               {/* El número se marca desde aquí: parado en la puerta nadie lo
                   copia a mano para llamar. */}
@@ -491,8 +490,12 @@ export default async function CustomerDetailPage({
                 </LinkButton>
               </div>
             ) : null}
+          </CardBody>
+        </Card>
 
-            <SectionLabel>{t("customers.homeSection")}</SectionLabel>
+        <Card>
+          <CardHeader title={t("customers.homeSection")} />
+          <CardBody>
             <DetailGrid>
               <DetailRow
                 label={t("customers.address")}
@@ -531,10 +534,96 @@ export default async function CustomerDetailPage({
                 {t("customers.openInMaps")}
               </a>
             ) : null}
+          </CardBody>
+        </Card>
 
-            {/* De dónde salió la ficha y quién le cobra: con dos cobradores
-                en la calle son las primeras dos preguntas de la oficina. */}
-            <SectionLabel>{t("customers.registrySection")}</SectionLabel>
+        <Card>
+          <CardHeader title={t("customers.workSection")} />
+          <CardBody>
+            <DetailGrid>
+              <DetailRow
+                label={t("customers.employmentType")}
+                value={
+                  customer.employmentType
+                    ? t(
+                        `customers.employmentTypeLabel.${customer.employmentType}`,
+                      )
+                    : "—"
+                }
+              />
+              <DetailRow
+                label={t("customers.occupation")}
+                value={customer.occupation ?? "—"}
+              />
+              {customer.employmentType === "EMPLOYEE" ? (
+                <DetailRow
+                  label={t("customers.employerName")}
+                  value={customer.employerName ?? "—"}
+                  wide
+                />
+              ) : null}
+              <DetailRow
+                label={t("customers.workNeighborhood")}
+                value={customer.workNeighborhood ?? "—"}
+              />
+              <DetailRow
+                label={t("customers.workAddress")}
+                value={customer.workAddress ?? "—"}
+                wide
+              />
+              <DetailRow
+                label={t("customers.workLandmark")}
+                value={customer.workLandmark ?? "—"}
+                wide
+              />
+              {/* Solo cuando la hay: la mayoría de clientes no trabaja con
+                    vehículo y una fila con raya no dice nada. */}
+              {customer.vehiclePlate ? (
+                <DetailRow
+                  label={t("customers.vehiclePlate")}
+                  value={customer.vehiclePlate}
+                />
+              ) : null}
+              <DetailRow
+                label={t("customers.monthlyIncome")}
+                value={
+                  customer.monthlyIncome
+                    ? money(Number(customer.monthlyIncome))
+                    : "—"
+                }
+              />
+              {/* Cuánto gana y hasta cuánto se le presta, uno al lado del
+                    otro: es la cuenta que uno hace antes de decir que sí. */}
+              <DetailRow
+                label={t("customers.creditLimit")}
+                value={
+                  Number(customer.creditLimit) > 0
+                    ? money(Number(customer.creditLimit))
+                    : t("customers.creditLimitNone")
+                }
+              />
+            </DetailGrid>
+
+            {customer.workLatitude !== null &&
+            customer.workLongitude !== null ? (
+              <a
+                href={mapsUrl(customer.workLatitude, customer.workLongitude)}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand-strong hover:underline"
+              >
+                <Icon name="map-pin" size={14} />
+                {t("customers.openInMaps")}
+              </a>
+            ) : null}
+          </CardBody>
+        </Card>
+
+        {/* De dónde salió la ficha y quién le cobra: con dos cobradores en
+            la calle son las primeras dos preguntas de la oficina. */}
+        <Card>
+          <CardHeader title={t("customers.registrySection")} />
+          <CardBody>
             <DetailGrid>
               <DetailRow
                 wide
@@ -591,103 +680,21 @@ export default async function CustomerDetailPage({
               />
             </DetailGrid>
           </CardBody>
-
-          <CardHeader title={t("customers.workSection")} />
-          <CardBody>
-            <DetailGrid>
-              <DetailRow
-                label={t("customers.employmentType")}
-                value={
-                  customer.employmentType
-                    ? t(
-                        `customers.employmentTypeLabel.${customer.employmentType}`,
-                      )
-                    : "—"
-                }
-              />
-              <DetailRow
-                label={t("customers.occupation")}
-                value={customer.occupation ?? "—"}
-              />
-              {customer.employmentType === "EMPLOYEE" ? (
-                <DetailRow
-                  label={t("customers.employerName")}
-                  value={customer.employerName ?? "—"}
-                  wide
-                />
-              ) : null}
-              <DetailRow
-                label={t("customers.workNeighborhood")}
-                value={customer.workNeighborhood ?? "—"}
-              />
-              <DetailRow
-                label={t("customers.workAddress")}
-                value={customer.workAddress ?? "—"}
-                wide
-              />
-              <DetailRow
-                label={t("customers.workLandmark")}
-                value={customer.workLandmark ?? "—"}
-                wide
-              />
-              {/* Solo cuando la hay: la mayoría de clientes no trabaja con
-                  vehículo y una fila con raya no dice nada. */}
-              {customer.vehiclePlate ? (
-                <DetailRow
-                  label={t("customers.vehiclePlate")}
-                  value={customer.vehiclePlate}
-                />
-              ) : null}
-              <DetailRow
-                label={t("customers.monthlyIncome")}
-                value={
-                  customer.monthlyIncome
-                    ? money(Number(customer.monthlyIncome))
-                    : "—"
-                }
-              />
-              {/* Cuánto gana y hasta cuánto se le presta, uno al lado del
-                  otro: es la cuenta que uno hace antes de decir que sí. */}
-              <DetailRow
-                label={t("customers.creditLimit")}
-                value={
-                  Number(customer.creditLimit) > 0
-                    ? money(Number(customer.creditLimit))
-                    : t("customers.creditLimitNone")
-                }
-              />
-            </DetailGrid>
-
-            {customer.workLatitude !== null &&
-            customer.workLongitude !== null ? (
-              <a
-                href={mapsUrl(customer.workLatitude, customer.workLongitude)}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand-strong hover:underline"
-              >
-                <Icon name="map-pin" size={14} />
-                {t("customers.openInMaps")}
-              </a>
-            ) : null}
-          </CardBody>
-
-          {/* La nota se podía escribir desde que existe el formulario, pero
-              no se veía en ninguna parte: quedaba guardada y perdida. */}
-          {customer.notes ? (
-            <>
-              <CardHeader title={t("common.notes")} />
-              <CardBody>
-                <p className="text-sm whitespace-pre-line text-ink">
-                  {customer.notes}
-                </p>
-              </CardBody>
-            </>
-          ) : null}
         </Card>
 
-        <div className="space-y-4 lg:col-span-2">
-        </div>
+        {/* La nota se podía escribir desde que existe el formulario,
+            pero no se veía en ninguna parte: quedaba guardada y perdida.
+            Ya no se puede escribir una nueva, pero lo escrito se lee. */}
+        {customer.notes ? (
+          <Card>
+            <CardHeader title={t("common.notes")} />
+            <CardBody>
+              <p className="text-sm whitespace-pre-line text-ink">
+                {customer.notes}
+              </p>
+            </CardBody>
+          </Card>
+        ) : null}
       </div>
     </>
   );
