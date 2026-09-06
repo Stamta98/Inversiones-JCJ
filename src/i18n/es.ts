@@ -1074,8 +1074,6 @@ export const es = {
     reversed: "Anulado",
     // Qué se está cobrando: la cuota del préstamo, o un cargo que se le cobra
     // al cliente aparte y que no baja lo que debe.
-    methodGroup: "Cómo te paga",
-    conceptGroup: "O cóbrale otra cosa",
     conceptLabel: {
       INSTALLMENT: "Cuota del préstamo",
       LATE_FEE: "Mora",

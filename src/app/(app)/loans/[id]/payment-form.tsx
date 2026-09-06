@@ -157,20 +157,22 @@ export function PaymentForm({
                 setAmount(otraCosa ? "" : show(suggestedAmount));
               }}
             >
-              <optgroup label={es.payments.methodGroup}>
-                {COLLECT_METHODS.map((method) => (
-                  <option key={method} value={method}>
-                    {es.payments.methodLabel[method]}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label={es.payments.conceptGroup}>
-                {CONCEPTS.map((value) => (
-                  <option key={value} value={value}>
-                    {es.payments.conceptLabel[value]}
-                  </option>
-                ))}
-              </optgroup>
+              {/* Los cuatro seguidos, sin rótulos de grupo. Separarlos en
+                  "cómo te paga" y "o cóbrale otra cosa" sonaba bien escrito
+                  pero en el teléfono son dos renglones de texto en medio de
+                  una lista de cuatro cosas: estorban más de lo que explican,
+                  y lo que hace cada opción ya lo dice la línea de abajo del
+                  desplegable. */}
+              {COLLECT_METHODS.map((method) => (
+                <option key={method} value={method}>
+                  {es.payments.methodLabel[method]}
+                </option>
+              ))}
+              {CONCEPTS.map((value) => (
+                <option key={value} value={value}>
+                  {es.payments.conceptLabel[value]}
+                </option>
+              ))}
             </Select>
           </Field>
         </div>
