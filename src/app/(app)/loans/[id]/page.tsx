@@ -436,19 +436,20 @@ export default async function LoanDetailPage({
     (installment) => installment.dueDate.getTime() < today.getTime(),
   ).length;
   const lateFees = Number(loan.totalLateFees);
+  // Si de verdad hay atraso. Lo pendiente incluye la cuota que vence hoy, que
+  // todavía no es atraso: pintarla de rojo era acusar de moroso a quien está
+  // al día porque el cobrador no había pasado.
+  const late = overdueCount > 0 || daysExpired > 0;
 
-  // La barra va por plata, no por cuotas: un abono a medias también avanza.
-  const dueTotal =
-    Number(loan.totalPrincipal) +
-    Number(loan.totalInterest) +
-    Number(loan.totalLateFees);
-  const paidPercent =
-    dueTotal > 0
-      ? Math.min(100, Math.round((Number(loan.totalPaid) / dueTotal) * 100))
-      : 0;
-
-  const displayStatus =
-    loan.status === "ACTIVE" && overdueCount > 0 ? "IN_ARREARS" : loan.status;
+  // Cada cuánto se cobra, dicho entero. «Personalizado» a secas no dice nada:
+  // el cobrador necesita saber si son quince días o son cuarenta y cinco.
+  const frequencyText =
+    loan.frequency === "CUSTOM" && loan.customIntervalDays
+      ? t("loans.customEveryDays").replace(
+          "{days}",
+          String(loan.customIntervalDays),
+        )
+      : t(`loans.frequencyLabel.${loan.frequency}`);
 
   // Los renglones de la cuenta y su total, armados de una vez: el total es la
   // suma de lo que se ve, no otra cuenta por su lado que pueda decir algo
@@ -467,6 +468,18 @@ export default async function LoanDetailPage({
     { label: t("loans.lateFeeOwed"), value: lateFees },
   ].filter((row) => row.value > 0);
   const totalToPay = accountRows.reduce((total, row) => total + row.value, 0);
+
+  // La barra va por plata, no por cuotas: un abono a medias también avanza.
+  // Se mide contra el mismo total que se enseña, no contra uno propio: medida
+  // contra capital más interés, un préstamo con cargo en las cuotas llegaba al
+  // 100% debiendo todavía el cargo.
+  const paidPercent =
+    totalToPay > 0
+      ? Math.min(100, Math.round((Number(loan.totalPaid) / totalToPay) * 100))
+      : 0;
+
+  const displayStatus =
+    loan.status === "ACTIVE" && overdueCount > 0 ? "IN_ARREARS" : loan.status;
 
   return (
     <>
@@ -675,9 +688,7 @@ export default async function LoanDetailPage({
           compact
         />
         <StatCard
-          label={`${t("loans.installment")} · ${t(
-            `loans.frequencyLabel.${loan.frequency}`,
-          )}`}
+          label={`${t("loans.installment")} · ${frequencyText}`}
           value={money(installmentAmount)}
           compact
         />
@@ -694,12 +705,26 @@ export default async function LoanDetailPage({
           que se dicen en la puerta, y en un renglón de lista se perdían entre
           las demás. */}
       {catchUp > 0 ? (
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-[--radius-card] border border-danger-soft bg-danger-soft/40 p-3">
+        <div
+          className={`mt-3 flex items-center justify-between gap-3 rounded-[--radius-card] border p-3 ${
+            late
+              ? "border-danger-soft bg-danger-soft/40"
+              : "border-warning-soft bg-warning-soft/40"
+          }`}
+        >
           <span>
-            <span className="block text-xs font-semibold text-danger">
-              {t("loans.overdueBalance")}
+            <span
+              className={`block text-xs font-semibold ${
+                late ? "text-danger" : "text-warning"
+              }`}
+            >
+              {t("loans.pendingToPay")}
             </span>
-            <span className="numeric block text-lg font-bold text-danger">
+            <span
+              className={`numeric block text-lg font-bold ${
+                late ? "text-danger" : "text-ink"
+              }`}
+            >
               {money(catchUp)}
             </span>
           </span>
@@ -719,7 +744,11 @@ export default async function LoanDetailPage({
           la más vieja. */}
       {collect.nextDueDate &&
       openLoan &&
-      collect.nextDueDate.getTime() >= today.getTime() ? (
+      collect.nextDueDate.getTime() >= today.getTime() &&
+      // Y no cuando dice lo mismo que la franja de arriba: si lo único
+      // pendiente es la cuota de hoy, las dos daban la misma cifra y la misma
+      // fecha, una debajo de la otra.
+      (collect.nextDueDate.getTime() > today.getTime() || catchUp === 0) ? (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-[--radius-card] border border-warning-soft bg-warning-soft/40 p-3">
           <span>
             <span className="block text-xs font-semibold text-warning">
@@ -845,10 +874,7 @@ export default async function LoanDetailPage({
                     value: money(installmentAmount),
                   }
                 : null,
-              {
-                label: t("loans.frequencyLabelShort"),
-                value: t(`loans.frequencyLabel.${loan.frequency}`),
-              },
+              { label: t("loans.frequencyLabelShort"), value: frequencyText },
               { label: t("loans.startLabel"), value: formatDate(startedOn) },
               // El día en que empieza el cobro solo cuando no es el mismo en
               // que salió la plata: repetir la fecha no dice nada.
@@ -923,7 +949,7 @@ export default async function LoanDetailPage({
                     }
                   : null,
                 catchUp > 0
-                  ? { label: t("loans.overdueBalance"), value: money(catchUp) }
+                  ? { label: t("loans.pendingToPay"), value: money(catchUp) }
                   : null,
                 collect.overdueSince
                   ? {
@@ -945,8 +971,14 @@ export default async function LoanDetailPage({
                 .filter((row) => row !== null)
                 .map((row) => (
                   <p key={row.label} className="flex justify-between gap-3">
-                    <span className="text-danger">{row.label}</span>
-                    <span className="numeric font-semibold text-danger">
+                    <span className={late ? "text-danger" : "text-ink-muted"}>
+                      {row.label}
+                    </span>
+                    <span
+                      className={`numeric font-semibold ${
+                        late ? "text-danger" : "text-ink"
+                      }`}
+                    >
                       {row.value}
                     </span>
                   </p>
@@ -1066,9 +1098,7 @@ export default async function LoanDetailPage({
           title={t("loans.schedule")}
           description={[
             t(`loans.method.${loan.interestMethod}`),
-            loan.frequency === "CUSTOM" && loan.customIntervalDays
-              ? `${t("loans.frequencyLabel.CUSTOM")} (${loan.customIntervalDays} días)`
-              : t(`loans.frequencyLabel.${loan.frequency}`),
+            frequencyText,
             loan.nonCollectionDays.length > 0
               ? `${t("loans.nonCollectionDays")}: ${loan.nonCollectionDays
                   .map((day) => t(`loans.weekday.${day}`))

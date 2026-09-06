@@ -825,7 +825,10 @@ export const es = {
     nextShort: "Siguiente",
     // Lo que el cliente tendría que pagar hoy para quedar al corriente, y de
     // cuántas cuotas y cada cuánto es el crédito.
-    overdueBalance: "Saldo atrasado",
+    // Lo que ya debería estar pagado, contando la cuota que vence hoy. No es
+    // «atrasado»: el día que la cuota vence todavía no hay atraso, y decirle
+    // atrasado a un cliente que está al día es una pelea en la puerta.
+    pendingToPay: "Pendiente a pagar",
     // Cuántas de las que ya pasaron de fecha están sin pagar: «13 de 26» dice
     // mucho más que un 13 suelto.
     overdueOfDue: "de {count} vencidas",
@@ -839,6 +842,9 @@ export const es = {
     lastPaymentDate: "Fecha últ. pago",
     createdOn: "Fecha de creación",
     frequencyLabelShort: "Frecuencia",
+    // «Personalizado» no dice cada cuánto se cobra, que es justo lo que hay
+    // que saber para salir a cobrarlo.
+    customEveryDays: "Cada {days} días",
     detailsTitle: "Detalles del préstamo",
     detailsHint: "Todo lo de este crédito en un solo lugar.",
     // Los renglones del plan, que antes vivían sueltos en tiras de cuadritos.
