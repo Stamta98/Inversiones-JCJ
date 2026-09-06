@@ -144,7 +144,13 @@ export default async function LoanDetailPage({
           kind: "CHARGE_COLLECTED",
           chargeName: { not: null },
         },
-        select: { id: true, amount: true, chargeName: true, createdAt: true },
+        select: {
+          id: true,
+          amount: true,
+          chargeName: true,
+          createdAt: true,
+          createdById: true,
+        },
         orderBy: { createdAt: "desc" },
       }),
     ]);
@@ -166,9 +172,12 @@ export default async function LoanDetailPage({
   // nombres se buscan de una vez para los recibos que se van a mostrar.
   const collectorIds = [
     ...new Set(
-      loan.payments
-        .map((payment) => payment.collectedById)
-        .filter((id): id is string => Boolean(id)),
+      [
+        ...loan.payments.map((payment) => payment.collectedById),
+        // Un cargo cobrado aparte también lo recibió alguien, y va en el
+        // mismo historial: sin su nombre el renglón sale sin dueño.
+        ...chargesApart.map((charge) => charge.createdById),
+      ].filter((id): id is string => Boolean(id)),
     ),
   ];
   const collectors = new Map(
@@ -204,6 +213,21 @@ export default async function LoanDetailPage({
       value: Number(applied._sum.chargeAmount ?? 0),
       tone: "text-ink",
     },
+    // El cargo cobrado en la puerta no entró a ninguna cuota, así que no está
+    // en ninguno de los cuatro de arriba. Sin este recuadro los renglones del
+    // historial sumaban más de lo que los recuadros decían.
+    ...(chargesApart.length > 0
+      ? [
+          {
+            label: t("payments.summary.chargeApart"),
+            value: chargesApart.reduce(
+              (total, charge) => total + Number(charge.amount),
+              0,
+            ),
+            tone: "text-positive",
+          },
+        ]
+      : []),
   ];
 
   const rawPhone = loan.customer.mobilePhone ?? loan.customer.phone;
@@ -1036,7 +1060,7 @@ export default async function LoanDetailPage({
 
         <Card>
           <CardHeader title={t("payments.historyTitle")} />
-          {loan.payments.length === 0 ? (
+          {loan.payments.length === 0 && chargesApart.length === 0 ? (
             <CardBody>
               <p className="text-sm text-ink-muted">
                 {t("payments.emptyHint")}
@@ -1047,7 +1071,14 @@ export default async function LoanDetailPage({
               {/* Para dónde se fue todo lo que el cliente ha pagado. Es la
                 pregunta que sigue a "¿cuánto he pagado?": si abonó 400.000 y
                 el saldo bajó 300.000, los otros 100.000 están aquí. */}
-              <div className="grid grid-cols-4 divide-x divide-border border-b border-border px-3 py-2.5">
+              {/* En el teléfono van de a dos: en una sola fila, «$1.262.500»
+                  se montaba encima del de al lado. De tableta para arriba
+                  caben todos en fila con su raya en medio. */}
+              <div
+                className={`grid grid-cols-2 gap-y-2.5 border-b border-border px-3 py-2.5 sm:gap-y-0 sm:divide-x sm:divide-border ${
+                  appliedTiles.length > 4 ? "sm:grid-cols-5" : "sm:grid-cols-4"
+                }`}
+              >
                 {appliedTiles.map((tile) => (
                   <div key={tile.label} className="px-1 text-center">
                     <p className="text-[0.625rem] font-medium tracking-wide text-ink-muted uppercase">
@@ -1072,7 +1103,7 @@ export default async function LoanDetailPage({
                 </thead>
                 <tbody>
                   {(() => {
-                    const rows = loan.payments.map((payment, index) => {
+                    const paymentRows = loan.payments.map((payment, index) => {
                       // El saldo con el que quedó el cliente ese día: lo que debe
                       // hoy más todo lo que abonó después. Los recibos vienen del
                       // más nuevo al más viejo, así que "después" son los de
@@ -1123,84 +1154,160 @@ export default async function LoanDetailPage({
                         : null;
                       const posted = payment.status === "POSTED";
 
-                      return (
-                        <tr key={payment.id}>
-                          {/* El día que se cobró y la hora en que quedó
+                      return {
+                        at: payment.paidAt,
+                        node: (
+                          <tr key={payment.id}>
+                            {/* El día que se cobró y la hora en que quedó
                             registrado; el recibo se abre desde aquí, que era
                             lo único que hacía falta de su número. */}
-                          <Td numeric>
-                            <Link
-                              href={`/payments/${payment.id}`}
-                              className="font-medium text-brand-strong hover:underline"
-                            >
-                              {formatDate(payment.paidAt)}
-                            </Link>{" "}
-                            <span className="numeric text-ink-muted">
-                              {formatTime(
-                                payment.createdAt,
-                                context.locale,
-                                context.timezone,
-                              )}
-                            </span>
-                            {collector ? (
-                              <span className="mt-0.5 block text-[0.6875rem] text-ink-subtle">
-                                {t("payments.collectedByShort").replace(
-                                  "{name}",
-                                  collector,
+                            <Td numeric>
+                              <Link
+                                href={`/payments/${payment.id}`}
+                                className="font-medium text-brand-strong hover:underline"
+                              >
+                                {formatDate(payment.paidAt)}
+                              </Link>{" "}
+                              <span className="numeric text-ink-muted">
+                                {formatTime(
+                                  payment.createdAt,
+                                  context.locale,
+                                  context.timezone,
                                 )}
                               </span>
-                            ) : null}
-                          </Td>
-                          <Td>{t(`payments.methodLabel.${payment.method}`)}</Td>
-                          <Td align="right" numeric>
-                            {/* Un abono anulado no entró: sin la columna de
+                              {collector ? (
+                                <span className="mt-0.5 block text-[0.6875rem] text-ink-subtle">
+                                  {t("payments.collectedByShort").replace(
+                                    "{name}",
+                                    collector,
+                                  )}
+                                </span>
+                              ) : null}
+                            </Td>
+                            <Td>
+                              {t(`payments.methodLabel.${payment.method}`)}
+                            </Td>
+                            <Td align="right" numeric>
+                              {/* Un abono anulado no entró: sin la columna de
                               estado, se nota tachado. */}
-                            <span
-                              className={
-                                posted
-                                  ? "font-medium"
-                                  : "text-ink-subtle line-through"
-                              }
+                              <span
+                                className={
+                                  posted
+                                    ? "font-medium"
+                                    : "text-ink-subtle line-through"
+                                }
+                              >
+                                {money(Number(payment.amount))}
+                              </span>
+                              {!posted ? (
+                                <span className="mt-0.5 block text-[0.6875rem] font-medium text-danger">
+                                  {t(`payments.statusLabel.${payment.status}`)}
+                                </span>
+                              ) : null}
+                              {splitText ? (
+                                <span className="numeric mt-0.5 block text-[0.6875rem] text-ink-subtle">
+                                  {splitText}
+                                </span>
+                              ) : null}
+                            </Td>
+                            <Td
+                              align="right"
+                              numeric
+                              className="text-ink-muted"
                             >
-                              {money(Number(payment.amount))}
-                            </span>
-                            {!posted ? (
-                              <span className="mt-0.5 block text-[0.6875rem] font-medium text-danger">
-                                {t(`payments.statusLabel.${payment.status}`)}
-                              </span>
-                            ) : null}
-                            {splitText ? (
-                              <span className="numeric mt-0.5 block text-[0.6875rem] text-ink-subtle">
-                                {splitText}
-                              </span>
-                            ) : null}
-                          </Td>
-                          <Td align="right" numeric className="text-ink-muted">
-                            {posted ? money(balanceAfter) : "—"}
-                          </Td>
-                          {canReverse ? (
-                            <Td align="right">
-                              {/* El recibo de una refinanciación no se toca desde
+                              {posted ? money(balanceAfter) : "—"}
+                            </Td>
+                            {canReverse ? (
+                              <Td align="right">
+                                {/* El recibo de una refinanciación no se toca desde
                             aquí: devolvería el saldo dejando vivo el préstamo
                             que se lo llevó, y el cliente quedaría debiendo dos
                             veces lo mismo. Se deshace anulando ese préstamo. */}
-                              {payment.method === "REFINANCE" ? null : (
-                                <span className="flex items-center justify-end gap-0.5">
-                                  <LinkButton
-                                    href={`/payments/${payment.id}`}
-                                    variant="ghost"
-                                    size="sm"
-                                    icon="pencil"
-                                    aria-label={t("payments.edit")}
-                                  />
-                                  <DeletePaymentButton paymentId={payment.id} />
-                                </span>
-                              )}
-                            </Td>
-                          ) : null}
-                        </tr>
-                      );
+                                {payment.method === "REFINANCE" ? null : (
+                                  <span className="flex items-center justify-end gap-0.5">
+                                    <LinkButton
+                                      href={`/payments/${payment.id}`}
+                                      variant="ghost"
+                                      size="sm"
+                                      icon="pencil"
+                                      aria-label={t("payments.edit")}
+                                    />
+                                    <DeletePaymentButton
+                                      paymentId={payment.id}
+                                    />
+                                  </span>
+                                )}
+                              </Td>
+                            ) : null}
+                          </tr>
+                        ),
+                      };
                     });
+
+                    // Un cargo cobrado en la puerta es plata que el cliente
+                    // entregó por este préstamo, así que va en el mismo
+                    // historial y en su fecha. No baja lo que debe — por eso
+                    // la columna del saldo va en raya y no repite el número
+                    // anterior, que se leería como si el saldo se hubiera
+                    // quedado quieto por el abono.
+                    const chargeRows = chargesApart.map((charge) => {
+                      const who = charge.createdById
+                        ? collectors.get(charge.createdById)
+                        : null;
+                      return {
+                        at: charge.createdAt,
+                        node: (
+                          <tr key={charge.id}>
+                            <Td numeric>
+                              <span className="font-medium text-ink">
+                                {formatDate(
+                                  dayIn(charge.createdAt, context.timezone),
+                                )}
+                              </span>{" "}
+                              <span className="numeric text-ink-muted">
+                                {formatTime(
+                                  charge.createdAt,
+                                  context.locale,
+                                  context.timezone,
+                                )}
+                              </span>
+                              {who ? (
+                                <span className="mt-0.5 block text-[0.6875rem] text-ink-subtle">
+                                  {t("payments.collectedByShort").replace(
+                                    "{name}",
+                                    who,
+                                  )}
+                                </span>
+                              ) : null}
+                            </Td>
+                            <Td>{t("payments.conceptLabel.CHARGE")}</Td>
+                            <Td align="right" numeric>
+                              <span className="font-medium">
+                                {money(Number(charge.amount))}
+                              </span>
+                              <span className="numeric mt-0.5 block text-[0.6875rem] text-ink-subtle">
+                                {charge.chargeName}
+                              </span>
+                            </Td>
+                            <Td
+                              align="right"
+                              numeric
+                              className="text-ink-muted"
+                            >
+                              —
+                            </Td>
+                            {canReverse ? <Td align="right">{""}</Td> : null}
+                          </tr>
+                        ),
+                      };
+                    });
+
+                    // Todo junto y en orden, del más nuevo al más viejo: el
+                    // cliente pregunta "¿qué le entregué?" sin separar en su
+                    // cabeza los abonos de los cargos.
+                    const rows = [...paymentRows, ...chargeRows]
+                      .sort((a, b) => b.at.getTime() - a.at.getTime())
+                      .map((row) => row.node);
 
                     // Los tres últimos a la vista; los demás detrás de la
                     // línea, que es lo que se abre cuando el cliente reclama
