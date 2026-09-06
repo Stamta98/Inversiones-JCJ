@@ -36,7 +36,6 @@ import { db } from "@/server/db";
 import { LOAN_ORDER } from "@/server/services/ordering";
 
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
-import { ShareDocument } from "@/components/ui/share-document";
 
 import { DeletePaymentButton } from "../../payments/delete-payment-button";
 import { HistoryMore } from "./history-more";
@@ -925,29 +924,6 @@ export default async function LoanDetailPage({
           </Card>
         </div>
       ) : null}
-
-      <div className="mt-4">
-        <Card>
-          <CardHeader
-            title={t("loans.documentTitle")}
-            description={t("loans.documentHint")}
-          />
-          <CardBody>
-            <ShareDocument
-              url={`/api/loans/${loan.id}/pdf`}
-              fileName={`${loan.code}.pdf`}
-              mimeType="application/pdf"
-              message={documentMessage}
-              phone={customerPhone}
-              shareLabel={t("loans.sharePdf")}
-              downloadLabel={t("loans.downloadPdf")}
-              busyLabel={t("payments.sharing")}
-              fallbackLabel={t("payments.shareFallback")}
-              downloadIcon="file-text"
-            />
-          </CardBody>
-        </Card>
-      </div>
 
       <div className="mt-4 space-y-4">
         <CollapsibleCard
