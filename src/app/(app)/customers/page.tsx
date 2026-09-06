@@ -297,21 +297,39 @@ export default async function CustomersPage({
                         decirlo dos veces sobra. Los viejos llevan el
                         correlativo CLI-000003, y ese sí va aparte, con el
                         prefijo y los ceros quitados para que se lea. */}
-                    <span className="mt-0.5 block truncate text-xs text-ink-muted">
+                    {/* El iconito de la cédula va pegado al número, para que
+                        de un vistazo se sepa que ese número es el documento y
+                        no el correlativo del cliente. El mismo que lleva en su
+                        ficha y en el préstamo. */}
+                    <span className="mt-0.5 flex items-center gap-1 truncate text-xs text-ink-muted">
                       {customer.code === customer.documentNumber ? (
-                        <span className="numeric font-semibold text-brand-strong">
-                          {customer.documentNumber}
-                        </span>
+                        <>
+                          <span className="numeric font-semibold text-brand-strong">
+                            {customer.documentNumber}
+                          </span>
+                          <Icon
+                            name="credit-card"
+                            size={12}
+                            className="shrink-0 text-ink-subtle"
+                          />
+                        </>
                       ) : (
                         <>
                           <span className="numeric font-semibold text-brand-strong">
                             #{customer.code.replace(/^CLI-0*/, "")}
                           </span>
                           {customer.documentNumber ? (
-                            <span className="numeric">
-                              {" · "}
-                              {customer.documentNumber}
-                            </span>
+                            <>
+                              <span className="numeric">
+                                {" · "}
+                                {customer.documentNumber}
+                              </span>
+                              <Icon
+                                name="credit-card"
+                                size={12}
+                                className="shrink-0 text-ink-subtle"
+                              />
+                            </>
                           ) : null}
                         </>
                       )}
