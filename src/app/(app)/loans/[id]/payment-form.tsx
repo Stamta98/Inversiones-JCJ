@@ -65,6 +65,10 @@ export function PaymentForm({
     "INSTALLMENT",
   );
   const cobrandoCargo = concept === "CHARGE";
+  // La forma de pago se guarda aparte del desplegable: mientras se cobra un
+  // cargo la lista enseña "Cargo adicional", y al volver a una cuota tiene
+  // que reaparecer la que estaba escogida, no la de por defecto.
+  const [metodo, setMetodo] = useState("CASH");
 
   const [amount, setAmount] = useState(() => show(suggestedAmount));
   // Cuántas cuotas cubre lo que hay en el campo. Null cuando el cobrador
@@ -126,33 +130,60 @@ export function PaymentForm({
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {/* Lo primero, porque cambia lo que significa todo lo de abajo. */}
+        {/* Una sola lista para las dos preguntas. Puede parecer que mezcla
+            —cómo paga y qué paga—, pero un cargo cobrado aparte no guarda
+            forma de pago en ninguna parte: lo que dice dónde cayó la plata es
+            la caja que se escoge abajo. Así que donde iría el método de un
+            cargo no hay nada que perder, y el cobrador encuentra el cargo
+            donde lo busca en vez de en un desplegable aparte. */}
         <div className="sm:col-span-2">
           <Field
-            label={es.payments.concept}
-            htmlFor="concept"
+            label={es.payments.method}
+            htmlFor="method"
             hint={es.payments.conceptHint[concept]}
           >
             <Select
-              id="concept"
-              name="concept"
-              value={concept}
+              id="method"
+              value={cobrandoCargo ? "CHARGE" : metodo}
               onChange={(event) => {
-                const next = event.target.value as "INSTALLMENT" | "CHARGE";
-                setConcept(next);
+                const value = event.target.value;
+                const cargo = value === "CHARGE";
+                if (!cargo) setMetodo(value);
+                setConcept(cargo ? "CHARGE" : "INSTALLMENT");
                 // Al pasar a cargo el campo queda en blanco: la cuota que
                 // proponía no tiene nada que ver con lo que vale el cargo.
                 setCount(null);
-                setAmount(next === "CHARGE" ? "" : show(suggestedAmount));
+                setAmount(cargo ? "" : show(suggestedAmount));
               }}
             >
-              <option value="INSTALLMENT">
-                {es.payments.conceptLabel.INSTALLMENT}
-              </option>
-              <option value="CHARGE">{es.payments.conceptLabel.CHARGE}</option>
+              <optgroup label={es.payments.methodGroup}>
+                {METHODS.map((method) => (
+                  <option key={method} value={method}>
+                    {es.payments.methodLabel[method]}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label={es.payments.conceptGroup}>
+                <option value="CHARGE">
+                  {es.payments.conceptLabel.CHARGE}
+                </option>
+              </optgroup>
             </Select>
           </Field>
         </div>
+
+        {/* Lo que de verdad se manda: la lista de arriba contesta las dos
+            cosas, pero el servidor las recibe separadas como siempre. */}
+        <input
+          type="hidden"
+          name="concept"
+          value={cobrandoCargo ? "CHARGE" : "INSTALLMENT"}
+        />
+        <input
+          type="hidden"
+          name="method"
+          value={cobrandoCargo ? "CASH" : metodo}
+        />
 
         {cobrandoCargo ? (
           <div className="sm:col-span-2">
@@ -232,21 +263,6 @@ export function PaymentForm({
             </div>
           </Field>
         </div>
-
-        {/* La forma de pago es de un abono. Un cargo no la guarda en ninguna
-            parte —lo que dice dónde cayó la plata es la caja que se escoge—,
-            así que no se pregunta lo que después se iba a botar. */}
-        {cobrandoCargo ? null : (
-          <Field label={es.payments.method} htmlFor="method">
-            <Select id="method" name="method" defaultValue="CASH">
-              {METHODS.map((method) => (
-                <option key={method} value={method}>
-                  {es.payments.methodLabel[method]}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        )}
 
         <Field label={es.payments.paidAt} htmlFor="paidAt">
           <Input
