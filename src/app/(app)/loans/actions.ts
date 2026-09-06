@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { firstDueAfter } from "@/core/dates";
 import { ChargeError } from "@/core/loans/charges";
 import { RenewalError } from "@/core/loans/renewal";
 import { ScheduleError } from "@/core/loans/schedule";
@@ -446,6 +447,78 @@ const moveLoanSchema = z.object({
   targetId: z.string().optional(),
   placement: z.enum(["before", "after", "top"]),
 });
+
+/**
+ * Corre el plan de un préstamo que cobra el mismo día en que se entregó.
+ *
+ * El día que se entrega la plata no se cobra: la primera cuota cae un período
+ * después. Los préstamos hechos antes de esa regla arrancan el mismo día, y
+ * por eso se acaban un día antes de lo que deberían — treinta cuotas diarias
+ * entregadas el 11 terminaban el 9 en vez del 10.
+ *
+ * Esto no lo arregla solo ni a escondidas: lo pide alguien desde el préstamo,
+ * uno por uno, porque mover las fechas de un crédito que el cliente ya está
+ * pagando es algo que hay que querer hacer. El plan se rehace con el servicio
+ * de siempre, así que lo ya cobrado se vuelve a repartir sobre el plan nuevo.
+ */
+export async function shiftFirstDueAction(formData: FormData): Promise<void> {
+  const context = await requirePermission("loans.update");
+  const loanId = String(formData.get("loanId") ?? "");
+  if (!loanId) return;
+
+  const loan = await db.loan.findFirst({
+    where: { id: loanId, companyId: context.companyId },
+    select: {
+      id: true,
+      disbursedAt: true,
+      createdAt: true,
+      principal: true,
+      interestRate: true,
+      rateBasis: true,
+      interestMethod: true,
+      frequency: true,
+      customIntervalDays: true,
+      nonCollectionDays: true,
+      termCount: true,
+      lateFeeMode: true,
+      lateFeeValue: true,
+      gracePeriodDays: true,
+    },
+  });
+  if (!loan) return;
+
+  await updateLoan({
+    companyId: context.companyId,
+    loanId,
+    terms: {
+      principal: Number(loan.principal),
+      interestRate: Number(loan.interestRate),
+      rateBasis: loan.rateBasis as never,
+      interestMethod: loan.interestMethod as never,
+      frequency: loan.frequency as never,
+      customIntervalDays: loan.customIntervalDays,
+      nonCollectionDays: loan.nonCollectionDays,
+      termCount: loan.termCount,
+      firstDueDate: firstDueAfter(
+        loan.disbursedAt ?? loan.createdAt,
+        loan.frequency as never,
+        {
+          customIntervalDays: loan.customIntervalDays ?? undefined,
+          nonCollectionDays: loan.nonCollectionDays,
+        },
+      ),
+      lateFeeMode: loan.lateFeeMode as never,
+      lateFeeValue: Number(loan.lateFeeValue),
+      gracePeriodDays: loan.gracePeriodDays,
+      decimalPlaces: context.decimalPlaces,
+    },
+    updatedById: context.userId,
+  });
+
+  revalidatePath(`/loans/${loanId}`);
+  revalidatePath("/loans");
+  revalidatePath("/payments");
+}
 
 export async function moveLoanAction(formData: FormData): Promise<void> {
   const context = await requirePermission("loans.update");

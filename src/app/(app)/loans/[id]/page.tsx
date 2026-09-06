@@ -17,7 +17,14 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
-import { dayIn, daysBetween, startOfDay } from "@/core/dates";
+import {
+  MILLISECONDS_PER_DAY,
+  addDays,
+  dayIn,
+  daysBetween,
+  firstDueAfter,
+  startOfDay,
+} from "@/core/dates";
 import { collectionSnapshot } from "@/core/loans/collection";
 import { canEditAtAll } from "@/core/loans/editable";
 import { fromCents, toCents } from "@/core/money";
@@ -36,6 +43,7 @@ import { LoanCharges } from "./loan-charges";
 import { LoanMenu } from "./loan-menu";
 import { disburseLoanAction } from "../actions";
 import { PaymentForm } from "./payment-form";
+import { ShiftFirstDue } from "./shift-first-due";
 
 export const dynamic = "force-dynamic";
 
@@ -309,6 +317,38 @@ export default async function LoanDetailPage({
   // Y pase lo que pase con los datos, empezar después de haber terminado no
   // se puede leer de ninguna manera.
   const startedOn = endsOn && endsOn < openedOn ? endsOn : openedOn;
+  // Un préstamo de antes de la regla: la primera cuota cae el mismo día en
+  // que salió la plata, así que se acaba un período antes de lo que debería.
+  // Se ofrece correrlo, pero solo mientras el préstamo siga vivo y solo a
+  // quien puede editarlo.
+  const chargesOnDeliveryDay =
+    loan.disbursedAt !== null &&
+    firstDueDate.getTime() <= registeredOn.getTime();
+  const shiftedFirst = chargesOnDeliveryDay
+    ? firstDueAfter(loan.disbursedAt!, loan.frequency as never, {
+        customIntervalDays: loan.customIntervalDays ?? undefined,
+        nonCollectionDays: loan.nonCollectionDays,
+      })
+    : null;
+  // A dónde se correría el final: las cuotas se mueven todas igual, así que
+  // el último día se corre lo mismo que el primero.
+  const shiftedEnd =
+    shiftedFirst && lastDueDate
+      ? addDays(
+          lastDueDate,
+          Math.round(
+            (shiftedFirst.getTime() - firstDueDate.getTime()) /
+              MILLISECONDS_PER_DAY,
+          ),
+        )
+      : null;
+  const canShift =
+    chargesOnDeliveryDay &&
+    shiftedFirst !== null &&
+    shiftedEnd !== null &&
+    can(context, "loans.update") &&
+    canEditAtAll(loan.status as LoanStatus);
+
   // La primera cuota solo se dice cuando no es el mismo día en que empezó:
   // repetir la fecha de arriba no le aclara nada a nadie.
   const showFirstDue =
@@ -721,6 +761,23 @@ export default async function LoanDetailPage({
           </Card>
         ) : null}
       </div>
+
+      {/* El aviso va pegado a las dos fechas, que es donde se ve el
+          problema: el crédito se acaba un día antes de lo que la cuenta de
+          cabeza dice. */}
+      {canShift ? (
+        <div className="mt-4">
+          <Card>
+            <ShiftFirstDue
+              loanId={loan.id}
+              currentFirst={formatDate(firstDueDate)}
+              proposedFirst={formatDate(shiftedFirst!)}
+              currentEnd={endsOn ? formatDate(endsOn) : "—"}
+              proposedEnd={formatDate(shiftedEnd!)}
+            />
+          </Card>
+        </div>
+      ) : null}
 
       {/* Quién respalda el préstamo. Con su enlace a la ficha: cuando el
           cliente deja de pagar, al fiador hay que poder llamarlo, y para eso

@@ -835,6 +835,11 @@ export const es = {
     endLabel: "Vence",
     endedLabel: "Terminó",
     firstDueShort: "1ª cuota",
+    shiftFirstDueNotice:
+      "Este préstamo cobra la primera cuota el mismo día en que se entregó la plata ({first}), y por eso se acaba el {end} en vez del {proposedEnd}. Es de antes de la regla de no cobrar el día de la entrega.",
+    shiftFirstDueAction: "Correr la primera cuota al {to}",
+    shiftFirstDueConfirm:
+      "La primera cuota pasa del {from} al {to}, y el préstamo se acaba el {endTo} en vez del {endFrom}.\n\nTodas las cuotas se corren un período. Lo que el cliente ya haya abonado se vuelve a repartir sobre el plan nuevo, y desde cuándo está atrasado cambia.",
     installmentsOf: "{count} cuotas ({frequency})",
     nextDueOn: "Próxima cuota el {date}",
     installmentLate: "hace {days} d",
