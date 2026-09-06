@@ -1071,20 +1071,35 @@ export default async function LoanDetailPage({
               {/* Para dónde se fue todo lo que el cliente ha pagado. Es la
                 pregunta que sigue a "¿cuánto he pagado?": si abonó 400.000 y
                 el saldo bajó 300.000, los otros 100.000 están aquí. */}
-              {/* En el teléfono van de a dos: en una sola fila, «$1.262.500»
-                  se montaba encima del de al lado. De tableta para arriba
-                  caben todos en fila con su raya en medio. */}
+              {/* Cada cifra en su propio recuadro, como los del resumen del
+                  día. Sueltas sobre el fondo, con una raya de por medio y sin
+                  aire alrededor, no se veía dónde acababa una y empezaba la
+                  otra. En el teléfono van de a dos: en una sola fila,
+                  «$1.262.500» se montaba encima del de al lado. */}
               <div
-                className={`grid grid-cols-2 gap-y-2.5 border-b border-border px-3 py-2.5 sm:gap-y-0 sm:divide-x sm:divide-border ${
+                className={`grid grid-cols-2 gap-2 border-b border-border p-3 ${
                   appliedTiles.length > 4 ? "sm:grid-cols-5" : "sm:grid-cols-4"
                 }`}
               >
-                {appliedTiles.map((tile) => (
-                  <div key={tile.label} className="px-1 text-center">
+                {appliedTiles.map((tile, index) => (
+                  <div
+                    key={tile.label}
+                    // De a dos, el último de una cantidad impar quedaba solo a
+                    // media fila con un hueco al lado; ocupando el ancho la
+                    // fila se cierra.
+                    className={`rounded-[--radius-card] border border-border bg-surface-muted/50 px-2 py-2 text-center ${
+                      index === appliedTiles.length - 1 &&
+                      appliedTiles.length % 2 === 1
+                        ? "col-span-2 sm:col-span-1"
+                        : ""
+                    }`}
+                  >
                     <p className="text-[0.625rem] font-medium tracking-wide text-ink-muted uppercase">
                       {tile.label}
                     </p>
-                    <p className={`numeric text-sm font-bold ${tile.tone}`}>
+                    <p
+                      className={`numeric mt-0.5 text-sm font-bold ${tile.tone}`}
+                    >
                       {money(tile.value)}
                     </p>
                   </div>
