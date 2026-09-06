@@ -21,7 +21,7 @@ import type { ChargeMode } from "@/core/loans/charges";
 import { SchedulePreview } from "@/components/loans/schedule-preview";
 import { firstDueAfter, parseDay } from "@/core/dates";
 import { ScheduleError, buildSchedule } from "@/core/loans/schedule";
-import { stepForDecimals, toCents } from "@/core/money";
+import { fromCents, stepForDecimals, toCents } from "@/core/money";
 import {
   INTEREST_METHODS,
   LATE_FEE_MODES,
@@ -257,6 +257,14 @@ export function LoanForm({
 
   const schedule = preview.schedule;
 
+  // La cuota, sacada del mismo plan que se va a guardar. La última puede
+  // quedar unos pesos distinta cuando el reparto no da exacto, y en ese caso
+  // se dice: el cliente que la ve distinta pregunta.
+  const cuota = schedule?.installments[0]?.totalCents ?? 0;
+  const cuotaFinal =
+    schedule?.installments[schedule.installments.length - 1]?.totalCents ?? 0;
+  const cuotaDispareja = cuota > 0 && cuotaFinal !== cuota;
+
   return (
     <form method="post" onSubmit={onSubmit} className="space-y-4">
       {editando ? <input type="hidden" name="loanId" value={loan.id} /> : null}
@@ -279,7 +287,8 @@ export function LoanForm({
                       // borra: nadie se respalda a sí mismo, y dejarlo
                       // puesto guardaría a alguien que ya no está en la
                       // lista.
-                      if (event.target.value === guarantorId) setGuarantorId("");
+                      if (event.target.value === guarantorId)
+                        setGuarantorId("");
                     }}
                     required
                     // Un préstamo no cambia de dueño; para eso se anula y se
@@ -452,6 +461,32 @@ export function LoanForm({
                   required
                   value={termCount}
                   onChange={(event) => setTermCount(event.target.value)}
+                />
+              </Field>
+
+              {/* De a cuánto le queda la cuota, aquí mismo: es la cuenta que
+                  la persona hace de cabeza al escribir cuántas son, y para
+                  verla había que bajar hasta la tabla de todo el plan. No se
+                  escribe — sale del capital, la tasa y las cuotas — así que
+                  va en un campo que se lee y no se toca. */}
+              <Field
+                label={es.loans.installmentValue}
+                htmlFor="installmentPreview"
+                hint={
+                  cuotaDispareja
+                    ? es.loans.installmentValueLast.replace(
+                        "{amount}",
+                        money(fromCents(cuotaFinal)),
+                      )
+                    : es.loans.installmentValueHint
+                }
+              >
+                <Input
+                  id="installmentPreview"
+                  readOnly
+                  tabIndex={-1}
+                  className="numeric bg-surface-muted font-semibold"
+                  value={cuota > 0 ? money(fromCents(cuota)) : "—"}
                 />
               </Field>
 

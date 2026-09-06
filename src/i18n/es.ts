@@ -849,6 +849,9 @@ export const es = {
     detailsHint: "Todo lo de este crédito en un solo lugar.",
     // Los renglones del plan, que antes vivían sueltos en tiras de cuadritos.
     installmentValue: "Valor de la cuota",
+    installmentValueHint: "Sale del capital, la tasa y la cantidad de cuotas.",
+    // Cuando el reparto no da exacto la última queda distinta por unos pesos.
+    installmentValueLast: "La última queda en {amount}.",
     installmentsLabel: "Cuotas",
     paidInstallments: "Cuotas pagadas",
     paidOfTotal: "{paid} de {total}",
