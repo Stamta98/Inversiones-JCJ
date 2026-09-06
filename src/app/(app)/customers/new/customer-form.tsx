@@ -322,9 +322,18 @@ export function CustomerForm({
           "landmark",
         ])}
       >
-        {/* El barrio primero: es lo que el cobrador pregunta antes que la
-            calle, y con lo que arma la ruta. */}
+        {/* De lo ancho a lo estrecho, como se dicta una dirección en voz
+            alta: primero el departamento y la ciudad, que además vienen
+            puestos, después el barrio, la calle y por último la seña de la
+            casa. Con el barrio de primero había que subir a cambiar la
+            ciudad después de haberlo escrito. */}
         <CardBody className="grid gap-4 sm:grid-cols-2">
+          <HomePlace
+            countryCode={countryCode}
+            stateLabel={stateLabel}
+            city={customer?.city ?? null}
+            state={customer?.state ?? null}
+          />
           <div className="sm:col-span-2">
             <Field
               label={es.customers.neighborhood}
@@ -348,12 +357,6 @@ export function CustomerForm({
               />
             </Field>
           </div>
-          <HomePlace
-            countryCode={countryCode}
-            stateLabel={stateLabel}
-            city={customer?.city ?? null}
-            state={customer?.state ?? null}
-          />
           <div className="sm:col-span-2">
             <Field
               label={es.customers.landmark}

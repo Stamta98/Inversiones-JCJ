@@ -389,7 +389,10 @@ export const es = {
     generalSectionHint: "Fecha de nacimiento, sexo y nacionalidad.",
     contactSection: "Contacto",
     contactSectionHint: "Teléfono fijo y correo electrónico.",
-    homeSectionHint: "Dirección, barrio, punto de referencia y ubicación.",
+    // Nombra los campos en el orden en que están, que es el orden en que se
+    // dicta una dirección: de lo ancho a lo estrecho.
+    homeSectionHint:
+      "Departamento, ciudad, barrio, dirección, punto de referencia y ubicación.",
     workSectionHint:
       "De qué vive, dónde trabaja, con qué vehículo y cuánto gana.",
     notesHint: "Cualquier cosa que quieras recordar de este cliente.",
