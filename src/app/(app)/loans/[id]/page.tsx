@@ -720,57 +720,40 @@ export default async function LoanDetailPage({
           compact
         />
 
-        {/* La mora que se le ha sumado por el atraso, aparte de la cuota.
-            Se enseña siempre, también en cero: que el préstamo no cobre mora
-            es un dato, y quien va a la puerta necesita saberlo antes de
-            pedirle un peso de más al cliente. */}
-        <div className="col-span-2">
-          <StatCard
-            label={t("loans.lateFee")}
-            value={money(lateFees)}
-            tone={lateFees > 0 ? "danger" : "neutral"}
-            icon={lateFees > 0 ? "alert-triangle" : undefined}
-            compact
-          />
-        </div>
-      </div>
+        {/* Lo que hay que ponerse al día, con la fecha de la más vieja
+            debajo. Iba en una franja roja aparte y ahora es una tarjeta más:
+            el color se conserva en el ícono —rojo si de verdad hay atraso,
+            ámbar si lo único pendiente es la cuota de hoy— porque en la
+            puerta esa diferencia decide si se le reclama al cliente o no.
+            Se enseña también en cero, que es como se ve que está al día. */}
+        <StatCard
+          label={t("loans.pendingToPay")}
+          value={money(catchUp)}
+          hint={
+            collect.overdueSince
+              ? `${t("loans.oldestOverdueLabel")} ${formatDate(
+                  collect.overdueSince,
+                )}`
+              : undefined
+          }
+          tone={catchUp > 0 ? (late ? "danger" : "warning") : "neutral"}
+          icon={catchUp > 0 ? "alert-triangle" : undefined}
+          compact
+        />
 
-      {/* Lo atrasado y lo que sigue, cada uno en su franja: son las dos cosas
-          que se dicen en la puerta, y en un renglón de lista se perdían entre
-          las demás. */}
-      {catchUp > 0 ? (
-        <div
-          className={`mt-3 flex items-center justify-between gap-3 rounded-[--radius-card] border p-3 ${
-            late
-              ? "border-danger-soft bg-danger-soft/40"
-              : "border-warning-soft bg-warning-soft/40"
-          }`}
-        >
-          <span>
-            <span
-              className={`block text-xs font-semibold ${
-                late ? "text-danger" : "text-warning"
-              }`}
-            >
-              {t("loans.pendingToPay")}
-            </span>
-            <span
-              className={`numeric block text-lg font-bold ${
-                late ? "text-danger" : "text-ink"
-              }`}
-            >
-              {money(catchUp)}
-            </span>
-          </span>
-          {collect.overdueSince ? (
-            <span className="numeric shrink-0 text-right text-[0.6875rem] text-danger">
-              {t("loans.oldestOverdueLabel")}
-              <br />
-              {formatDate(collect.overdueSince)}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
+        {/* La mora que se le ha sumado por el atraso, aparte de la cuota.
+            Va de última: es la que menos se mira y la única que en la mayoría
+            de los préstamos va en cero. Se enseña igual, también en cero: que
+            el préstamo no cobre mora es un dato, y quien va a la puerta
+            necesita saberlo antes de pedirle un peso de más al cliente. */}
+        <StatCard
+          label={t("loans.lateFee")}
+          value={money(lateFees)}
+          tone={lateFees > 0 ? "danger" : "neutral"}
+          icon={lateFees > 0 ? "alert-triangle" : undefined}
+          compact
+        />
+      </div>
 
       {/* Solo cuando la que sigue todavía no ha llegado. En un préstamo
           atrasado, la siguiente por cobrar es de hace un mes: decía «Próxima
