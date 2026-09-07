@@ -861,7 +861,6 @@ export const es = {
     // Las cuatro cifras que uno mira de reojo antes de tocar la puerta.
     quickTitle: "Detalles rápidos",
     remainingPrincipal: "Capital restante",
-    installmentNo: "Cuota No.",
     nextDueLabel: "Próxima cuota",
     lastPaymentAmount: "Último pago",
     lastPaymentDate: "Fecha últ. pago",

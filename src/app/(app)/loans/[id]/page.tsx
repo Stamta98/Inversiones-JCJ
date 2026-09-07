@@ -712,11 +712,15 @@ export default async function LoanDetailPage({
           value={money(installmentAmount)}
           compact
         />
+        {/* Las que ya pagó, no la que se está cobrando. Decía «la que va»
+            —pagadas más una— y en la última cuota eso salía «2 / 2» con una
+            cuota todavía sin pagar: se leía como saldado. Y peor, la cuenta
+            de abajo decía «Cuotas pagadas 1 de 2» en la misma pantalla. Es
+            el mismo dato con el mismo nombre y el mismo número en las dos
+            partes; cuál se está cobrando ya lo dice «Próxima cuota». */}
         <StatCard
-          label={t("loans.installmentNo")}
-          value={`${Math.min(collect.paidCount + 1, loan.installments.length)} / ${
-            loan.installments.length
-          }`}
+          label={t("loans.paidInstallments")}
+          value={`${collect.paidCount} / ${loan.installments.length}`}
           compact
         />
 
