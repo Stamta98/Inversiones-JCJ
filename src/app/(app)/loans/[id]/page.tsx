@@ -38,7 +38,9 @@ import { LOAN_ORDER } from "@/server/services/ordering";
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
 
 import { DeletePaymentButton } from "../../payments/delete-payment-button";
+import { DocumentMenu } from "@/components/share/document-menu";
 import { HistoryMore } from "./history-more";
+import { ShareReceiptButton } from "./share-receipt";
 import { LoanCharges } from "./loan-charges";
 import { LoanMenu } from "./loan-menu";
 import { disburseLoanAction } from "../actions";
@@ -1249,7 +1251,30 @@ export default async function LoanDetailPage({
         </CollapsibleCard>
 
         <Card>
-          <CardHeader title={t("payments.historyTitle")} />
+          <CardHeader
+            title={t("payments.historyTitle")}
+            // Todo lo que el cliente ha abonado, en una hoja. Es lo que
+            // contesta el «¿y todo lo que le he pagado?» sin ponerse a leer
+            // recibo por recibo.
+            action={
+              <DocumentMenu
+                url={`/api/loans/${loan.id}/history/pdf`}
+                fileName={`historial-${loan.code}.pdf`}
+                message={t("payments.historyMessage")
+                  .replace("{company}", context.companyName)
+                  .replace("{code}", loan.code)
+                  .replace(
+                    "{name}",
+                    `${loan.customer.firstName} ${loan.customer.lastName}`,
+                  )}
+                labels={{
+                  share: t("payments.historyShare"),
+                  download: t("payments.historyDownload"),
+                  fallback: t("payments.historyFallback"),
+                }}
+              />
+            }
+          />
           {loan.payments.length === 0 && chargesApart.length === 0 ? (
             <CardBody>
               <p className="text-sm text-ink-muted">
@@ -1303,7 +1328,7 @@ export default async function LoanDetailPage({
                     <Th>{t("payments.method")}</Th>
                     <Th align="right">{t("common.amount")}</Th>
                     <Th align="right">{t("loans.balanceAfter")}</Th>
-                    {canReverse ? <Th align="right">{""}</Th> : null}
+                    <Th align="right">{""}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1422,28 +1447,55 @@ export default async function LoanDetailPage({
                             >
                               {posted ? money(balanceAfter) : "—"}
                             </Td>
-                            {canReverse ? (
-                              <Td align="right">
-                                {/* El recibo de una refinanciación no se toca desde
+                            <Td align="right">
+                              {/* El recibo de una refinanciación no se toca desde
                             aquí: devolvería el saldo dejando vivo el préstamo
                             que se lo llevó, y el cliente quedaría debiendo dos
                             veces lo mismo. Se deshace anulando ese préstamo. */}
-                                {payment.method === "REFINANCE" ? null : (
-                                  <span className="flex items-center justify-end gap-0.5">
-                                    <LinkButton
-                                      href={`/payments/${payment.id}`}
-                                      variant="ghost"
-                                      size="sm"
-                                      icon="pencil"
-                                      aria-label={t("payments.edit")}
-                                    />
-                                    <DeletePaymentButton
+                              {payment.method === "REFINANCE" ? null : (
+                                <span className="flex items-center justify-end gap-0.5">
+                                  {/* Mandarle el comprobante al cliente no es
+                                  tocar nada: lo puede hacer el cobrador que
+                                  no tiene permiso para anular, que es
+                                  justamente quien está en la puerta. Un
+                                  abono anulado no tiene comprobante que
+                                  mandar. */}
+                                  {posted ? (
+                                    <ShareReceiptButton
                                       paymentId={payment.id}
+                                      fileName={`recibo-${payment.receiptNumber}.png`}
+                                      message={t("payments.receiptMessage")
+                                        .replace(
+                                          "{company}",
+                                          context.companyName,
+                                        )
+                                        .replace(
+                                          "{receipt}",
+                                          payment.receiptNumber,
+                                        )
+                                        .replace(
+                                          "{name}",
+                                          `${loan.customer.firstName} ${loan.customer.lastName}`,
+                                        )}
                                     />
-                                  </span>
-                                )}
-                              </Td>
-                            ) : null}
+                                  ) : null}
+                                  {canReverse ? (
+                                    <>
+                                      <LinkButton
+                                        href={`/payments/${payment.id}`}
+                                        variant="ghost"
+                                        size="sm"
+                                        icon="pencil"
+                                        aria-label={t("payments.edit")}
+                                      />
+                                      <DeletePaymentButton
+                                        paymentId={payment.id}
+                                      />
+                                    </>
+                                  ) : null}
+                                </span>
+                              )}
+                            </Td>
                           </tr>
                         ),
                       };
@@ -1501,7 +1553,11 @@ export default async function LoanDetailPage({
                             >
                               —
                             </Td>
-                            {canReverse ? <Td align="right">{""}</Td> : null}
+                            {/* Sin acciones: un cargo cobrado aparte se
+                            corrige desde su tarjeta, no desde aquí. La celda
+                            va igual para que las columnas cuadren con las
+                            filas de arriba. */}
+                            <Td align="right">{""}</Td>
                           </tr>
                         ),
                       };

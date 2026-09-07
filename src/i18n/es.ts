@@ -1132,6 +1132,25 @@ export const es = {
     receiptOf: "Comprobante de {receipt}",
     share: "Compartir por WhatsApp",
     sharing: "Preparando…",
+    /** El botón de cada abono del historial y el menú de todo el historial. */
+    shareReceipt: "Compartir el comprobante",
+    historyShare: "Compartir el historial",
+    historyDownload: "Descargar el historial",
+    historyFallback:
+      "Tu navegador no puede compartir archivos. Descargamos el historial y abrimos WhatsApp para que lo adjuntes.",
+    historyDocTitle: "Historial de abonos",
+    historyApplied: "En qué se aplicó lo abonado",
+    historyMessage:
+      "{company} · Historial de abonos del préstamo {code} de {name}",
+    receiptMessage: "{company} · Comprobante de abono {receipt} de {name}",
+    historyColumns: {
+      date: "Fecha",
+      concept: "Concepto",
+      amount: "Monto",
+      balance: "Saldo",
+    },
+    historyOf: "Préstamo {code} · {name}",
+    historyNone: "Este préstamo todavía no tiene abonos.",
     shareFallback:
       "Tu navegador no puede compartir archivos. Descarga la imagen y adjúntala en WhatsApp.",
     download: "Descargar imagen",
