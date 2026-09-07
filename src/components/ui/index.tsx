@@ -107,7 +107,7 @@ export function PageHeader({
     // ancho entero y mandaba el botón al renglón de abajo. Ahora el nombre se
     // parte en dos líneas dentro de su columna y el botón se queda a la
     // derecha, que es donde el pulgar lo busca.
-    <header className="mb-5 flex items-start justify-between gap-3">
+    <header className="mb-3 flex items-start justify-between gap-3 sm:mb-5">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {avatar}
         <div className="min-w-0">

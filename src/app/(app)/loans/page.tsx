@@ -1,12 +1,7 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 
-import {
-  Card,
-  EmptyState,
-  LinkButton,
-  PageHeader,
-} from "@/components/ui";
+import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { LoanRow } from "@/components/loans/loan-row";
 import { SortableRows } from "@/components/ui/sortable-rows";
 import { startOfDay } from "@/core/dates";
@@ -189,7 +184,7 @@ export default async function LoansPage({
       ) : null}
 
       {/* Cuánto hay en la calle y cuánto ha vuelto. */}
-      <Card className="mb-3 p-3">
+      <Card className="mb-2.5 p-2.5 sm:p-3">
         <div className="grid grid-cols-3 divide-x divide-border">
           {[
             { label: t("loans.lent"), value: lent, tone: "text-ink" },
@@ -210,7 +205,7 @@ export default async function LoansPage({
             </div>
           ))}
         </div>
-        <div className="mt-2.5 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
             <div
               className="h-full rounded-full bg-positive"
@@ -223,13 +218,17 @@ export default async function LoansPage({
         </div>
       </Card>
 
-      <div className="mb-3 flex flex-wrap gap-1.5">
+      {/* En una sola fila que se arrastra de lado. Con cinco filtros y un
+          teléfono de 393 puntos se partían en dos renglones, y ese segundo
+          renglón empujaba la primera tarjeta media pantalla hacia abajo: el
+          cobrador abría la lista y veía filtros en vez de préstamos. */}
+      <div className="mb-2.5 -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:px-0">
         {FILTER_KEYS.map((key) => (
           <Link
             key={key}
             href={key === "all" ? "/loans" : `/loans?status=${key}`}
             className={
-              "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors " +
+              "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors " +
               (filter === key
                 ? "border-brand bg-brand text-ink-inverse"
                 : "border-border bg-surface text-ink-muted hover:border-brand")
@@ -241,7 +240,11 @@ export default async function LoansPage({
       </div>
 
       {canOrder && !handOrdered ? (
-        <p className="mb-3 text-xs text-ink-subtle">{t("common.dragHint")}</p>
+        // Una sola línea: en el teléfono se partía en dos y gastaba cuarenta
+        // puntos de pantalla para decir algo que se lee una vez en la vida.
+        <p className="mb-2 truncate text-[0.6875rem] text-ink-subtle">
+          {t("common.dragHint")}
+        </p>
       ) : null}
 
       {loans.length === 0 ? (
