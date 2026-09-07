@@ -930,7 +930,6 @@ export const es = {
     filterOnTime: "Al día",
     filterLate: "Atrasados",
     filterExpired: "Vencidos",
-    filterPaid: "Saldados",
     saved: "Préstamo actualizado.",
 
     // --- Refinanciación y renovación ---

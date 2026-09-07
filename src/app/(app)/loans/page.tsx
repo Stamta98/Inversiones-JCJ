@@ -21,6 +21,11 @@ export const dynamic = "force-dynamic";
  *
  * La referencia usa siete botones de colores sin etiqueta y hay que
  * aprendérselos; con cuatro nombres se lee sin adivinar y se cubre lo mismo.
+ *
+ * Y el saldado no está entre ellos: esta lista es de lo que hay por cobrar.
+ * Un crédito pagado no se vuelve a visitar, y dejarlo aquí solo alarga la
+ * lista que el cobrador baja con el pulgar todos los días. El que quiera
+ * verlo lo tiene en el historial del cliente, con todo lo que le prestaron.
  */
 /**
  * El atraso se pregunta por las cuotas, no por la columna `daysInArrears`.
@@ -53,7 +58,7 @@ function buildFilters(today: Date) {
     installments: { some: { dueDate: { gte: today } } },
   };
   return {
-    all: {} as Prisma.LoanWhereInput,
+    all: { status: { not: "PAID" } } as Prisma.LoanWhereInput,
     onTime: {
       status: { in: ["ACTIVE", "APPROVED"] },
       NOT: unpaidBefore(today),
@@ -68,20 +73,18 @@ function buildFilters(today: Date) {
         { NOT: stillRunning },
       ],
     },
-    paid: { status: "PAID" },
   } satisfies Record<string, Prisma.LoanWhereInput>;
 }
 
 type FilterKey = keyof ReturnType<typeof buildFilters>;
 
-const FILTER_KEYS: FilterKey[] = ["all", "onTime", "late", "expired", "paid"];
+const FILTER_KEYS: FilterKey[] = ["all", "onTime", "late", "expired"];
 
 const FILTER_LABELS: Record<FilterKey, string> = {
   all: "loans.filterAll",
   onTime: "loans.filterOnTime",
   late: "loans.filterLate",
   expired: "loans.filterExpired",
-  paid: "loans.filterPaid",
 };
 
 /** De estos se cobra. De un borrador todavía no, y de un anulado nunca más. */
@@ -227,10 +230,10 @@ export default async function LoansPage({
         </div>
       </Card>
 
-      {/* En una sola fila que se arrastra de lado. Con cinco filtros y un
-          teléfono de 393 puntos se partían en dos renglones, y ese segundo
-          renglón empujaba la primera tarjeta media pantalla hacia abajo: el
-          cobrador abría la lista y veía filtros en vez de préstamos. */}
+      {/* En una sola fila que se arrastra de lado, por si mañana son más:
+          con cinco filtros y un teléfono de 393 puntos se partían en dos
+          renglones, y ese segundo renglón empujaba la primera tarjeta media
+          pantalla hacia abajo. */}
       <div className="mb-2.5 -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:px-0">
         {FILTER_KEYS.map((key) => (
           <Link
