@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { es } from "@/i18n/es";
-import { prepareImage } from "@/lib/image";
+import { ImagePreparationError, prepareImage } from "@/lib/image";
 import { cn } from "@/lib/cn";
 
 import { Icon } from "./icon";
@@ -104,9 +104,18 @@ export function PhotoUpload({
       };
       setFile(uploaded);
       onChange?.(uploaded);
-    } catch {
-      setError(es.common.error);
+    } catch (cause) {
+      // Lo que falló al preparar la foto se dice tal cual: «no se pudo leer la
+      // imagen» le sirve al cobrador para volver a tomarla, y «ocurrió un
+      // error» no le sirve para nada.
+      setError(
+        cause instanceof ImagePreparationError
+          ? cause.message
+          : es.common.error,
+      );
       setPreview(null);
+      setFile(null);
+      onChange?.(null);
     } finally {
       setIsUploading(false);
     }
