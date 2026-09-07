@@ -487,6 +487,11 @@ enum LateFeeMode {
   FIXED_PER_DAY
   /// Fixed amount charged once.
   FIXED_ONCE
+  /// Percentage of the whole outstanding balance, per day, once the loan's
+  /// final due date has passed. Nothing accrues while the loan is running.
+  PERCENT_OF_BALANCE_PER_DAY_AFTER_END
+  /// Fixed amount per day once the loan's final due date has passed.
+  FIXED_PER_DAY_AFTER_END
 }
 
 /// Reusable loan presets so an operator can add new loan types without code.

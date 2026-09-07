@@ -26,6 +26,7 @@ import {
   INTEREST_METHODS,
   LATE_FEE_MODES,
   PAYMENT_FREQUENCIES,
+  isPercentLateFee,
   RATE_BASES,
   WEEKDAYS,
   type InterestMethod,
@@ -220,6 +221,11 @@ export function LoanForm({
 
   // Sin ningún día libre no hay cómo armar el plan: se dice y no se calcula.
   const sinDiaParaCobrar = nonCollectionDays.length >= 7;
+
+  // Si lo que se teclea en «Valor de la mora» es un porcentaje o son pesos.
+  // Con el mismo rótulo para las dos cosas, un «2» quería decir dos por
+  // ciento o dos pesos según el modo, y nadie podía saber cuál.
+  const moraEnPorcentaje = isPercentLateFee(lateFeeMode);
 
   const preview = useMemo(() => {
     try {
@@ -564,7 +570,11 @@ export function LoanForm({
                 </p>
               </div>
 
-              <Field label={es.loans.lateFeeMode} htmlFor="lateFeeMode">
+              <Field
+                label={es.loans.lateFeeMode}
+                htmlFor="lateFeeMode"
+                hint={es.loans.lateFeeModeHint[lateFeeMode]}
+              >
                 <Select
                   id="lateFeeMode"
                   name="lateFeeMode"
@@ -583,13 +593,24 @@ export function LoanForm({
 
               {lateFeeMode !== "NONE" ? (
                 <>
-                  <Field label={es.loans.lateFeeValue} htmlFor="lateFeeValue">
+                  <Field
+                    label={
+                      moraEnPorcentaje
+                        ? es.loans.lateFeeValueLabel.percent
+                        : es.loans.lateFeeValueLabel.amount
+                    }
+                    htmlFor="lateFeeValue"
+                  >
                     <Input
                       id="lateFeeValue"
                       name="lateFeeValue"
                       type="number"
                       inputMode="decimal"
-                      step="0.01"
+                      // En pesos no hay centavos que teclear, y el «0,01» de
+                      // antes invitaba a escribir una mora de un centavo.
+                      step={
+                        moraEnPorcentaje || decimalPlaces > 0 ? "0.01" : "1"
+                      }
                       min="0"
                       defaultValue={String(loan?.lateFeeValue ?? 0)}
                     />

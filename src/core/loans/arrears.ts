@@ -10,6 +10,7 @@ import {
   type Cents,
   type MinorUnitStep,
 } from "../money";
+import { isAfterEndLateFee } from "../types";
 import type { InstallmentStatus, LateFeeMode } from "../types";
 
 export interface LateFeePolicy {
@@ -67,8 +68,12 @@ export function calculateLateFee(
   asOf: Date,
 ): Cents {
   if (policy.mode === "NONE" || policy.value <= 0) return 0;
+  // La mora por vencimiento del crédito no se reparte cuota por cuota: se
+  // cobra una sola vez sobre todo el saldo, y la calcula `afterEndLateFee`.
+  if (isAfterEndLateFee(policy.mode)) return 0;
   const step = policy.minorUnitStep ?? 1;
-  if (installment.status === "PAID" || installment.status === "WAIVED") return 0;
+  if (installment.status === "PAID" || installment.status === "WAIVED")
+    return 0;
 
   const lateDays = chargeableLateDays(
     installment.dueDate,
@@ -105,6 +110,54 @@ export function calculateLateFee(
     fee = Math.min(fee, percentOf(installmentTotal, cap, step));
   }
   return fee;
+}
+
+/**
+ * La mora que corre por habérsele vencido el crédito al cliente.
+ *
+ * Es otra cosa que atrasarse en una cuota: aquí no importa cuántas cuotas
+ * quedaron sin pagar por el camino, sino que llegó el día en que el préstamo
+ * debía estar saldado y todavía se debe. Desde ese día empieza a correr, cada
+ * día, sobre todo lo que quedó debiendo — el 2% del saldo, o los 2.000 de
+ * siempre, como lo haya acordado quien presta.
+ *
+ * El porcentaje se saca de la deuda sin la mora encima. Sacado del saldo
+ * completo la mora se cobraría a sí misma y crecería sola, que no es lo que
+ * nadie acuerda en la puerta.
+ */
+export function afterEndLateFee(
+  loan: {
+    /** El día en que el préstamo debía estar saldado: la última cuota. */
+    endDate: Date;
+    /** Capital, interés y cargos que siguen debiéndose, sin contar la mora. */
+    unpaidCents: Cents;
+  },
+  policy: LateFeePolicy,
+  asOf: Date,
+): Cents {
+  if (!isAfterEndLateFee(policy.mode) || policy.value <= 0) return 0;
+  if (loan.unpaidCents <= 0) return 0;
+
+  const step = policy.minorUnitStep ?? 1;
+  const lateDays = chargeableLateDays(
+    loan.endDate,
+    asOf,
+    policy.gracePeriodDays,
+  );
+  if (lateDays <= 0) return 0;
+
+  return policy.mode === "PERCENT_OF_BALANCE_PER_DAY_AFTER_END"
+    ? percentOf(loan.unpaidCents, policy.value, step) * lateDays
+    : roundToStep(policy.value, step) * lateDays;
+}
+
+/** Días corridos desde que se venció el crédito, ya descontada la gracia. */
+export function daysAfterEnd(
+  endDate: Date,
+  asOf: Date,
+  gracePeriodDays = 0,
+): number {
+  return chargeableLateDays(endDate, asOf, gracePeriodDays);
 }
 
 export interface ArrearsSummary {

@@ -77,7 +77,11 @@ export type LateFeeMode =
   | "PERCENT_OF_INSTALLMENT"
   | "PERCENT_PER_DAY"
   | "FIXED_PER_DAY"
-  | "FIXED_ONCE";
+  | "FIXED_ONCE"
+  // Las dos de abajo no miran cuota por cuota: esperan a que se venza el
+  // crédito entero y ahí empiezan a correr sobre lo que quedó debiendo.
+  | "PERCENT_OF_BALANCE_PER_DAY_AFTER_END"
+  | "FIXED_PER_DAY_AFTER_END";
 
 export const INTEREST_METHODS: InterestMethod[] = [
   "FLAT",
@@ -130,4 +134,39 @@ export const LATE_FEE_MODES: LateFeeMode[] = [
   "PERCENT_PER_DAY",
   "FIXED_PER_DAY",
   "FIXED_ONCE",
+  "PERCENT_OF_BALANCE_PER_DAY_AFTER_END",
+  "FIXED_PER_DAY_AFTER_END",
 ];
+
+/**
+ * Las moras que corren por vencerse el crédito, no por atrasarse una cuota.
+ *
+ * Se cobran una sola vez sobre todo lo que quedó debiendo, contadas desde el
+ * día en que el préstamo debía estar saldado. Mientras el crédito esté
+ * corriendo no cobran nada, aunque haya cuotas atrasadas.
+ */
+export const AFTER_END_LATE_FEE_MODES: LateFeeMode[] = [
+  "PERCENT_OF_BALANCE_PER_DAY_AFTER_END",
+  "FIXED_PER_DAY_AFTER_END",
+];
+
+export function isAfterEndLateFee(mode: LateFeeMode): boolean {
+  return AFTER_END_LATE_FEE_MODES.includes(mode);
+}
+
+/**
+ * Las moras que se teclean en porcentaje. Las demás se teclean en plata.
+ *
+ * Es un solo lugar a propósito: escrita a mano en cada pantalla, la lista se
+ * quedaba con los modos que había el día que se escribió, y una mora de 5.000
+ * salía en pantalla como «5000%».
+ */
+const PERCENT_LATE_FEE_MODES: LateFeeMode[] = [
+  "PERCENT_OF_INSTALLMENT",
+  "PERCENT_PER_DAY",
+  "PERCENT_OF_BALANCE_PER_DAY_AFTER_END",
+];
+
+export function isPercentLateFee(mode: LateFeeMode): boolean {
+  return PERCENT_LATE_FEE_MODES.includes(mode);
+}

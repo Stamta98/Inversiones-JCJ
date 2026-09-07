@@ -10,7 +10,8 @@ import {
   type Tone,
 } from "@/components/ui";
 import { addDays, dayParam, parseDay, startOfDay } from "@/core/dates";
-import type { LoanStatus } from "@/core/types";
+import { isPercentLateFee } from "@/core/types";
+import type { LateFeeMode, LoanStatus } from "@/core/types";
 import { formatDate } from "@/lib/format";
 import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
@@ -510,12 +511,15 @@ export default async function DayDetailPage({
                       icon="alert-triangle"
                       tint="bg-danger-soft text-danger"
                       label={t("payments.summary.lateFeePerInstallment")}
+                      // Qué unidad lleva el número lo decide el modo, no una
+                      // lista escrita aquí: con «Monto fijo, una sola vez»
+                      // una mora de 5.000 salía escrita «5000%».
                       value={
                         loan.lateFeeMode === "NONE"
                           ? money(0)
-                          : loan.lateFeeMode === "FIXED_PER_DAY"
-                            ? money(Number(loan.lateFeeValue))
-                            : `${Number(loan.lateFeeValue)}%`
+                          : isPercentLateFee(loan.lateFeeMode as LateFeeMode)
+                            ? `${Number(loan.lateFeeValue)}%`
+                            : money(Number(loan.lateFeeValue))
                       }
                     />
                   </div>

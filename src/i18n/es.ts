@@ -677,6 +677,29 @@ export const es = {
       PERCENT_PER_DAY: "% de la cuota por cada día de atraso",
       FIXED_PER_DAY: "Monto fijo por cada día de atraso",
       FIXED_ONCE: "Monto fijo, una sola vez",
+      PERCENT_OF_BALANCE_PER_DAY_AFTER_END:
+        "% del saldo por cada día vencido el crédito",
+      FIXED_PER_DAY_AFTER_END: "Monto fijo por cada día vencido el crédito",
+    },
+    // Debajo del desplegable: las dos últimas no cobran nada mientras el
+    // crédito corra, y eso hay que decirlo antes de escogerlas.
+    lateFeeModeHint: {
+      NONE: "No se le cobra nada de más por atrasarse.",
+      PERCENT_OF_INSTALLMENT:
+        "Una sola vez por cuota atrasada, sobre lo que falte de esa cuota.",
+      PERCENT_PER_DAY:
+        "Por cada día que la cuota lleve atrasada, sobre lo que falte de esa cuota.",
+      FIXED_PER_DAY: "Ese valor por cada día que la cuota lleve atrasada.",
+      FIXED_ONCE: "Ese valor una sola vez por cada cuota atrasada.",
+      PERCENT_OF_BALANCE_PER_DAY_AFTER_END:
+        "Mientras el crédito corra no cobra nada. Desde el día en que se vence empieza a correr ese porcentaje del saldo, por cada día.",
+      FIXED_PER_DAY_AFTER_END:
+        "Mientras el crédito corra no cobra nada. Desde el día en que se vence cobra ese valor por cada día.",
+    },
+    /** Lo que se teclea en «Valor de la mora» según cómo se calcule. */
+    lateFeeValueLabel: {
+      percent: "Porcentaje de la mora (%)",
+      amount: "Valor de la mora",
     },
     status: {
       DRAFT: "Borrador",

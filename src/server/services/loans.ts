@@ -7,7 +7,11 @@
 
 import type { Prisma } from "@prisma/client";
 
-import { summarizeArrears, type LateFeePolicy } from "@/core/loans/arrears";
+import {
+  afterEndLateFee,
+  summarizeArrears,
+  type LateFeePolicy,
+} from "@/core/loans/arrears";
 import {
   cashHandedOver,
   normalizeCharge,
@@ -20,6 +24,7 @@ import { canEditAtAll } from "@/core/loans/editable";
 import { guarantorProblem } from "@/core/loans/guarantor";
 import { buildSchedule, type Schedule } from "@/core/loans/schedule";
 import { fromCents, stepForDecimals, toCents } from "@/core/money";
+import { isPercentLateFee } from "@/core/types";
 import type {
   InstallmentStatus,
   InterestMethod,
@@ -975,10 +980,7 @@ export function lateFeePolicyOf(
   return {
     mode,
     // The fixed modes store an amount of money; the percent modes store a rate.
-    value:
-      mode === "FIXED_PER_DAY" || mode === "FIXED_ONCE"
-        ? toCents(rawValue)
-        : rawValue,
+    value: isPercentLateFee(mode) ? rawValue : toCents(rawValue),
     gracePeriodDays: loan.gracePeriodDays,
     minorUnitStep: stepForDecimals(decimalPlaces),
   };
@@ -1020,6 +1022,39 @@ export async function refreshLoan(
 
   const summary = summarizeArrears(snapshots, policy, asOf);
 
+  // La mora por vencimiento del crédito, que no es de ninguna cuota sino del
+  // préstamo entero: corre desde el día en que debía estar saldado y se saca
+  // sobre todo lo que quedó debiendo. Se calcula aquí, una sola vez, y se
+  // anota en la última cuota, que es la que marca ese vencimiento; así se
+  // cobra por el mismo camino que las demás — el abono la salda primero — sin
+  // inventar un renglón de deuda que viva fuera del plan.
+  //
+  // La base no lleva la mora encima: sacada del saldo completo se cobraría a
+  // sí misma y crecería sola cada noche.
+  const lastSnapshot = snapshots[snapshots.length - 1];
+  const unpaidWithoutLateFees = snapshots.reduce(
+    (total, snapshot) =>
+      total +
+      Math.max(
+        0,
+        snapshot.principalCents +
+          snapshot.interestCents +
+          snapshot.chargeCents -
+          snapshot.paidCents,
+      ),
+    0,
+  );
+  const afterEndCents = lastSnapshot
+    ? afterEndLateFee(
+        {
+          endDate: lastSnapshot.dueDate,
+          unpaidCents: unpaidWithoutLateFees,
+        },
+        policy,
+        asOf,
+      )
+    : 0;
+
   // Refresh each installment's late fee and status.
   let totalPaidCents = 0;
   let totalLateFeeCents = 0;
@@ -1036,7 +1071,8 @@ export async function refreshLoan(
       : Math.max(
           snapshot.lateFeeCents,
           // Recompute from scratch so a fee never shrinks below what was paid.
-          summarizeArrears([snapshot], policy, asOf).lateFeeCents,
+          summarizeArrears([snapshot], policy, asOf).lateFeeCents +
+            (snapshot.id === lastSnapshot?.id ? afterEndCents : 0),
         );
 
     const owedCents = Math.max(0, dueCents + lateFeeCents - snapshot.paidCents);

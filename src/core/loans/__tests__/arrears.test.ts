@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { fromCents, toCents } from "../../money";
 import {
+  afterEndLateFee,
   calculateLateFee,
   chargeableLateDays,
+  daysAfterEnd,
   daysOverdue,
   summarizeArrears,
   type InstallmentSnapshot,
@@ -174,5 +176,102 @@ describe("summarizeArrears", () => {
     expect(summary.daysInArrears).toBe(0);
     expect(summary.overdueInstallmentCount).toBe(0);
     expect(summary.oldestOverdueDueDate).toBeNull();
+  });
+});
+
+describe("afterEndLateFee", () => {
+  // El crédito se vencía el 3 de septiembre; hoy es el 6, van tres días.
+  const endDate = new Date(Date.UTC(2026, 8, 3));
+  const asOf = new Date(Date.UTC(2026, 8, 6));
+  const saldo = toCents(500000);
+
+  const policy = (overrides: Partial<LateFeePolicy> = {}): LateFeePolicy => ({
+    mode: "FIXED_PER_DAY_AFTER_END",
+    value: toCents(2000),
+    gracePeriodDays: 0,
+    minorUnitStep: 1,
+    ...overrides,
+  });
+
+  it("charges the fixed amount for every day past the end", () => {
+    const fee = afterEndLateFee(
+      { endDate, unpaidCents: saldo },
+      policy(),
+      asOf,
+    );
+    expect(fromCents(fee)).toBe(6000);
+    expect(daysAfterEnd(endDate, asOf)).toBe(3);
+  });
+
+  it("charges the percentage of what is still owed, per day", () => {
+    const fee = afterEndLateFee(
+      { endDate, unpaidCents: saldo },
+      policy({ mode: "PERCENT_OF_BALANCE_PER_DAY_AFTER_END", value: 2 }),
+      asOf,
+    );
+    // 2% de 500.000 son 10.000, por tres días.
+    expect(fromCents(fee)).toBe(30000);
+  });
+
+  it("charges nothing while the loan is still running", () => {
+    const antes = new Date(Date.UTC(2026, 8, 1));
+    expect(
+      afterEndLateFee({ endDate, unpaidCents: saldo }, policy(), antes),
+    ).toBe(0);
+    // Ni el mismo día en que vence: ese día todavía puede pagar.
+    expect(
+      afterEndLateFee({ endDate, unpaidCents: saldo }, policy(), endDate),
+    ).toBe(0);
+  });
+
+  it("consumes the grace period first", () => {
+    const fee = afterEndLateFee(
+      { endDate, unpaidCents: saldo },
+      policy({ gracePeriodDays: 2 }),
+      asOf,
+    );
+    expect(fromCents(fee)).toBe(2000);
+  });
+
+  it("charges nothing once the loan is settled", () => {
+    expect(afterEndLateFee({ endDate, unpaidCents: 0 }, policy(), asOf)).toBe(
+      0,
+    );
+  });
+
+  it("ignores the per installment modes, and they ignore it", () => {
+    // Una mora de cuota no se cobra por vencerse el crédito...
+    expect(
+      afterEndLateFee(
+        { endDate, unpaidCents: saldo },
+        policy({ mode: "FIXED_PER_DAY" }),
+        asOf,
+      ),
+    ).toBe(0);
+    // ...y una de vencimiento no se le suma a cada cuota atrasada, que la
+    // cobraría tantas veces como cuotas tenga el préstamo.
+    expect(
+      calculateLateFee(
+        snapshot(),
+        policy({ mode: "PERCENT_OF_BALANCE_PER_DAY_AFTER_END", value: 2 }),
+        asOf,
+      ),
+    ).toBe(0);
+  });
+
+  it("does not charge itself: the base leaves the late fee out", () => {
+    // Dos noches seguidas con la misma deuda dan la misma mora por día, no
+    // una que crece sola.
+    const unDia = afterEndLateFee(
+      { endDate, unpaidCents: saldo },
+      policy({ mode: "PERCENT_OF_BALANCE_PER_DAY_AFTER_END", value: 2 }),
+      new Date(Date.UTC(2026, 8, 4)),
+    );
+    const dosDias = afterEndLateFee(
+      { endDate, unpaidCents: saldo },
+      policy({ mode: "PERCENT_OF_BALANCE_PER_DAY_AFTER_END", value: 2 }),
+      new Date(Date.UTC(2026, 8, 5)),
+    );
+    expect(dosDias).toBe(unDia * 2);
   });
 });
