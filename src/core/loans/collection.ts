@@ -32,6 +32,19 @@ export interface CollectionSnapshot {
    * entra en lo que hay que cobrar pero no en el atraso.
    */
   overdueCount: number;
+  /**
+   * Cuántas cuotas entran en `overdueCents`, la del día de hoy incluida.
+   *
+   * Va aparte de `overdueCount` porque cuentan cosas distintas y las dos hacen
+   * falta: el atraso de verdad —el que pinta la tarjeta de rojo y manda al
+   * cobrador a esa puerta— empieza al día siguiente del vencimiento, pero lo
+   * que se le pide al cliente hoy incluye la cuota de hoy. Contando las dos
+   * cosas con el mismo número, la ficha decía «2 cuotas atrasadas» al lado de
+   * un «Saldo atrasado» de tres cuotas, y las dos cifras se desmentían.
+   */
+  dueNowCount: number;
+  /** Cuántas cuotas ya llegaron a su fecha, pagadas o no, contando hoy. */
+  dueNowTotal: number;
   daysLate: number;
   overdueSince: Date | null;
   /**
@@ -80,13 +93,21 @@ export function collectionSnapshot(
 
   const paidCount = installments.length - open.length;
 
-  const overdueCents = open
-    .filter((installment) => installment.dueDate <= asOf)
-    .reduce(
-      (total, installment) =>
-        total + clampToZero(installment.totalCents - installment.paidCents),
-      0,
-    );
+  // Las mismas cuotas dan la plata y el número: salen de un solo filtro para
+  // que no puedan decir cosas distintas.
+  const dueNow = open.filter((installment) => installment.dueDate <= asOf);
+  const overdueCents = dueNow.reduce(
+    (total, installment) =>
+      total + clampToZero(installment.totalCents - installment.paidCents),
+    0,
+  );
+  const dueNowCount = dueNow.filter(
+    (installment) =>
+      clampToZero(installment.totalCents - installment.paidCents) > 0,
+  ).length;
+  const dueNowTotal = installments.filter(
+    (installment) => installment.dueDate <= asOf,
+  ).length;
 
   const next = open[0] ?? null;
   const nextAmountCents = next
@@ -120,6 +141,8 @@ export function collectionSnapshot(
       paidCount,
       overdueCents: 0,
       overdueCount: 0,
+      dueNowCount: 0,
+      dueNowTotal,
       daysLate: 0,
       overdueSince: null,
       lastDueDate,
@@ -137,6 +160,8 @@ export function collectionSnapshot(
     paidCount,
     overdueCents,
     overdueCount: late.length,
+    dueNowCount,
+    dueNowTotal,
     daysLate: overdueSince ? daysBetween(overdueSince, today) : 0,
     overdueSince,
     lastDueDate,

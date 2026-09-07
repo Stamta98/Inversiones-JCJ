@@ -451,9 +451,6 @@ export default async function LoanDetailPage({
         payment.status === "POSTED" && payment.method !== "REFINANCE",
     ) ?? null;
 
-  const dueSoFar = loan.installments.filter(
-    (installment) => installment.dueDate.getTime() < today.getTime(),
-  ).length;
   const lateFees = Number(loan.totalLateFees);
   // Si de verdad hay atraso. Lo pendiente incluye la cuota que vence hoy, que
   // todavía no es atraso: pintarla de rojo era acusar de moroso a quien está
@@ -991,16 +988,16 @@ export default async function LoanDetailPage({
           {overdueCount > 0 || catchUp > 0 || daysExpired > 0 ? (
             <div className="space-y-1.5 border-t border-border pt-2.5">
               {[
-                overdueCount > 0
+                // Las mismas cuotas que suman el saldo atrasado de abajo, la
+                // de hoy incluida. Contando solo las que ya pasaron de fecha,
+                // este renglón decía «2» encima de un saldo atrasado de tres
+                // cuotas y las dos cifras se desmentían en la misma pantalla.
+                collect.dueNowCount > 0
                   ? {
                       label: t("loans.overdueInstallments"),
-                      value:
-                        dueSoFar > 0
-                          ? `${overdueCount} ${t("loans.overdueOfDue").replace(
-                              "{count}",
-                              String(dueSoFar),
-                            )}`
-                          : String(overdueCount),
+                      value: `${collect.dueNowCount} ${t(
+                        "loans.overdueOfDue",
+                      ).replace("{count}", String(collect.dueNowTotal))}`,
                     }
                   : null,
                 catchUp > 0

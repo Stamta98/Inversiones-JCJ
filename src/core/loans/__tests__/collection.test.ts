@@ -190,3 +190,51 @@ describe("collectionSnapshot", () => {
     expect(snapshot).toMatchObject({ paidCount: 0, kind: "settled" });
   });
 });
+
+describe("dueNowCount", () => {
+  it("cuenta las mismas cuotas que suman el saldo atrasado", () => {
+    // Tres cuotas de 20.000: dos ya pasaron de fecha y una vence hoy.
+    const hoy = new Date(2026, 8, 8);
+    const snapshot = collectionSnapshot(
+      [
+        installment(1, 6, { paidCents: 2_000_000, status: "PAID" }),
+        installment(2, 7),
+        installment(3, 8),
+        installment(4, 9),
+      ],
+      hoy,
+    );
+
+    // El saldo atrasado son dos cuotas: la del 7 y la de hoy.
+    expect(snapshot.overdueCents).toBe(2 * 4_000_000);
+    // Y el número dice dos, no una: el dinero y la cuenta salen del mismo
+    // filtro y no se pueden desmentir.
+    expect(snapshot.dueNowCount).toBe(2);
+    expect(snapshot.overdueCents / 4_000_000).toBe(snapshot.dueNowCount);
+    // Tres cuotas han llegado a su fecha, contando la de hoy.
+    expect(snapshot.dueNowTotal).toBe(3);
+    // El atraso de verdad —el que pinta de rojo— sigue sin contar hoy.
+    expect(snapshot.overdueCount).toBe(1);
+  });
+
+  it("no cuenta la de hoy si ya está pagada", () => {
+    const snapshot = collectionSnapshot(
+      [
+        installment(1, 7),
+        installment(2, 8, { paidCents: 4_000_000, status: "PAID" }),
+      ],
+      new Date(2026, 8, 8),
+    );
+    expect(snapshot.dueNowCount).toBe(1);
+    expect(snapshot.dueNowTotal).toBe(2);
+  });
+
+  it("con el préstamo al día no cuenta ninguna", () => {
+    const snapshot = collectionSnapshot(
+      [installment(1, 20)],
+      new Date(2026, 8, 8),
+    );
+    expect(snapshot.dueNowCount).toBe(0);
+    expect(snapshot.overdueCents).toBe(0);
+  });
+});
