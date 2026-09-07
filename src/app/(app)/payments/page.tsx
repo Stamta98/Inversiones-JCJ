@@ -15,7 +15,7 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { addDays, dayParam, parseDay, startOfDay } from "@/core/dates";
+import { addDays, dayParam, parseDay, todayIn } from "@/core/dates";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { loadDaySummary } from "@/server/services/day-summary";
@@ -35,12 +35,16 @@ export default async function PaymentsPage({
 
   // El resumen es de un día, y ese día se escoge. Sin fecha, o con una que no
   // existe, es el de hoy.
-  const today = startOfDay(new Date());
+  const today = todayIn(context.timezone);
   const dayStart = parseDay(date) ?? today;
   const isToday = dayStart.getTime() === today.getTime();
   const selected = dayParam(dayStart);
 
-  const summary = await loadDaySummary(context.companyId, dayStart);
+  const summary = await loadDaySummary(
+    context.companyId,
+    dayStart,
+    context.timezone,
+  );
 
   const { t, money } = context;
   const canReverse = can(context, "payments.delete");

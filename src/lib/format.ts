@@ -50,10 +50,7 @@ export function formatDate(value: Date | string, locale = "es-DO"): string {
   }).format(date);
 }
 
-export function formatLongDate(
-  value: Date | string,
-  locale = "es-DO",
-): string {
+export function formatLongDate(value: Date | string, locale = "es-DO"): string {
   const date = typeof value === "string" ? new Date(value) : value;
   return new Intl.DateTimeFormat(locale, {
     day: "numeric",
@@ -63,6 +60,15 @@ export function formatLongDate(
   }).format(date);
 }
 
+/**
+ * Fecha y hora, en la zona de la empresa y con el reloj de veinticuatro.
+ *
+ * Sin `hourCycle` el español escribe «08:30 p. m.», que en una tabla de
+ * cobros del día se lee dos veces: una para el número y otra para el «p. m.».
+ * Y sin `timeZone` la hora sale en la del servidor —en Vercel, UTC— así que
+ * un cobro de las siete de la noche en Colombia salía a la medianoche y con
+ * fecha del día siguiente.
+ */
 export function formatDateTime(
   value: Date | string,
   locale = "es-DO",
@@ -75,6 +81,7 @@ export function formatDateTime(
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hourCycle: "h23",
     timeZone,
   }).format(date);
 }
@@ -95,6 +102,7 @@ export function formatTime(
   return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
+    hourCycle: "h23",
     timeZone,
   }).format(date);
 }

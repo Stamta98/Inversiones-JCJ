@@ -9,7 +9,7 @@ import {
   PageHeader,
   type Tone,
 } from "@/components/ui";
-import { addDays, dayParam, parseDay, startOfDay } from "@/core/dates";
+import { dayParam, dayWindowIn, parseDay, todayIn } from "@/core/dates";
 import { isPercentLateFee } from "@/core/types";
 import type { LateFeeMode, LoanStatus } from "@/core/types";
 import { formatDate } from "@/lib/format";
@@ -94,9 +94,10 @@ export default async function DayDetailPage({
   const kind: Kind = KINDS.includes(raw as Kind) ? (raw as Kind) : "NEW";
 
   // El mismo día que se estaba viendo en el resumen; sin fecha, hoy.
-  const now = startOfDay(new Date());
+  const now = todayIn(context.timezone);
   const dayStart = parseDay(date) ?? now;
-  const today = { gte: dayStart, lt: addDays(dayStart, 1) };
+  // Medido donde se cobra, igual que el resumen del que sale esta pantalla.
+  const today = dayWindowIn(dayStart, context.timezone);
   const isToday = dayStart.getTime() === now.getTime();
   const selected = dayParam(dayStart);
   const { t, money } = context;

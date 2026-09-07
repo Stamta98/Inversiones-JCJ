@@ -10,7 +10,7 @@
  * pantalla los visten distinto.
  */
 
-import { addDays } from "@/core/dates";
+import { dayWindowIn } from "@/core/dates";
 import { db } from "@/server/db";
 
 export interface DayLoan {
@@ -76,10 +76,14 @@ export interface DaySummary {
 export async function loadDaySummary(
   companyId: string,
   dayStart: Date,
+  timeZone: string,
 ): Promise<DaySummary> {
   // "Hoy" tiene dos extremos. Con solo el de abajo, un cobro o un préstamo
   // fechado adelante entraba en la cuenta del día y la inflaba.
-  const day = { gte: dayStart, lt: addDays(dayStart, 1) };
+  // El día medido donde se cobra, no en UTC: un préstamo entregado a las
+  // siete de la noche en Colombia queda guardado con la hora del día
+  // siguiente, y se contaba en el resumen de mañana.
+  const day = dayWindowIn(dayStart, timeZone);
 
   // Un traspaso de refinanciación se guarda como cobro para saldar el préstamo
   // viejo, pero esa plata nunca entró a la caja: contarla en el día sería

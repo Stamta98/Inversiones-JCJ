@@ -17,10 +17,7 @@ import { formatDateTime } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
-import {
-  runMessagingNow,
-  toggleAutomationRule,
-} from "./actions";
+import { runMessagingNow, toggleAutomationRule } from "./actions";
 import { AccountForm, RuleForm } from "./forms";
 
 export const dynamic = "force-dynamic";
@@ -162,7 +159,8 @@ export default async function MessagingPage() {
                       {t(`messaging.triggerLabel.${rule.trigger}`)}
                       {rule.offsetDays > 0 ? (
                         <span className="block text-xs text-ink-subtle">
-                          {rule.offsetDays} {t("messaging.offsetDays").toLowerCase()}
+                          {rule.offsetDays}{" "}
+                          {t("messaging.offsetDays").toLowerCase()}
                         </span>
                       ) : null}
                     </Td>
@@ -237,7 +235,13 @@ export default async function MessagingPage() {
                       {message.body}
                     </span>
                   </Td>
-                  <Td numeric>{formatDateTime(message.createdAt)}</Td>
+                  <Td numeric>
+                    {formatDateTime(
+                      message.createdAt,
+                      context.locale,
+                      context.timezone,
+                    )}
+                  </Td>
                   <Td align="center">
                     <Badge tone={MESSAGE_TONES[message.status] ?? "neutral"}>
                       {t(`messaging.statusLabel.${message.status}`)}

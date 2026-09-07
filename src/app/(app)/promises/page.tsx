@@ -19,7 +19,7 @@ import {
   type PromiseStatus,
 } from "@/core/collections/promise";
 import { toCents } from "@/core/money";
-import { startOfDay } from "@/core/dates";
+import { todayIn } from "@/core/dates";
 import { formatDate } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
@@ -52,7 +52,7 @@ function digitsOf(phone: string): string {
 
 export default async function PromisesPage() {
   const context = await requirePermission("collections.read");
-  const today = startOfDay(new Date());
+  const today = todayIn(context.timezone);
 
   const promises = await db.paymentPromise.findMany({
     where: { companyId: context.companyId },
@@ -92,7 +92,8 @@ export default async function PromisesPage() {
   const owedIn = (bucket: PromiseBucket) =>
     (grouped.get(bucket) ?? []).reduce(
       (total, promise) =>
-        total + Math.max(0, Number(promise.amount) - Number(promise.paidAmount)),
+        total +
+        Math.max(0, Number(promise.amount) - Number(promise.paidAmount)),
       0,
     );
 

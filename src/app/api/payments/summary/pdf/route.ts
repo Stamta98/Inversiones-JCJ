@@ -8,7 +8,7 @@
 
 import { NextResponse } from "next/server";
 
-import { dayParam, parseDay, startOfDay } from "@/core/dates";
+import { dayParam, parseDay, todayIn } from "@/core/dates";
 import { hasPermission } from "@/core/permissions";
 import { formatDate } from "@/lib/format";
 import { getAuthContext } from "@/server/auth/context";
@@ -29,14 +29,15 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const dayStart =
-    parseDay(searchParams.get("date") ?? undefined) ?? startOfDay(new Date());
+    parseDay(searchParams.get("date") ?? undefined) ??
+    todayIn(context.timezone);
 
   const [company, summary] = await Promise.all([
     db.company.findUniqueOrThrow({
       where: { id: context.companyId },
       select: { name: true, legalName: true, phone: true, city: true },
     }),
-    loadDaySummary(context.companyId, dayStart),
+    loadDaySummary(context.companyId, dayStart, context.timezone),
   ]);
 
   const { t, money } = context;

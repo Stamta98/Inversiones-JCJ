@@ -138,7 +138,13 @@ export default async function CashPage() {
             <tbody>
               {movements.map((movement) => (
                 <tr key={movement.id}>
-                  <Td numeric>{formatDateTime(movement.createdAt)}</Td>
+                  <Td numeric>
+                    {formatDateTime(
+                      movement.createdAt,
+                      context.locale,
+                      context.timezone,
+                    )}
+                  </Td>
                   <Td>{movement.cashBox.name}</Td>
                   <Td>
                     {t(`cash.movementLabel.${movement.kind}`)}

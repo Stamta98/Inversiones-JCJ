@@ -2,7 +2,7 @@
  * Dashboard aggregates.
  */
 
-import { startOfDay } from "@/core/dates";
+import { todayIn } from "@/core/dates";
 
 import { db } from "../db";
 
@@ -41,21 +41,41 @@ export interface RecentPaymentRow {
   customerName: string;
   amount: number;
   paidAt: Date;
+  /**
+   * Cuándo se registró de verdad. `paidAt` es el día que la persona escogió,
+   * guardado al mediodía UTC: enseñado con hora decía «12:00» en todos los
+   * cobros que se han hecho, que no es la hora de ninguno.
+   */
+  createdAt: Date;
 }
 
-function dayBounds(reference: Date): { start: Date; end: Date } {
-  const start = startOfDay(reference);
+/**
+ * El día de la empresa, no el del servidor.
+ *
+ * En Vercel el servidor vive en UTC: con `startOfDay` el día del tablero
+ * cambiaba a las siete de la noche en Colombia, y lo cobrado después de esa
+ * hora aparecía como de mañana.
+ */
+function dayBounds(timeZone: string): { start: Date; end: Date } {
+  // El día se escoge donde está la empresa, pero se mide en horas UTC a
+  // propósito: aquí se filtran columnas que guardan un día y no un instante
+  // —el vencimiento de una cuota se ancla a la medianoche UTC de su fecha, y
+  // el cobro al mediodía—, y correrles la ventana cinco horas dejaría fuera
+  // las cuotas que vencen hoy.
+  const start = todayIn(timeZone);
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return { start, end };
 }
 
 export async function getDashboardSummary(
   companyId: string,
-  reference: Date = new Date(),
+  timeZone: string,
 ): Promise<DashboardSummary> {
-  const { start, end } = dayBounds(reference);
+  const { start, end } = dayBounds(timeZone);
+  // El mes también sale del día de la empresa: el primero de mes empieza a
+  // medianoche allá, no a las siete de la tarde del último día del mes.
   const monthStart = new Date(
-    Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), 1),
+    Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1),
   );
 
   const [
@@ -122,10 +142,10 @@ export async function getDashboardSummary(
 
 export async function getDueToday(
   companyId: string,
-  reference: Date = new Date(),
+  timeZone: string,
   take = 8,
 ): Promise<DueTodayRow[]> {
-  const { start, end } = dayBounds(reference);
+  const { start, end } = dayBounds(timeZone);
 
   const rows = await db.loanInstallment.findMany({
     where: {
@@ -188,5 +208,6 @@ export async function getRecentPayments(
     customerName: `${payment.loan.customer.firstName} ${payment.loan.customer.lastName}`,
     amount: Number(payment.amount),
     paidAt: payment.paidAt,
+    createdAt: payment.createdAt,
   }));
 }

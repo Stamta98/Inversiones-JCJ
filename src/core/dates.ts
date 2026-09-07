@@ -63,6 +63,88 @@ export function dayIn(date: Date, timeZone: string): Date {
   return new Date(`${day}T00:00:00.000Z`);
 }
 
+/**
+ * El día que es hoy donde está la empresa.
+ *
+ * No es lo mismo que el día del servidor: en Vercel el servidor vive en UTC,
+ * y en Colombia son cinco horas menos. Con `startOfDay(new Date())` el día
+ * cambiaba a las siete de la noche, así que un cobro de las 7:30 p. m. caía
+ * en el resumen del día siguiente y el de hoy quedaba diciendo de menos.
+ */
+export function todayIn(timeZone: string): Date {
+  return dayIn(new Date(), timeZone);
+}
+
+/**
+ * Cuánto se adelanta o se atrasa una zona respecto de UTC en ese instante.
+ *
+ * Se pregunta por el instante y no por la zona a secas porque hay países que
+ * cambian la hora: el mismo sitio está a −5 en enero y a −4 en julio.
+ */
+function offsetMs(at: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(at);
+
+  const get = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+
+  const asIfUtc = Date.UTC(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour"),
+    get("minute"),
+    get("second"),
+  );
+  return asIfUtc - at.getTime();
+}
+
+/**
+ * El instante en que empieza ese día donde está la empresa.
+ *
+ * Los días se anclan a medianoche UTC para poder compararlos sin ambigüedad,
+ * pero el momento en que ese día de verdad empieza depende de dónde se
+ * cobra: la medianoche del 7 de septiembre en Colombia son las 05:00 UTC.
+ */
+export function startOfDayIn(day: Date, timeZone: string): Date {
+  const wall = day.getTime();
+  // Dos pasadas: la primera calcula el desfase con una hora aproximada, la
+  // segunda lo corrige si esa hora caía del otro lado de un cambio de hora.
+  const first = wall - offsetMs(new Date(wall), timeZone);
+  return new Date(wall - offsetMs(new Date(first), timeZone));
+}
+
+/**
+ * El día completo de la empresa, en instantes, para filtrar con él.
+ *
+ * Es lo que hace que el resumen del día cuadre. Filtrando por horas UTC, un
+ * préstamo entregado a las siete de la noche en Colombia —que son las cero
+ * horas del día siguiente en UTC— aparecía en el resumen de mañana, mientras
+ * el abono que se recibió en ese mismo momento aparecía en el de hoy: las dos
+ * mitades del mismo resumen contaban días distintos.
+ *
+ * Sirve igual para las columnas que guardan un día en vez de un instante —los
+ * cobros se anclan al mediodía UTC—, porque el mediodía de un día cae dentro
+ * de la ventana de ese mismo día en todo el continente.
+ */
+export function dayWindowIn(
+  day: Date,
+  timeZone: string,
+): { gte: Date; lt: Date } {
+  return {
+    gte: startOfDayIn(day, timeZone),
+    lt: startOfDayIn(addDays(day, 1), timeZone),
+  };
+}
+
 /** El día como se escribe en una dirección: "2026-08-05". */
 export function dayParam(date: Date): string {
   return date.toISOString().slice(0, 10);

@@ -40,12 +40,11 @@ export default async function DashboardPage() {
   const { t, companyId, money } = context;
 
   const [summary, dueToday, arrears, recentPayments] = await Promise.all([
-    getDashboardSummary(companyId),
-    getDueToday(companyId),
+    getDashboardSummary(companyId, context.timezone),
+    getDueToday(companyId, context.timezone),
     getTopArrears(companyId),
     getRecentPayments(companyId),
   ]);
-
 
   return (
     <>
@@ -188,7 +187,13 @@ export default async function DashboardPage() {
                 <tr key={payment.id}>
                   <Td numeric>{payment.receiptNumber}</Td>
                   <Td>{payment.customerName}</Td>
-                  <Td numeric>{formatDateTime(payment.paidAt)}</Td>
+                  <Td numeric>
+                    {formatDateTime(
+                      payment.createdAt,
+                      context.locale,
+                      context.timezone,
+                    )}
+                  </Td>
                   <Td align="right" numeric>
                     {money(payment.amount)}
                   </Td>
