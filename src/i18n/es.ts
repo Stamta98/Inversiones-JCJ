@@ -839,6 +839,8 @@ export const es = {
     // guardada: son las mismas tres palabras de los filtros de arriba, para
     // que buscar «Atrasados» y leer «Atrasado» sea la misma cosa.
     cardExpired: "Vencido",
+    cardExpiredDays: "Vencido {days} días",
+    cardExpiredDaysOne: "Vencido 1 día",
     cardLate: "Atrasado",
     cardOnTime: "Al día",
     overdueCountLong: "{count} cuotas atrasadas",

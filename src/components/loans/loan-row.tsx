@@ -118,7 +118,11 @@ export function LoanRow({
       ? // Con los días adentro. Al lado de un renglón que ya decía «Vencido
         // 8 d», la etiqueta repetía la palabra y ese pedazo de más partía el
         // renglón en dos: la tarjeta más urgente era la más alta de la lista.
-        `${t("loans.cardExpired")} ${daysExpired} d`
+        t(
+          daysExpired === 1
+            ? "loans.cardExpiredDaysOne"
+            : "loans.cardExpiredDays",
+        ).replace("{days}", String(daysExpired))
       : overdueCount > 0
         ? t("loans.cardLate")
         : t("loans.cardOnTime");
