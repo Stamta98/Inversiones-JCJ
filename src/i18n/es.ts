@@ -851,10 +851,15 @@ export const es = {
     nextShort: "Siguiente",
     // Lo que el cliente tendría que pagar hoy para quedar al corriente, y de
     // cuántas cuotas y cada cuánto es el crédito.
-    // Lo que ya debería estar pagado, contando la cuota que vence hoy. No es
-    // «atrasado»: el día que la cuota vence todavía no hay atraso, y decirle
-    // atrasado a un cliente que está al día es una pelea en la puerta.
-    pendingToPay: "Pendiente a pagar",
+    // Lo que ya debería estar pagado, contando la cuota que vence hoy. Es el
+    // nombre con el que se habla en la calle, así que es el que va.
+    //
+    // Cuidado con leerlo al pie de la letra: el día que la cuota vence
+    // todavía no hay atraso, y ahí la cifra es solo la cuota de hoy. Por eso
+    // el triangulito del recuadro va ámbar mientras el cliente esté al día y
+    // rojo solo cuando de verdad se pasó de fecha — llegar a la puerta a
+    // reclamarle a quien no debe nada es una pelea de gratis.
+    pendingToPay: "Saldo atrasado",
     // Cuántas de las que ya pasaron de fecha están sin pagar: «13 de 26» dice
     // mucho más que un 13 suelto.
     overdueOfDue: "de {count} vencidas",
