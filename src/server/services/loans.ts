@@ -217,7 +217,14 @@ export async function createLoan(input: CreateLoanInput): Promise<string> {
           notes: input.notes ?? null,
           totalPrincipal: fromCents(schedule.totalPrincipalCents),
           totalInterest: fromCents(schedule.totalInterestCents),
-          outstanding: fromCents(schedule.totalToPayCents),
+          // Con los cargos que se cobran aparte encima: no están en ninguna
+          // cuota, pero el cliente los debe desde el primer día y el saldo
+          // tiene que decirlo. `refreshLoan` lo vuelve a calcular igual en
+          // cada cobro; esto es para que el préstamo nazca diciendo la cifra
+          // correcta y no la diga bien solo después del primer movimiento.
+          outstanding: fromCents(
+            schedule.totalToPayCents + chargeSummary.pendingCents,
+          ),
           charges: {
             create: charges.map((charge) => ({
               name: charge.name,
@@ -999,6 +1006,8 @@ export async function refreshLoan(
     where: { id: loanId },
     include: {
       installments: { orderBy: { number: "asc" } },
+      // Los cargos que se cobran aparte también son deuda del préstamo.
+      charges: true,
       // The late fee has to be a chargeable amount too, and how small that is
       // depends on the company's currency.
       company: { select: { decimalPlaces: true } },
@@ -1107,6 +1116,29 @@ export async function refreshLoan(
     outstandingCents += owedCents;
   }
 
+  // Lo que falta de los cargos que se cobran aparte. No están en ninguna
+  // cuota —por eso se cobran por su lado— pero el cliente los debe igual, y
+  // el préstamo tiene que decirlo: agregarle un cargo de 40.000 a un préstamo
+  // ya entregado dejaba el saldo donde estaba, como si no se le hubiera
+  // cobrado nada. Entra aquí, en el único lugar que calcula lo que se debe,
+  // para que la ficha, la lista, la cartera, el recibo y el mensaje al
+  // cliente digan todos la misma cifra, y para que cambiarle el monto o
+  // borrarlo la mueva sin que nadie más tenga que acordarse.
+  const pendingChargeCents = loan.charges.reduce(
+    (total, charge) =>
+      charge.mode === "PENDING"
+        ? total +
+          Math.max(
+            0,
+            toCents(Number(charge.amount)) - toCents(Number(charge.paidAmount)),
+          )
+        : total,
+    0,
+  );
+  outstandingCents += pendingChargeCents;
+
+  // Y con un cargo sin cobrar el préstamo no está saldado, aunque las cuotas
+  // sí lo estén: todavía hay plata que recoger.
   const isPaid = outstandingCents === 0;
   const nextStatus =
     loan.status === "DRAFT" || loan.status === "PENDING_APPROVAL"

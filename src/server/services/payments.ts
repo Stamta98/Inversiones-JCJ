@@ -690,6 +690,11 @@ export async function collectCharge(input: {
         },
       },
     });
+
+    // Lo que falta de un cargo aparte es deuda del préstamo, así que cobrarlo
+    // baja el saldo igual que cobrar una cuota. Sin esto el préstamo seguiría
+    // diciendo que se le debe algo que el cliente ya pagó.
+    await refreshLoan(tx, loan.id, collectedAt);
   });
 
   return { name, amount: input.amount };

@@ -470,6 +470,20 @@ export default async function LoanDetailPage({
   // Los renglones de la cuenta y su total, armados de una vez: el total es la
   // suma de lo que se ve, no otra cuenta por su lado que pueda decir algo
   // distinto de lo que está escrito encima.
+  // Los cargos que se cobran aparte: lo que valen y lo que ya se les abonó.
+  // No están en ninguna cuota, pero el cliente los debe, así que entran en la
+  // cuenta con su propio renglón — si no, el «Total a pagar» diría menos que
+  // el saldo de abajo y las dos cifras no se explicarían entre ellas.
+  const chargesToCollect = loan.charges
+    .filter((charge) => charge.mode === "PENDING")
+    .reduce((total, charge) => total + Number(charge.amount), 0);
+  const chargesCollected = loan.charges
+    .filter((charge) => charge.mode === "PENDING")
+    .reduce((total, charge) => total + Number(charge.paidAmount), 0);
+  // Lo abonado de verdad: las cuotas más lo que se le haya abonado a un cargo
+  // cobrado aparte, que no pasa por los recibos de cuota.
+  const paidAll = Number(loan.totalPaid) + chargesCollected;
+
   const accountRows = [
     { label: t("loans.principal"), value: Number(loan.totalPrincipal) },
     {
@@ -479,6 +493,7 @@ export default async function LoanDetailPage({
       value: Number(loan.totalInterest),
     },
     { label: t("loans.charges.installmentPart"), value: financedCharges },
+    { label: t("loans.charges.toCollect"), value: chargesToCollect },
     // Solo los que pesan: un renglón en cero le hace creer al cliente que se
     // le está cobrando algo que no se le cobra.
     { label: t("loans.lateFeeOwed"), value: lateFees },
@@ -491,7 +506,7 @@ export default async function LoanDetailPage({
   // 100% debiendo todavía el cargo.
   const paidPercent =
     totalToPay > 0
-      ? Math.min(100, Math.round((Number(loan.totalPaid) / totalToPay) * 100))
+      ? Math.min(100, Math.round((paidAll / totalToPay) * 100))
       : 0;
 
   const displayStatus =
@@ -822,8 +837,8 @@ export default async function LoanDetailPage({
           <p className="flex justify-between gap-3">
             <span className="text-ink-muted">{t("loans.alreadyPaid")}</span>
             <span className="numeric font-medium text-positive">
-              {Number(loan.totalPaid) > 0 ? "−" : ""}
-              {money(Number(loan.totalPaid))}
+              {paidAll > 0 ? "−" : ""}
+              {money(paidAll)}
             </span>
           </p>
 
@@ -1021,7 +1036,19 @@ export default async function LoanDetailPage({
                 loanId={loan.id}
                 suggestedAmount={suggestedAmount}
                 installmentAmount={fromCents(collect.installmentCents)}
-                maxAmount={Number(loan.outstanding)}
+                // Lo que deben las cuotas, no el saldo entero: el saldo
+                // lleva encima los cargos que se cobran aparte, y esos se
+                // cobran con su propia opción, no subiendo la cuota.
+                maxAmount={loan.installments.reduce(
+                  (total, installment) =>
+                    total +
+                    Math.max(
+                      0,
+                      Number(installment.totalAmount) -
+                        Number(installment.paidAmount),
+                    ),
+                  0,
+                )}
                 amountHint={amountHint}
                 pendingCharges={pendingCharges}
                 currencyCode={context.currencyCode}

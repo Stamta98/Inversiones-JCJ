@@ -809,6 +809,7 @@ export const es = {
       // dentro de la cuota que el cliente acaba de pagar.
       installmentPart: "Cargo de la cuota",
       collected: "Cargos cobrados",
+      toCollect: "Cargos por cobrar",
     },
     // --- Contactar al cliente desde el préstamo ---
     contact: {

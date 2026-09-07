@@ -196,9 +196,25 @@ export async function renewLoan(
         include: { installments: { orderBy: { number: "asc" } } },
       });
 
+      // Lo que se traslada al préstamo nuevo es lo que deben las cuotas, no
+      // el saldo entero: el saldo lleva encima los cargos que se cobran
+      // aparte, y el traslado se reparte cuota por cuota. Con esa plata de
+      // más, lo que no cabía en ninguna cuota se perdía sin dejar rastro. El
+      // cargo aparte se queda en el préstamo viejo, que es donde se cobra.
+      const cuotasDebenCents = refreshed.installments.reduce(
+        (total, installment) =>
+          total +
+          Math.max(
+            0,
+            toCents(Number(installment.totalAmount)) -
+              toCents(Number(installment.paidAmount)),
+          ),
+        0,
+      );
+
       const plan = planRenewal({
         kind: input.kind,
-        outstandingCents: toCents(Number(refreshed.outstanding)),
+        outstandingCents: cuotasDebenCents,
         newPrincipalCents:
           input.principal === undefined ? undefined : toCents(input.principal),
         step,
@@ -375,7 +391,8 @@ export async function renewLoan(
         data: {
           companyId: input.companyId,
           userId: input.createdById ?? null,
-          action: plan.kind === "REFINANCE" ? "loan.refinanced" : "loan.renewed",
+          action:
+            plan.kind === "REFINANCE" ? "loan.refinanced" : "loan.renewed",
           entityType: "Loan",
           entityId: loan.id,
           metadata: {
