@@ -76,7 +76,11 @@ export default async function CustomerLoansPage({
             },
           },
           payments: {
-            where: { status: "POSTED" },
+            // Sin REFINANCE: cuando se renueva un crédito, el saldo viejo se
+            // salda con un recibo que no fue plata. Contarlo aquí le diría al
+            // cobrador que el cliente abonó lo que en realidad solo se pasó al
+            // crédito nuevo. Es el mismo filtro de la pantalla del préstamo.
+            where: { status: "POSTED", method: { not: "REFINANCE" } },
             orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
             take: 1,
             select: { paidAt: true, amount: true },
