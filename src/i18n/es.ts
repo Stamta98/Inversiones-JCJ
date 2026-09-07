@@ -833,14 +833,19 @@ export const es = {
     // veinte cuotas atrasadas sin que el crédito se haya vencido, y el
     // crédito puede haberse vencido ayer y llevar un solo día vencido.
     overdueInstallments: "Cuotas atrasadas",
-    overdueCountShort: "{count} atrasadas",
-    overdueCountShortOne: "1 atrasada",
+    overdueCountShort: "{count} cuotas atrasadas",
+    overdueCountShortOne: "1 cuota atrasada",
+    // El estado de la tarjeta lo dice cómo va el cobro, no la columna
+    // guardada: son las mismas tres palabras de los filtros de arriba, para
+    // que buscar «Atrasados» y leer «Atrasado» sea la misma cosa.
+    cardExpired: "Vencido",
+    cardLate: "Atrasado",
+    cardOnTime: "Al día",
     overdueCountLong: "{count} cuotas atrasadas",
     overdueCountLongOne: "1 cuota atrasada",
     noneOverdue: "Ninguna atrasada",
     expiredDays: "Vencido hace {days} días",
     expiredDaysOne: "Vencido hace 1 día",
-    expiredShort: "Vencido {days} d",
     // Para pasar de un préstamo a otro sin devolverse a la lista, que es lo
     // que uno hace bajando una ruta.
     previousLoan: "Préstamo anterior",

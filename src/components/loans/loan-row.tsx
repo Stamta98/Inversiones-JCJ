@@ -100,6 +100,35 @@ export function LoanRow({
   const daysExpired = collectable ? snapshot.daysExpired : 0;
   const status =
     loan.status === "ACTIVE" && overdueCount > 0 ? "IN_ARREARS" : loan.status;
+
+  /**
+   * Lo que dice la etiqueta de la esquina.
+   *
+   * Decía «En mora» a todo el que debiera una cuota, con lo que un préstamo
+   * al que se le pasó el plazo entero y otro con una cuota de ayer se veían
+   * igual. Ahora dice lo mismo que los filtros de arriba —vencido, atrasado,
+   * al día— y son las tres cosas distintas que se hacen con un préstamo.
+   *
+   * Un borrador o un saldado conservan su propio nombre: no están en cobro y
+   * llamarlos «al día» sería decir que están corriendo bien.
+   */
+  const stateLabel = !collectable
+    ? t(`loans.status.${status}`)
+    : daysExpired > 0
+      ? // Con los días adentro. Al lado de un renglón que ya decía «Vencido
+        // 8 d», la etiqueta repetía la palabra y ese pedazo de más partía el
+        // renglón en dos: la tarjeta más urgente era la más alta de la lista.
+        `${t("loans.cardExpired")} ${daysExpired} d`
+      : overdueCount > 0
+        ? t("loans.cardLate")
+        : t("loans.cardOnTime");
+  const stateTone: Tone = !collectable
+    ? (STATUS_TONES[status] ?? "neutral")
+    : daysExpired > 0
+      ? "danger"
+      : overdueCount > 0
+        ? "warning"
+        : "positive";
   const dueLabel =
     snapshot.kind === "overdue"
       ? t("loans.collectNow")
@@ -114,10 +143,10 @@ export function LoanRow({
     >
       <Link
         href={`/loans/${loan.id}`}
-        className="block px-3 py-2.5 transition-colors hover:bg-surface-muted"
+        className="block px-3 py-2 transition-colors hover:bg-surface-muted"
       >
         <span className="flex items-start justify-between gap-2">
-          <span className="numeric text-xs text-ink-muted">
+          <span className="numeric text-[0.6875rem] leading-snug text-ink-muted">
             <span className="font-semibold text-brand-strong">
               #{loan.code.replace(/^\D+0*/, "")}
             </span>
@@ -137,25 +166,19 @@ export function LoanRow({
                 ).replace("{count}", String(overdueCount))}
               </span>
             ) : null}
-            {daysExpired > 0 ? (
-              <span className="font-semibold text-danger">
-                {" · "}
-                {t("loans.expiredShort").replace("{days}", String(daysExpired))}
-              </span>
-            ) : null}
           </span>
-          <Badge tone={STATUS_TONES[status] ?? "neutral"}>
-            {t(`loans.status.${status}`)}
+          <Badge tone={stateTone} className="shrink-0 text-[0.6875rem]">
+            {stateLabel}
           </Badge>
         </span>
 
         {title ? (
-          <span className="block truncate text-[0.9375rem] leading-snug font-bold text-ink">
+          <span className="block truncate text-sm leading-snug font-bold text-ink">
             {title}
           </span>
         ) : null}
 
-        <span className="numeric block truncate text-xs leading-snug text-ink-subtle">
+        <span className="numeric block truncate text-[0.6875rem] leading-snug text-ink-subtle">
           {t("loans.lastPayment")}{" "}
           {lastPayment
             ? formatDate(lastPayment, locale)
@@ -174,7 +197,7 @@ export function LoanRow({
         {/* Lo que se le pide en la puerta, aparte del saldo: son números
             distintos y confundirlos es cobrar mal. */}
         <span className="mt-1 flex items-center justify-between gap-3">
-          <span className="numeric text-xs text-ink-muted">
+          <span className="numeric text-[0.6875rem] text-ink-muted">
             {t("loans.outstanding")}{" "}
             <span className="font-semibold text-ink">
               {money(Number(loan.outstanding))}
@@ -184,7 +207,9 @@ export function LoanRow({
             <span
               className={
                 "flex shrink-0 flex-col items-end rounded-lg px-2.5 py-0.5 " +
-                (snapshot.kind === "overdue" ? "bg-danger-soft" : "bg-brand-soft")
+                (snapshot.kind === "overdue"
+                  ? "bg-danger-soft"
+                  : "bg-brand-soft")
               }
             >
               <span className="text-[0.5625rem] font-medium tracking-wide text-ink-muted uppercase">
@@ -192,7 +217,7 @@ export function LoanRow({
               </span>
               <span
                 className={
-                  "numeric text-base leading-tight font-bold " +
+                  "numeric text-sm leading-tight font-bold " +
                   (snapshot.kind === "overdue"
                     ? "text-danger"
                     : "text-brand-strong")
