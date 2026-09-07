@@ -36,6 +36,22 @@ describe("installmentsCovered", () => {
     expect(installmentsCovered(0, 600_000_00, 30)).toBe(0);
   });
 
+  it("no da por pagada una cuota que quedó a mitad", () => {
+    // 39.000 de un plan de 1.200.000 en 30 cuotas: la cuota vale 40.000 y
+    // faltan mil pesos. Redondeando salía «1», y el cliente leía que ya tenía
+    // una cuota completa.
+    expect(installmentsCovered(39_000_00, 1_200_000_00, 30)).toBe(0.9);
+    // Y lo abonado se ve: decir «0» era decirle que su plata no entró.
+    expect(installmentsCovered(39_000_00, 1_200_000_00, 30)).toBeGreaterThan(0);
+  });
+
+  it("cuenta de a decimales lo que pasa de una cuota", () => {
+    // 45.000 con cuotas de 20.000: dos cuotas y un cuarto.
+    expect(installmentsCovered(45_000_00, 600_000_00, 30)).toBe(2.2);
+    // Justo una cuota es una cuota, sin decimales de más.
+    expect(installmentsCovered(20_000_00, 600_000_00, 30)).toBe(1);
+  });
+
   it("never claims more installments than the loan has", () => {
     // Paying beyond the total does not make the loan longer.
     expect(installmentsCovered(900_000_00, 600_000_00, 5)).toBe(5);

@@ -28,6 +28,7 @@ import {
 import { collectionSnapshot } from "@/core/loans/collection";
 import { chargesOnDeliveryDay } from "@/server/services/first-due-fix";
 import { canEditAtAll } from "@/core/loans/editable";
+import { installmentsCovered } from "@/core/loans/receipt";
 import { fromCents, toCents } from "@/core/money";
 import type { LoanStatus } from "@/core/types";
 import { formatDate, formatTime, initials } from "@/lib/format";
@@ -486,6 +487,22 @@ export default async function LoanDetailPage({
   // cobrado aparte, que no pasa por los recibos de cuota.
   const paidAll = Number(loan.totalPaid) + chargesCollected;
 
+  // Cuánto del plan lleva pagado, contado en cuotas y con un decimal. No es
+  // lo mismo que cuántas cuotas quedaron cerradas: abonar 39.000 de una cuota
+  // de 40.000 es avance de verdad y salía como «0 de 30», que el cliente lee
+  // como que su plata no entró a ninguna parte. Se mide contra lo que suman
+  // las cuotas —no contra el saldo, que lleva encima los cargos que se cobran
+  // aparte— porque lo que se está contando son cuotas.
+  const scheduleTotal = loan.installments.reduce(
+    (total, installment) => total + Number(installment.totalAmount),
+    0,
+  );
+  const coveredInstallments = installmentsCovered(
+    toCents(Number(loan.totalPaid)),
+    toCents(scheduleTotal),
+    loan.installments.length,
+  );
+
   const accountRows = [
     { label: t("loans.principal"), value: Number(loan.totalPrincipal) },
     {
@@ -737,7 +754,7 @@ export default async function LoanDetailPage({
             partes; cuál se está cobrando ya lo dice «Próxima cuota». */}
         <StatCard
           label={t("loans.paidInstallments")}
-          value={`${collect.paidCount} / ${loan.installments.length}`}
+          value={`${coveredInstallments} / ${loan.installments.length}`}
           compact
         />
 
@@ -863,7 +880,7 @@ export default async function LoanDetailPage({
                 </span>
                 <span className="numeric font-medium text-ink">
                   {t("loans.paidOfTotal")
-                    .replace("{paid}", String(collect.paidCount))
+                    .replace("{paid}", String(coveredInstallments))
                     .replace("{total}", String(loan.installments.length))}
                 </span>
               </p>

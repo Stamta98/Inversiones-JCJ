@@ -67,7 +67,14 @@ export async function loadReceipt(
   if (!payment) return null;
 
   const loan = payment.loan;
-  const totalToPay = Number(loan.totalPrincipal) + Number(loan.totalInterest);
+  // Lo que el plan cobra de verdad, leído de las cuotas. Sumando capital e
+  // interés a secas se quedaban fuera el cargo repartido entre las cuotas y
+  // la mora, y con un total más chico el recibo decía haber cubierto más
+  // cuotas de las que el cliente había pagado.
+  const totalToPay = loan.installments.reduce(
+    (total, installment) => total + Number(installment.totalAmount),
+    0,
+  );
   const covered = installmentsCovered(
     toCents(Number(loan.totalPaid)),
     toCents(totalToPay),

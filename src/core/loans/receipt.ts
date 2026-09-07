@@ -40,9 +40,14 @@ export function installmentsCovered(
 
   const perInstallment = totalToPayCents / termCount;
   const covered = paidCents / perInstallment;
-  // One decimal: "3,4 de 30" says more than "3" and does not pretend to a
-  // precision nobody needs.
-  return Math.round(Math.min(covered, termCount) * 10) / 10;
+  // Un decimal: «3,4 de 30» dice más que «3» y no presume de una precisión
+  // que nadie necesita.
+  //
+  // Y hacia abajo, nunca hacia arriba: redondeando, 39.000 de una cuota de
+  // 40.000 salía como «1,0» y el cliente leía que ya tenía una cuota
+  // completa cuando le faltaban mil pesos. Se dice lo que la plata alcanza,
+  // no lo que casi alcanza.
+  return Math.floor(Math.min(covered, termCount) * 10) / 10;
 }
 
 export interface ReceiptProgress {
