@@ -624,7 +624,7 @@ export const es = {
     approve: "Aprobar",
     contract: "Contrato",
     openEndedNotice:
-      "Este es un préstamo indefinido: solo se programa el interés y el capital queda pendiente hasta que el cliente lo salde.",
+      "Cada cuota es solo el interés y el capital completo cae en la última. Si al llegar ahí el cliente todavía no lo salda, alárgale el plazo editando el préstamo.",
     method: {
       FLAT: "Porcentaje simple (fijo sobre el capital)",
       FRENCH: "Francés (cuota fija)",
@@ -734,6 +734,8 @@ export const es = {
       name: "A cada cargo adicional ponle un nombre.",
       overPrincipal:
         "Los cargos que le descuentas se llevarían todo lo que le vas a entregar. Bájalos o cóbralos en las cuotas.",
+      belowPaid:
+        "Con esas condiciones el préstamo debería menos de lo que el cliente ya te abonó, y esa diferencia se perdería. Súbele el monto, las cuotas o el interés, o devuélvele lo que sobra y anula ese cobro.",
     },
     // --- Cargos adicionales ---
     charges: {

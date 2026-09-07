@@ -288,7 +288,8 @@ export class LoanServiceError extends Error {
       | "closed"
       | "alreadyRenewed"
       | "guarantorNotFound"
-      | "guarantorIsBorrower",
+      | "guarantorIsBorrower"
+      | "belowPaid",
   ) {
     super(message);
     this.name = "LoanServiceError";
@@ -406,6 +407,28 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
           charges: input.charges ?? chargesOf(loan),
         })
       : null;
+
+    // Un plan nuevo que valga menos de lo que el cliente ya abonó no se
+    // guarda. Los cobros se vuelven a repartir sobre las cuotas nuevas, y lo
+    // que no cabe en ninguna se pierde sin dejar rastro: un préstamo con
+    // 54.000 abonados en dos recibos, bajado a 48.000, quedaba diciendo que
+    // el cliente pagó 48.000 y saldado. Los 6.000 estaban en la caja pero ya
+    // no eran de nadie, y ni el recibo ni la pantalla decían que se le debían
+    // devolver. Se dice antes de escribir, que es cuando todavía se puede
+    // arreglar el número mal tecleado.
+    if (schedule) {
+      const paid = await tx.payment.aggregate({
+        where: { loanId: loan.id, status: "POSTED" },
+        _sum: { amount: true },
+      });
+      const paidCents = toCents(Number(paid._sum.amount ?? 0));
+      if (schedule.totalToPayCents < paidCents) {
+        throw new LoanServiceError(
+          "New terms owe less than what was already paid",
+          "belowPaid",
+        );
+      }
+    }
 
     await tx.loan.update({
       where: { id: loan.id },

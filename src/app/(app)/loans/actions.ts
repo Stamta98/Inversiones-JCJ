@@ -117,18 +117,7 @@ export async function createLoanAction(
     nonCollectionDays: formData.getAll("nonCollectionDays").map(String),
   });
 
-  if (!parsed.success) {
-    const first = parsed.error.issues[0];
-    const field = first?.path[0];
-    if (field === "customerId") {
-      return { error: t("loans.errors.customerRequired") };
-    }
-    if (typeof field === "string") {
-      const message = t(`loans.errors.${field}`);
-      if (message !== `loans.errors.${field}`) return { error: message };
-    }
-    return { error: t("common.error") };
-  }
+  if (!parsed.success) return { error: campoMalPuesto(parsed.error) };
 
   const data = parsed.data;
   let loanId: string;
@@ -201,7 +190,7 @@ export async function updateLoanAction(
     nonCollectionDays: formData.getAll("nonCollectionDays").map(String),
   });
 
-  if (!parsed.success) return { error: t("common.error") };
+  if (!parsed.success) return { error: campoMalPuesto(parsed.error) };
   const data = parsed.data;
 
   try {
@@ -331,6 +320,24 @@ function primeraCuotaDe(data: {
   );
 }
 
+/**
+ * El primer campo mal puesto, dicho con nombre propio.
+ *
+ * Sin esto, editar contestaba «Ocurrió un error» a cualquier cosa: marcar los
+ * siete días como que no se cobra se rechazaba —está bien, no hay día en que
+ * cobrar— pero la pantalla no decía cuál de los campos era, y quien lo
+ * escribió se quedaba mirando el formulario sin saber qué corregir.
+ */
+function campoMalPuesto(error: z.ZodError): string {
+  const field = error.issues[0]?.path[0];
+  if (field === "customerId") return t("loans.errors.customerRequired");
+  if (typeof field === "string") {
+    const message = t(`loans.errors.${field}`);
+    if (message !== `loans.errors.${field}`) return message;
+  }
+  return t("common.error");
+}
+
 /** Turns a service or schedule failure into a message the user can read. */
 function loanErrorMessage(error: unknown): string {
   if (error instanceof ChargeError) {
@@ -348,6 +355,9 @@ function loanErrorMessage(error: unknown): string {
   if (error instanceof ScheduleError) {
     const message = t(`loans.errors.${error.code}`);
     return message === `loans.errors.${error.code}` ? error.message : message;
+  }
+  if (error instanceof NoCollectionDayError) {
+    return t("loans.errors.nonCollectionDays");
   }
   throw error;
 }
@@ -399,7 +409,7 @@ export async function renewLoanAction(
     nonCollectionDays: formData.getAll("nonCollectionDays").map(String),
   });
 
-  if (!parsed.success) return { error: t("common.error") };
+  if (!parsed.success) return { error: campoMalPuesto(parsed.error) };
   const data = parsed.data;
 
   let created: { loanId: string };

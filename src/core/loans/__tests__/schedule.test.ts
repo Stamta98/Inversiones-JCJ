@@ -59,7 +59,10 @@ describe("buildSchedule / FRENCH", () => {
     });
 
     // Standard annuity for 10,000 at 2% over 12 periods is 945.60 per period.
-    expect(fromCents(schedule.installments[0].totalCents)).toBeCloseTo(945.6, 1);
+    expect(fromCents(schedule.installments[0].totalCents)).toBeCloseTo(
+      945.6,
+      1,
+    );
 
     const payments = schedule.installments
       .slice(0, -1)
@@ -155,7 +158,7 @@ describe("buildSchedule / AMERICAN", () => {
 });
 
 describe("buildSchedule / CREDIT_LINE", () => {
-  it("produces an open ended interest only horizon", () => {
+  it("charges interest every period and the whole principal at the end", () => {
     const schedule = buildSchedule({
       principalCents: toCents(5000),
       interestRate: 4,
@@ -166,14 +169,23 @@ describe("buildSchedule / CREDIT_LINE", () => {
     });
 
     expect(schedule.isOpenEnded).toBe(true);
-    expect(schedule.totalPrincipalCents).toBe(0);
     expect(
       schedule.installments.every(
-        (installment) =>
-          installment.balanceAfterCents === toCents(5000) &&
-          fromCents(installment.interestCents) === 200,
+        (installment) => fromCents(installment.interestCents) === 200,
       ),
     ).toBe(true);
+
+    // Solo interés hasta la penúltima, y el capital entero en la última.
+    expect(schedule.installments[0].principalCents).toBe(0);
+    expect(schedule.installments[1].principalCents).toBe(0);
+    expect(fromCents(schedule.installments[2].principalCents)).toBe(5000);
+    expect(schedule.installments[0].balanceAfterCents).toBe(toCents(5000));
+    expect(schedule.installments[2].balanceAfterCents).toBe(0);
+
+    // Lo que se debe es el capital más el interés, no el interés solo: antes
+    // un préstamo de 5.000 quedaba guardado debiendo 600.
+    expect(fromCents(schedule.totalPrincipalCents)).toBe(5000);
+    expect(fromCents(schedule.totalToPayCents)).toBe(5600);
   });
 });
 

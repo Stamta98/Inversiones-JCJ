@@ -348,25 +348,35 @@ function buildAmericanSchedule(input: ScheduleInput): BareInstallment[] {
 }
 
 /**
- * Credit line: an open ended loan where only interest is scheduled and the
- * principal stays outstanding until the customer decides to repay it. The
- * generated rows are a rolling horizon, not a closed plan.
+ * Línea de crédito: el cliente paga solo el interés cada periodo y el capital
+ * queda parado hasta el final del plazo, donde cae completo.
+ *
+ * Antes el capital no se programaba en ninguna cuota, y por eso el préstamo
+ * quedaba guardado debiendo solo los intereses: uno de 400.000 decía deber
+ * 20.000. La deuda salía mal en la ficha, en la barra de avance y en la
+ * cartera, y no había cuota contra la cual abonar el capital — el cliente no
+ * tenía cómo saldarlo aunque quisiera. Ahora la última cuota lo lleva: si el
+ * cliente todavía no lo va a saldar, se le alarga el plazo editando el
+ * préstamo, que es lo que mantiene vivo el crédito.
  */
 function buildCreditLineSchedule(input: ScheduleInput): BareInstallment[] {
   const step = input.minorUnitStep ?? 1;
-  const interestParts = splitEvenly(
-    totalInterestOf(input, step),
-    input.termCount,
-    step,
-  );
-  return dueDates(input, input.termCount).map((dueDate, index) => ({
-    number: index + 1,
-    dueDate,
-    principalCents: 0,
-    interestCents: interestParts[index]!,
-    totalCents: interestParts[index]!,
-    balanceAfterCents: input.principalCents,
-  }));
+  const count = input.termCount;
+  const interestParts = splitEvenly(totalInterestOf(input, step), count, step);
+
+  return dueDates(input, count).map((dueDate, index) => {
+    const isLast = index === count - 1;
+    const interestCents = interestParts[index]!;
+    const principalCents = isLast ? input.principalCents : 0;
+    return {
+      number: index + 1,
+      dueDate,
+      principalCents,
+      interestCents,
+      totalCents: principalCents + interestCents,
+      balanceAfterCents: isLast ? 0 : input.principalCents,
+    };
+  });
 }
 
 const BUILDERS: Record<
