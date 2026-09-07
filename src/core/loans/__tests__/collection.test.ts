@@ -211,8 +211,6 @@ describe("dueNowCount", () => {
     // filtro y no se pueden desmentir.
     expect(snapshot.dueNowCount).toBe(2);
     expect(snapshot.overdueCents / 4_000_000).toBe(snapshot.dueNowCount);
-    // Tres cuotas han llegado a su fecha, contando la de hoy.
-    expect(snapshot.dueNowTotal).toBe(3);
     // El atraso de verdad —el que pinta de rojo— sigue sin contar hoy.
     expect(snapshot.overdueCount).toBe(1);
   });
@@ -226,7 +224,6 @@ describe("dueNowCount", () => {
       new Date(2026, 8, 8),
     );
     expect(snapshot.dueNowCount).toBe(1);
-    expect(snapshot.dueNowTotal).toBe(2);
   });
 
   it("con el préstamo al día no cuenta ninguna", () => {

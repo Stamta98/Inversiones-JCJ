@@ -867,9 +867,6 @@ export const es = {
     // rojo solo cuando de verdad se pasó de fecha — llegar a la puerta a
     // reclamarle a quien no debe nada es una pelea de gratis.
     pendingToPay: "Saldo atrasado",
-    // Cuántas de las que ya pasaron de fecha están sin pagar: «13 de 26» dice
-    // mucho más que un 13 suelto.
-    overdueOfDue: "de {count} vencidas",
     // La cuenta del préstamo, en renglones que suman a la vista.
     // Las cuatro cifras que uno mira de reojo antes de tocar la puerta.
     quickTitle: "Detalles rápidos",

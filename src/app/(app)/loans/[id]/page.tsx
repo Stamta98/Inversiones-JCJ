@@ -995,9 +995,12 @@ export default async function LoanDetailPage({
                 collect.dueNowCount > 0
                   ? {
                       label: t("loans.overdueInstallments"),
-                      value: `${collect.dueNowCount} ${t(
-                        "loans.overdueOfDue",
-                      ).replace("{count}", String(collect.dueNowTotal))}`,
+                      // El número y nada más. «3 de 4 vencidas» se leía como
+                      // un rango —de tres a cuatro— y el segundo número no
+                      // decide nada en la puerta: lo que se cobra son las
+                      // tres, y cuántas habían llegado a su fecha ya lo dice
+                      // «Cuotas pagadas» más arriba.
+                      value: String(collect.dueNowCount),
                     }
                   : null,
                 catchUp > 0

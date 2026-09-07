@@ -43,8 +43,6 @@ export interface CollectionSnapshot {
    * un «Saldo atrasado» de tres cuotas, y las dos cifras se desmentían.
    */
   dueNowCount: number;
-  /** Cuántas cuotas ya llegaron a su fecha, pagadas o no, contando hoy. */
-  dueNowTotal: number;
   daysLate: number;
   overdueSince: Date | null;
   /**
@@ -105,9 +103,6 @@ export function collectionSnapshot(
     (installment) =>
       clampToZero(installment.totalCents - installment.paidCents) > 0,
   ).length;
-  const dueNowTotal = installments.filter(
-    (installment) => installment.dueDate <= asOf,
-  ).length;
 
   const next = open[0] ?? null;
   const nextAmountCents = next
@@ -142,7 +137,6 @@ export function collectionSnapshot(
       overdueCents: 0,
       overdueCount: 0,
       dueNowCount: 0,
-      dueNowTotal,
       daysLate: 0,
       overdueSince: null,
       lastDueDate,
@@ -161,7 +155,6 @@ export function collectionSnapshot(
     overdueCents,
     overdueCount: late.length,
     dueNowCount,
-    dueNowTotal,
     daysLate: overdueSince ? daysBetween(overdueSince, today) : 0,
     overdueSince,
     lastDueDate,
