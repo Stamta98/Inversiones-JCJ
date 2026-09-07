@@ -10,7 +10,7 @@ import {
   StatCard,
 } from "@/components/ui";
 import { LoanRow } from "@/components/loans/loan-row";
-import { startOfDay } from "@/core/dates";
+import { startOfDay, todayIn } from "@/core/dates";
 import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -79,7 +79,7 @@ export default async function CustomerLoansPage({
             where: { status: "POSTED" },
             orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
             take: 1,
-            select: { paidAt: true },
+            select: { paidAt: true, amount: true },
           },
         },
       },
@@ -88,9 +88,7 @@ export default async function CustomerLoansPage({
 
   if (!customer) notFound();
 
-  const open = customer.loans.filter(
-    (loan) => !FINISHED.includes(loan.status),
-  );
+  const open = customer.loans.filter((loan) => !FINISHED.includes(loan.status));
   const closed = customer.loans.filter((loan) =>
     FINISHED.includes(loan.status),
   );
@@ -109,11 +107,15 @@ export default async function CustomerLoansPage({
     0,
   );
 
+  // El día donde está la empresa, para resaltar a quien ya abonó hoy.
+  const hoyAqui = todayIn(context.timezone);
+
   const row = (loan: (typeof customer.loans)[number]) => (
     <LoanRow
       key={loan.id}
       loan={loan}
       now={now}
+      today={hoyAqui}
       t={t}
       money={money}
       locale={context.locale}

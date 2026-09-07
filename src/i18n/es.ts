@@ -828,6 +828,7 @@ export const es = {
     nothingDue: "Nada por cobrar",
     lastPayment: "Últ. pago",
     noPayments: "Sin pagos",
+    paidTodayShort: "Abonó hoy {amount}",
     // Lo que se atrasa son cuotas; lo que se vence es el crédito. Son dos
     // cosas distintas y llamarlas igual confunde: un cliente puede llevar
     // veinte cuotas atrasadas sin que el crédito se haya vencido, y el

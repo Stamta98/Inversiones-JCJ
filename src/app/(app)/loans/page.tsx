@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { LoanRow } from "@/components/loans/loan-row";
 import { SortableRows } from "@/components/ui/sortable-rows";
-import { startOfDay } from "@/core/dates";
+import { startOfDay, todayIn } from "@/core/dates";
 import { isManuallyOrdered } from "@/core/ordering";
 import { can, requirePermission } from "@/server/auth/context";
 import { crookedLoans } from "@/server/services/first-due-fix";
@@ -101,8 +101,13 @@ export default async function LoansPage({
   const context = await requirePermission("loans.read");
   const { status } = await searchParams;
   const now = new Date();
+  // El día en horas UTC, para filtrar por el vencimiento de las cuotas, que
+  // se guarda anclado a la medianoche UTC de su fecha.
   const today = startOfDay(now);
   const filters = buildFilters(today);
+  // Y el día donde está la empresa, para saber quién abonó hoy: el cobro
+  // lleva el día que el cobrador escogió en su teléfono, no el del servidor.
+  const hoyAqui = todayIn(context.timezone);
   const filter: FilterKey =
     status && status in filters ? (status as FilterKey) : "all";
 
@@ -136,7 +141,7 @@ export default async function LoansPage({
           where: { status: "POSTED" },
           orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
           take: 1,
-          select: { paidAt: true },
+          select: { paidAt: true, amount: true },
         },
       },
       // Primero lo que la persona puso a mano, después el orden de siempre.
@@ -275,6 +280,7 @@ export default async function LoansPage({
               key={loan.id}
               loan={loan}
               now={now}
+              today={hoyAqui}
               t={t}
               money={money}
               locale={context.locale}

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Badge, Card, type Tone } from "@/components/ui";
 import { collectionSnapshot } from "@/core/loans/collection";
+import { startOfDay } from "@/core/dates";
 import { fromCents, toCents } from "@/core/money";
 import { formatDate } from "@/lib/format";
 
@@ -55,12 +56,13 @@ export type LoanRowLoan = {
     paidAmount: unknown;
     status: string;
   }>;
-  payments: ReadonlyArray<{ paidAt: Date }>;
+  payments: ReadonlyArray<{ paidAt: Date; amount: unknown }>;
 };
 
 export function LoanRow({
   loan,
   now,
+  today,
   t,
   money,
   locale,
@@ -69,6 +71,13 @@ export function LoanRow({
 }: {
   loan: LoanRowLoan;
   now: Date;
+  /**
+   * El día de hoy donde está la empresa, para resaltar al que ya abonó.
+   *
+   * Va por props y no se saca de `now` aquí: el día se decide con la zona
+   * horaria de la empresa, que esta tarjeta no conoce.
+   */
+  today?: Date;
   t: (key: string) => string;
   money: (value: number) => string;
   locale?: string;
@@ -90,6 +99,18 @@ export function LoanRow({
     now,
   );
   const lastPayment = loan.payments[0]?.paidAt ?? null;
+  /**
+   * Si el cliente ya abonó hoy.
+   *
+   * Es lo que el cobrador necesita ver de un vistazo cuando vuelve a abrir la
+   * lista a media tarde: sin esto hay que leer la fecha del último pago
+   * tarjeta por tarjeta, y se toca dos veces la misma puerta.
+   */
+  const paidToday =
+    today !== undefined &&
+    lastPayment !== null &&
+    startOfDay(lastPayment).getTime() === today.getTime();
+  const paidTodayAmount = paidToday ? Number(loan.payments[0]?.amount ?? 0) : 0;
   // Un préstamo anulado conserva sus cuotas sin pagar, así que el cálculo por
   // sí solo pediría cobrarlas. De un anulado no se cobra.
   const collectable =
@@ -143,7 +164,11 @@ export function LoanRow({
   return (
     <Card
       sortableId={sortableId}
-      className={`overflow-hidden border-l-4 ${severity(loan.status, overdueCount, daysExpired)}`}
+      className={`overflow-hidden border-l-4 ${severity(
+        loan.status,
+        overdueCount,
+        daysExpired,
+      )} ${paidToday ? "bg-positive-soft/40" : ""}`}
     >
       <Link
         href={`/loans/${loan.id}`}
@@ -183,10 +208,25 @@ export function LoanRow({
         ) : null}
 
         <span className="numeric block truncate text-[0.6875rem] leading-snug text-ink-subtle">
-          {t("loans.lastPayment")}{" "}
-          {lastPayment
-            ? formatDate(lastPayment, locale)
-            : t("loans.noPayments")}
+          {/* Abonó hoy se dice aquí y no en un renglón nuevo: es el mismo
+              dato —cuándo pagó por última vez— y una tarjeta que crece por
+              cada cliente que paga deja menos clientes en pantalla justo el
+              día en que más se está cobrando. */}
+          {paidToday ? (
+            <span className="font-semibold text-positive">
+              {t("loans.paidTodayShort").replace(
+                "{amount}",
+                money(paidTodayAmount),
+              )}
+            </span>
+          ) : (
+            <>
+              {t("loans.lastPayment")}{" "}
+              {lastPayment
+                ? formatDate(lastPayment, locale)
+                : t("loans.noPayments")}
+            </>
+          )}
           {snapshot.nextDueDate ? (
             <>
               {" · "}
