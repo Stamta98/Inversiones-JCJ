@@ -697,10 +697,14 @@ export default async function LoanDetailPage({
           value={money(Number(loan.principal))}
           compact
         />
+        {/* El saldo, no el capital que queda. Son dos cifras distintas —el
+            saldo lleva el interés y los cargos encima— y la misma que dice la
+            cuenta de abajo con ese nombre: dos «Saldo pendiente» con números
+            distintos en la misma pantalla no se le explican a nadie. El
+            capital que queda sigue dicho, con su nombre, en esa cuenta. */}
         <StatCard
-          label={t("loans.remainingPrincipal")}
-          value={money(remainingPrincipal)}
-          tone="warning"
+          label={t("loans.outstanding")}
+          value={money(Number(loan.outstanding))}
           compact
         />
         <StatCard
@@ -715,6 +719,20 @@ export default async function LoanDetailPage({
           }`}
           compact
         />
+
+        {/* La mora que se le ha sumado por el atraso, aparte de la cuota.
+            Se enseña siempre, también en cero: que el préstamo no cobre mora
+            es un dato, y quien va a la puerta necesita saberlo antes de
+            pedirle un peso de más al cliente. */}
+        <div className="col-span-2">
+          <StatCard
+            label={t("loans.lateFee")}
+            value={money(lateFees)}
+            tone={lateFees > 0 ? "danger" : "neutral"}
+            icon={lateFees > 0 ? "alert-triangle" : undefined}
+            compact
+          />
+        </div>
       </div>
 
       {/* Lo atrasado y lo que sigue, cada uno en su franja: son las dos cosas
