@@ -81,10 +81,20 @@ export interface CollectionSnapshot {
 
 const SETTLED = new Set(["PAID", "WAIVED"]);
 
+/**
+ * @param asOf El día de hoy donde está la empresa, no el instante del
+ * servidor. Se compara contra fechas de vencimiento, que son días sueltos:
+ * medirlas contra una hora es lo que hacía que a las siete de la noche en
+ * Colombia —ya el día siguiente en UTC— apareciera atrasada una cuota que
+ * vencía mañana. Se normaliza al día por si llega un instante, pero eso no
+ * arregla la zona horaria: eso lo tiene que traer quien llama.
+ */
 export function collectionSnapshot(
   installments: readonly CollectableInstallment[],
   asOf: Date = new Date(),
 ): CollectionSnapshot {
+  const today = startOfDay(asOf);
+
   const open = [...installments]
     .filter((installment) => !SETTLED.has(installment.status))
     .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
@@ -93,7 +103,9 @@ export function collectionSnapshot(
 
   // Las mismas cuotas dan la plata y el número: salen de un solo filtro para
   // que no puedan decir cosas distintas.
-  const dueNow = open.filter((installment) => installment.dueDate <= asOf);
+  const dueNow = open.filter(
+    (installment) => startOfDay(installment.dueDate) <= today,
+  );
   const overdueCents = dueNow.reduce(
     (total, installment) =>
       total + clampToZero(installment.totalCents - installment.paidCents),
@@ -109,7 +121,6 @@ export function collectionSnapshot(
     ? clampToZero(next.totalCents - next.paidCents)
     : 0;
 
-  const today = startOfDay(asOf);
   const lastDueDate = installments.reduce<Date | null>(
     (last, installment) =>
       last === null || installment.dueDate > last

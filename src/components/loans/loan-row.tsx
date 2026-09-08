@@ -61,7 +61,6 @@ export type LoanRowLoan = {
 
 export function LoanRow({
   loan,
-  now,
   today,
   t,
   money,
@@ -70,14 +69,16 @@ export function LoanRow({
   sortableId,
 }: {
   loan: LoanRowLoan;
-  now: Date;
   /**
-   * El día de hoy donde está la empresa, para resaltar al que ya abonó.
+   * El día de hoy donde está la empresa.
    *
-   * Va por props y no se saca de `now` aquí: el día se decide con la zona
-   * horaria de la empresa, que esta tarjeta no conoce.
+   * Obligatorio y por props, no sacado de la hora del servidor aquí: de eso
+   * dependen el atraso, el «cobrar hoy» y el resaltado del que ya abonó, y el
+   * servidor puede estar en otro huso. Con la hora del servidor, a las siete
+   * de la noche en Colombia ya era mañana y aparecía atrasada una cuota que
+   * todavía no vencía.
    */
-  today?: Date;
+  today: Date;
   t: (key: string) => string;
   money: (value: number) => string;
   locale?: string;
@@ -96,7 +97,7 @@ export function LoanRow({
       paidCents: toCents(Number(installment.paidAmount)),
       status: installment.status,
     })),
-    now,
+    today,
   );
   const lastPayment = loan.payments[0]?.paidAt ?? null;
   /**
@@ -107,7 +108,6 @@ export function LoanRow({
    * tarjeta por tarjeta, y se toca dos veces la misma puerta.
    */
   const paidToday =
-    today !== undefined &&
     lastPayment !== null &&
     startOfDay(lastPayment).getTime() === today.getTime();
   const paidTodayAmount = paidToday ? Number(loan.payments[0]?.amount ?? 0) : 0;
@@ -118,6 +118,16 @@ export function LoanRow({
   // El atraso se cuenta al abrir la lista: un préstamo que nadie ha tocado en
   // una semana ya lleva esa semana, diga lo que diga la columna guardada.
   const overdueCount = collectable ? snapshot.overdueCount : 0;
+  /**
+   * Cuántas cuotas son los pesos del «Cobrar hoy», la de hoy incluida.
+   *
+   * Va aparte de `overdueCount` —que es el atraso de verdad y decide el color
+   * y la etiqueta— porque este número se lee pegado a la plata, y contando
+   * solo las que ya pasaron de fecha la tarjeta decía «3 cuotas atrasadas»
+   * encima de un «Cobrar hoy» de cuatro cuotas. Es la misma regla de la ficha
+   * del préstamo: el conteo y el dinero salen de las mismas cuotas.
+   */
+  const dueNowCount = collectable ? snapshot.dueNowCount : 0;
   const daysExpired = collectable ? snapshot.daysExpired : 0;
   const status =
     loan.status === "ACTIVE" && overdueCount > 0 ? "IN_ARREARS" : loan.status;
@@ -189,10 +199,10 @@ export function LoanRow({
               <span className="font-semibold text-danger">
                 {" · "}
                 {t(
-                  overdueCount === 1
+                  dueNowCount === 1
                     ? "loans.overdueCountShortOne"
                     : "loans.overdueCountShort",
-                ).replace("{count}", String(overdueCount))}
+                ).replace("{count}", String(dueNowCount))}
               </span>
             ) : null}
           </span>

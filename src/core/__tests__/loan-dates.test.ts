@@ -109,3 +109,68 @@ describe("la primera y la última cuota", () => {
     expect(collect.lastDueDate?.toISOString().slice(0, 10)).toBe("2026-09-10");
   });
 });
+
+/**
+ * El atraso se mide en días, y el día es el de la empresa.
+ *
+ * Una cuota vence un día entero, no a una hora. Midiéndola contra el instante
+ * del servidor, que puede estar en otro huso, a las siete de la noche en
+ * Colombia ya era el día siguiente en UTC: entraba en el atraso una cuota que
+ * todavía no había vencido, y el cobrador salía a cobrar de más.
+ */
+describe("cuántas cuotas están atrasadas", () => {
+  // El caso real: PRE-000022, treinta cuotas diarias de 20.000, diecinueve
+  // pagadas hasta el 3 de septiembre. Mirado a las 9:25 de la noche del 7.
+  const cuotas = Array.from({ length: 30 }, (_, i) => ({
+    number: i + 1,
+    dueDate: new Date(Date.UTC(2026, 7, 16 + i)),
+    totalCents: 2_000_000,
+    paidCents: i < 19 ? 2_000_000 : 0,
+    status: i < 19 ? "PAID" : "PENDING",
+  }));
+
+  const nocheDelSiete = new Date("2026-09-08T02:25:00.000Z");
+
+  it("cuenta hasta la cuota de hoy, sin colar la de mañana", () => {
+    const collect = collectionSnapshot(
+      cuotas,
+      dayIn(nocheDelSiete, "America/Bogota"),
+    );
+
+    // Vencen el 4, 5, 6 y 7. La del 8 todavía no.
+    expect(collect.dueNowCount).toBe(4);
+    expect(collect.overdueCents).toBe(8_000_000);
+    // Y atrasadas de verdad, las que ya pasaron de fecha: el 4, 5 y 6.
+    expect(collect.overdueCount).toBe(3);
+    expect(collect.paidCount).toBe(19);
+  });
+
+  it("con la hora del servidor contaba una cuota de más", () => {
+    // Lo que se veía en pantalla antes: 100.000 de saldo atrasado sobre cinco
+    // cuotas, una de ellas la de un día que en Colombia no había llegado.
+    const alRevés = collectionSnapshot(cuotas, nocheDelSiete);
+    expect(alRevés.dueNowCount).toBe(5);
+    expect(alRevés.overdueCents).toBe(10_000_000);
+  });
+
+  it("de día las dos horas dan lo mismo", () => {
+    // Diez de la mañana del 7 en Bogotá: el mismo día en los dos husos.
+    const mañana = new Date("2026-09-07T15:00:00.000Z");
+    const conZona = collectionSnapshot(cuotas, dayIn(mañana, "America/Bogota"));
+    const sinZona = collectionSnapshot(cuotas, mañana);
+
+    expect(conZona.dueNowCount).toBe(4);
+    expect(sinZona.dueNowCount).toBe(4);
+  });
+
+  it("la hora del día no mueve la cuenta", () => {
+    const dia = dayIn(nocheDelSiete, "America/Bogota");
+    const conHora = new Date(dia.getTime() + 23 * 60 * 60 * 1000);
+
+    // Un día suelto y ese mismo día a las once de la noche cuentan igual: la
+    // función normaliza, así nadie la rompe pasándole un instante por error.
+    expect(collectionSnapshot(cuotas, conHora).dueNowCount).toBe(
+      collectionSnapshot(cuotas, dia).dueNowCount,
+    );
+  });
+});

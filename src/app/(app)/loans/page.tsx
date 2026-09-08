@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { LoanRow } from "@/components/loans/loan-row";
 import { SortableRows } from "@/components/ui/sortable-rows";
-import { startOfDay, todayIn } from "@/core/dates";
+import { todayIn } from "@/core/dates";
 import { isManuallyOrdered } from "@/core/ordering";
 import { can, requirePermission } from "@/server/auth/context";
 import { crookedLoans } from "@/server/services/first-due-fix";
@@ -103,14 +103,12 @@ export default async function LoansPage({
 }) {
   const context = await requirePermission("loans.read");
   const { status } = await searchParams;
-  const now = new Date();
-  // El día en horas UTC, para filtrar por el vencimiento de las cuotas, que
-  // se guarda anclado a la medianoche UTC de su fecha.
-  const today = startOfDay(now);
+  // El día donde está la empresa, uno solo para toda la pantalla: con el
+  // vencimiento se decide quién está atrasado, y con el pago quién ya abonó
+  // hoy. El servidor puede estar en otro huso, y con su hora, a las siete de
+  // la noche en Colombia ya era mañana: aparecía atrasado quien estaba al día.
+  const today = todayIn(context.timezone);
   const filters = buildFilters(today);
-  // Y el día donde está la empresa, para saber quién abonó hoy: el cobro
-  // lleva el día que el cobrador escogió en su teléfono, no el del servidor.
-  const hoyAqui = todayIn(context.timezone);
   const filter: FilterKey =
     status && status in filters ? (status as FilterKey) : "all";
 
@@ -286,8 +284,7 @@ export default async function LoansPage({
             <LoanRow
               key={loan.id}
               loan={loan}
-              now={now}
-              today={hoyAqui}
+              today={today}
               t={t}
               money={money}
               locale={context.locale}

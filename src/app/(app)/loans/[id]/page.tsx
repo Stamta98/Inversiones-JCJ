@@ -24,6 +24,7 @@ import {
   daysBetween,
   firstDueAfter,
   startOfDay,
+  todayIn,
 } from "@/core/dates";
 import { collectionSnapshot } from "@/core/loans/collection";
 import { chargesOnDeliveryDay } from "@/server/services/first-due-fix";
@@ -264,8 +265,11 @@ export default async function LoanDetailPage({
   // El atraso se cuenta al abrir la página, no cuando alguien cobró por
   // última vez: un préstamo que nadie ha tocado en una semana lleva esa semana
   // de atraso, aunque en la base todavía diga cero.
-  const now = new Date();
-  const today = startOfDay(now);
+  // El día donde está la empresa, no la hora del servidor: las cuotas vencen
+  // en días sueltos, y midiéndolas contra un instante en otro huso, a las
+  // siete de la noche en Colombia ya era mañana y entraba en el atraso una
+  // cuota que todavía no vencía.
+  const today = todayIn(context.timezone);
   const collect = collectionSnapshot(
     loan.installments.map((installment) => ({
       number: installment.number,
@@ -274,7 +278,7 @@ export default async function LoanDetailPage({
       paidCents: toCents(Number(installment.paidAmount)),
       status: installment.status,
     })),
-    now,
+    today,
   );
 
   // Lo que se propone cobrar es la cuota entera — el número que el cliente

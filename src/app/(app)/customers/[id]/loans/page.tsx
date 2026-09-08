@@ -10,7 +10,7 @@ import {
   StatCard,
 } from "@/components/ui";
 import { LoanRow } from "@/components/loans/loan-row";
-import { startOfDay, todayIn } from "@/core/dates";
+import { todayIn } from "@/core/dates";
 import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 
@@ -44,7 +44,10 @@ export default async function CustomerLoansPage({
   const context = await requirePermission("customers.read");
   const { id } = await params;
   const { t, money } = context;
-  const now = new Date();
+  // El día donde está la empresa: de ahí salen el atraso y el resaltado de
+  // quien ya abonó hoy. Con la hora del servidor, en otro huso, a las siete de
+  // la noche en Colombia ya era mañana.
+  const today = todayIn(context.timezone);
 
   const customer = await db.customer.findFirst({
     where: { id, companyId: context.companyId },
@@ -60,7 +63,7 @@ export default async function CustomerLoansPage({
             select: {
               installments: {
                 where: {
-                  dueDate: { lt: startOfDay(now) },
+                  dueDate: { lt: today },
                   status: { notIn: ["PAID", "WAIVED"] },
                 },
               },
@@ -111,15 +114,11 @@ export default async function CustomerLoansPage({
     0,
   );
 
-  // El día donde está la empresa, para resaltar a quien ya abonó hoy.
-  const hoyAqui = todayIn(context.timezone);
-
   const row = (loan: (typeof customer.loans)[number]) => (
     <LoanRow
       key={loan.id}
       loan={loan}
-      now={now}
-      today={hoyAqui}
+      today={today}
       t={t}
       money={money}
       locale={context.locale}
