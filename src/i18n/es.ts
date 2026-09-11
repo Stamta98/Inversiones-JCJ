@@ -73,6 +73,10 @@ export const es = {
     to: "Hasta",
     of: "de",
     page: "Página",
+    // El rango de la lista. Se ve siempre que haya más de una página: el
+    // problema no era solo no poder llegar al cliente 26, era no saber que
+    // estaba ahí.
+    pagerRange: "{from}–{to} de {total}",
     results: "resultados",
     seeAll: "Ver todo",
     add: "Agregar",
@@ -429,8 +433,6 @@ export const es = {
       "Saldados o dados por perdidos. Se quedan aquí: cuántas veces ha vuelto un cliente y cómo pagó también es su historia.",
     paymentsCount: "Abonos registrados",
     paidTotal: "Total abonado",
-    paymentsTruncated:
-      "Se muestran los {shown} más recientes de {total}. Los demás están en cada préstamo.",
     interactionsHint:
       "Llamadas, visitas y mensajes que se le han hecho a este cliente.",
     idDocuments: "Documento de identidad",

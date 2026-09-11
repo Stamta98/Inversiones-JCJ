@@ -1,11 +1,18 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 
-import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
+import {
+  Card,
+  EmptyState,
+  LinkButton,
+  PageHeader,
+  Pager,
+} from "@/components/ui";
 import { LoanRow } from "@/components/loans/loan-row";
 import { SortableRows } from "@/components/ui/sortable-rows";
 import { todayIn } from "@/core/dates";
 import { isManuallyOrdered } from "@/core/ordering";
+import { PAGE_SIZE, pageFrom, skipFor } from "@/core/pagination";
 import { can, requirePermission } from "@/server/auth/context";
 import { crookedLoans } from "@/server/services/first-due-fix";
 import { db } from "@/server/db";
@@ -99,10 +106,11 @@ const FILTER_LABELS: Record<FilterKey, string> = {
 export default async function LoansPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; p?: string }>;
 }) {
   const context = await requirePermission("loans.read");
-  const { status } = await searchParams;
+  const { status, p } = await searchParams;
+  const page = pageFrom(p);
   // El día donde está la empresa, uno solo para toda la pantalla: con el
   // vencimiento se decide quién está atrasado, y con el pago quién ya abonó
   // hoy. El servidor puede estar en otro huso, y con su hora, a las siete de
@@ -124,7 +132,7 @@ export default async function LoansPage({
     ? await crookedLoans(context.companyId, context.timezone)
     : [];
 
-  const [loans, totals] = await Promise.all([
+  const [loans, totals, total] = await Promise.all([
     db.loan.findMany({
       where,
       include: {
@@ -151,7 +159,8 @@ export default async function LoansPage({
       },
       // Primero lo que la persona puso a mano, después el orden de siempre.
       orderBy: LOAN_ORDER,
-      take: 50,
+      skip: skipFor(page),
+      take: PAGE_SIZE,
     }),
     // Sobre todo lo que cumple el filtro, no solo la página: "cobrado" con
     // cincuenta préstamos en pantalla y trescientos detrás no sería cobrado.
@@ -159,6 +168,9 @@ export default async function LoansPage({
       where,
       _sum: { principal: true, totalPaid: true, outstanding: true },
     }),
+    // Para saber si hay otra página. La suma de arriba no lo dice: cuenta
+    // plata, no préstamos.
+    db.loan.count({ where }),
   ]);
 
   const { t, money } = context;
@@ -294,6 +306,14 @@ export default async function LoansPage({
           ))}
         </SortableRows>
       )}
+
+      <Pager
+        page={page}
+        total={total}
+        path="/loans"
+        query={{ status: filter === "all" ? undefined : filter }}
+        t={t}
+      />
     </>
   );
 }

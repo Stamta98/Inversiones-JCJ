@@ -4,15 +4,16 @@ import { notFound } from "next/navigation";
 import {
   Badge,
   Card,
-  CardBody,
   EmptyState,
   LinkButton,
   PageHeader,
+  Pager,
   StatCard,
   TableWrap,
   Td,
   Th,
 } from "@/components/ui";
+import { pageFrom, skipFor } from "@/core/pagination";
 import { formatDate } from "@/lib/format";
 import { requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
@@ -24,10 +25,9 @@ export const dynamic = "force-dynamic";
  *
  * Un préstamo diario de seis meses son ciento ochenta recibos, y un cliente
  * viejo puede llevar varios: traerlos todos sería una tabla que nadie baja.
- * Se traen los últimos y se dice cuántos quedaron fuera, para que nadie crea
- * que eso es todo lo que ha pagado.
+ * Se traen cien y el resto queda a un toque, no escondido.
  */
-const PAGE_SIZE = 100;
+const HISTORY_PAGE_SIZE = 100;
 
 /**
  * Los abonos de un cliente, de todos sus préstamos juntos.
@@ -37,11 +37,15 @@ const PAGE_SIZE = 100;
  */
 export default async function CustomerPaymentsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ p?: string }>;
 }) {
   const context = await requirePermission("customers.read");
   const { id } = await params;
+  const { p } = await searchParams;
+  const page = pageFrom(p);
   const { t, money } = context;
 
   const customer = await db.customer.findFirst({
@@ -60,7 +64,8 @@ export default async function CustomerPaymentsPage({
       where,
       include: { loan: { select: { id: true, code: true } } },
       orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
-      take: PAGE_SIZE,
+      skip: skipFor(page, HISTORY_PAGE_SIZE),
+      take: HISTORY_PAGE_SIZE,
     }),
     db.payment.count({ where }),
     // Lo abonado de verdad: un recibo anulado no entró a la caja.
@@ -159,20 +164,20 @@ export default async function CustomerPaymentsPage({
                   ))}
                 </tbody>
               </TableWrap>
-              {/* Se dice cuántos no caben: una lista cortada en silencio hace
-                  creer que el cliente abonó menos de lo que abonó. */}
-              {total > payments.length ? (
-                <CardBody className="border-t border-border">
-                  <p className="numeric text-xs text-ink-muted">
-                    {t("customers.paymentsTruncated")
-                      .replace("{shown}", String(payments.length))
-                      .replace("{total}", String(total))}
-                  </p>
-                </CardBody>
-              ) : null}
             </>
           )}
         </Card>
+
+        {/* Una lista cortada en silencio hace creer que el cliente abonó menos
+            de lo que abonó. Con el paginador se dice cuántos hay y se llega a
+            los viejos. */}
+        <Pager
+          page={page}
+          total={total}
+          pageSize={HISTORY_PAGE_SIZE}
+          path={`/customers/${customer.id}/payments`}
+          t={t}
+        />
       </div>
     </>
   );

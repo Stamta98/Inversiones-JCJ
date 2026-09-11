@@ -9,11 +9,13 @@ import {
   Input,
   LinkButton,
   PageHeader,
+  Pager,
   type IconName,
   type Tone,
 } from "@/components/ui";
 import { SortableRows } from "@/components/ui/sortable-rows";
 import { isManuallyOrdered } from "@/core/ordering";
+import { PAGE_SIZE, pageFrom, skipFor } from "@/core/pagination";
 import { initials } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
@@ -28,19 +30,18 @@ const STATUS_TONES: Record<string, Tone> = {
   BLACKLISTED: "danger",
 };
 
-const PAGE_SIZE = 25;
-
 /** Los préstamos que están afuera, que es lo que decide si se le presta más. */
 const OPEN_STATUSES = ["ACTIVE", "IN_ARREARS", "APPROVED"] as const;
 
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; ver?: string }>;
+  searchParams: Promise<{ q?: string; ver?: string; p?: string }>;
 }) {
   const context = await requirePermission("customers.read");
-  const { q, ver } = await searchParams;
+  const { q, ver, p } = await searchParams;
   const term = q?.trim() ?? "";
+  const page = pageFrom(p);
   // Los ocultos no salen, salvo que se pidan. Es el cliente que lleva meses
   // sin pedir nada: no se borra, se quita de en medio.
   const view = ver === "ocultos" || ver === "todos" ? ver : "visibles";
@@ -58,7 +59,9 @@ export default async function CustomersPage({
             { firstName: { contains: term, mode: "insensitive" as const } },
             { lastName: { contains: term, mode: "insensitive" as const } },
             { code: { contains: term, mode: "insensitive" as const } },
-            { documentNumber: { contains: term, mode: "insensitive" as const } },
+            {
+              documentNumber: { contains: term, mode: "insensitive" as const },
+            },
             { mobilePhone: { contains: term } },
           ],
         }
@@ -66,35 +69,41 @@ export default async function CustomersPage({
   };
 
   // Los totales cuentan todo lo que cumple el filtro, no solo la primera
-  // página: "2 clientes" con veinticinco en pantalla no sería un total.
+  // página: la tarjeta dice cuántos clientes hay, y el paginador de abajo,
+  // cuáles se están viendo. Antes decía 41 con 25 en pantalla y no había
+  // forma de llegar a los otros 16.
   const [customers, total, withOpenLoans, withContact, hiddenTotal] =
     await Promise.all([
-    db.customer.findMany({
-      where,
-      // Primero lo que la persona puso a mano, después el orden de siempre.
-      orderBy: CUSTOMER_ORDER,
-      take: PAGE_SIZE,
-      include: {
-        // Solo el estado: la lista dice cuántos préstamos abiertos tiene, y
-        // el atraso se ve al abrir el cliente.
-        loans: { select: { status: true } },
-      },
-    }),
-    db.customer.count({ where }),
-    db.customer.count({
-      where: { ...where, loans: { some: { status: { in: [...OPEN_STATUSES] } } } },
-    }),
-    db.customer.count({
-      where: {
-        ...where,
-        OR: [{ mobilePhone: { not: null } }, { phone: { not: null } }],
-      },
-    }),
-    // Cuántos hay guardados: si no hay ninguno, el filtro sobra.
-    db.customer.count({
-      where: { companyId: context.companyId, status: "INACTIVE" },
-    }),
-  ]);
+      db.customer.findMany({
+        where,
+        // Primero lo que la persona puso a mano, después el orden de siempre.
+        orderBy: CUSTOMER_ORDER,
+        skip: skipFor(page),
+        take: PAGE_SIZE,
+        include: {
+          // Solo el estado: la lista dice cuántos préstamos abiertos tiene, y
+          // el atraso se ve al abrir el cliente.
+          loans: { select: { status: true } },
+        },
+      }),
+      db.customer.count({ where }),
+      db.customer.count({
+        where: {
+          ...where,
+          loans: { some: { status: { in: [...OPEN_STATUSES] } } },
+        },
+      }),
+      db.customer.count({
+        where: {
+          ...where,
+          OR: [{ mobilePhone: { not: null } }, { phone: { not: null } }],
+        },
+      }),
+      // Cuántos hay guardados: si no hay ninguno, el filtro sobra.
+      db.customer.count({
+        where: { companyId: context.companyId, status: "INACTIVE" },
+      }),
+    ]);
 
   const { t } = context;
   const canOrder = can(context, "customers.update");
@@ -166,7 +175,9 @@ export default async function CustomersPage({
           botón que no lleva a ninguna parte. */}
       {hiddenTotal > 0 ? (
         <nav className="mb-3 flex flex-wrap items-center gap-1.5 text-sm">
-          <span className="text-xs text-ink-muted">{t("customers.showing")}</span>
+          <span className="text-xs text-ink-muted">
+            {t("customers.showing")}
+          </span>
           {[
             { key: "visibles", label: t("customers.onlyVisible") },
             { key: "ocultos", label: t("customers.onlyHidden") },
@@ -347,13 +358,17 @@ export default async function CustomersPage({
                       name="hand-coins"
                       size={16}
                       className={
-                        openLoans.length > 0 ? "text-positive" : "text-ink-subtle"
+                        openLoans.length > 0
+                          ? "text-positive"
+                          : "text-ink-subtle"
                       }
                     />
                     <span
                       className={
                         "numeric text-sm font-semibold " +
-                        (openLoans.length > 0 ? "text-positive" : "text-ink-subtle")
+                        (openLoans.length > 0
+                          ? "text-positive"
+                          : "text-ink-subtle")
                       }
                     >
                       {openLoans.length}/{customer.loans.length}
@@ -370,6 +385,16 @@ export default async function CustomersPage({
           })}
         </SortableRows>
       )}
+
+      {/* Fuera del vacío a propósito: con una dirección escrita a mano que se
+          pase del final, la lista viene vacía y esto es lo único que devuelve. */}
+      <Pager
+        page={page}
+        total={total}
+        path="/customers"
+        query={{ q: term, ver: view === "visibles" ? undefined : view }}
+        t={t}
+      />
     </>
   );
 }
