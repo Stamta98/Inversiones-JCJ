@@ -109,8 +109,12 @@ export async function queueScheduledMessages(
 
   const loansById = new Map(loans.map((loan) => [loan.id, loan]));
   const rulesById = new Map(rules.map((rule) => [rule.id, rule]));
+  // El idioma va tal cual viene. Llevaba un `-DO` pegado de cuando la columna
+  // guardaba solo el idioma y el pais se daba por sentado; desde que guarda el
+  // codigo completo, eso arma `es-CO-DO`, que no existe, y revienta el trabajo
+  // por hora entero antes de mandar un solo mensaje.
   const money = (value: number) =>
-    formatCurrency(value, company.currencyCode, `${company.locale}-DO`);
+    formatCurrency(value, company.currencyCode, company.locale);
 
   let queued = 0;
 
