@@ -299,6 +299,10 @@ export async function renewLoan(
         nonCollectionDays: input.nonCollectionDays,
         minorUnitStep: step,
         financedChargeCents: chargeSummary.financedCents,
+        // El cargo por refinanciar queda dentro de la deuda, así que el
+        // interés corre sobre el total: 700.000 más 35.000 de cargo son
+        // 735.000, y el 20% se acordó sobre esos 735.000.
+        interestBaseCents: plan.newPrincipalCents + chargeSummary.financedCents,
       });
 
       const code = await nextLoanCode(tx, input.companyId);

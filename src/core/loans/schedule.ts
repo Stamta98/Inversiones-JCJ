@@ -59,6 +59,16 @@ export interface ScheduleInput {
    * 20% con un cargo de 5.000 son 125.000, no 126.000.
    */
   financedChargeCents?: Cents;
+  /**
+   * Sobre qué corre el interés, cuando no es sobre el capital solo.
+   *
+   * Refinanciando se le cobra al cliente el cargo por hacerlo y ese cargo
+   * queda dentro de la deuda: se refinancian 700.000 con 35.000 de cargo y lo
+   * que queda debiendo son 735.000, así que el interés se acordó sobre los
+   * 735.000, no sobre los 700.000. En un préstamo nuevo no se pasa y el
+   * interés sigue corriendo sobre el capital, que es lo de siempre.
+   */
+  interestBaseCents?: Cents;
 }
 
 export interface ScheduledInstallment {
@@ -181,7 +191,7 @@ function dueDates(input: ScheduleInput, count: number): Date[] {
  */
 function totalInterestOf(input: ScheduleInput, step: MinorUnitStep): Cents {
   const overWholeLoan = percentOf(
-    input.principalCents,
+    input.interestBaseCents ?? input.principalCents,
     input.interestRate,
     step,
   );
@@ -400,6 +410,9 @@ export function buildSchedule(input: ScheduleInput): Schedule {
     // A principal that is not a whole chargeable amount can never be split
     // into installments that add back up to it, so it is settled first.
     principalCents: roundToStep(input.principalCents, step),
+    ...(input.interestBaseCents
+      ? { interestBaseCents: roundToStep(input.interestBaseCents, step) }
+      : {}),
     ...(input.frequency === "SINGLE" ? { termCount: 1 } : {}),
   };
 
@@ -453,7 +466,21 @@ function withFinancedCharges(
     }));
   }
 
-  const parts = splitEvenly(financed, installments.length, step);
+  // Repartir el cargo aparte dejaba las cuotas desparejas: 29.401 una y
+  // 29.399 otra, porque cada mitad se redondea sola. Se reparte el total
+  // entero —lo que ya traía la cuota más el cargo— y a cada cuota le toca la
+  // diferencia, así que vuelven a salir iguales.
+  const bare = addCents(...installments.map((one) => one.totalCents));
+  const evenParts = splitEvenly(bare + financed, installments.length, step);
+  const fromEven = installments.map(
+    (installment, index) => evenParts[index]! - installment.totalCents,
+  );
+  // Los planes de cuota decreciente —el alemán— no admiten emparejar: ahí la
+  // diferencia saldría negativa y el cargo se reparte como antes.
+  const parts = fromEven.some((part) => part < 0)
+    ? splitEvenly(financed, installments.length, step)
+    : fromEven;
+
   return installments.map((installment, index) => {
     const chargeCents = parts[index]!;
     return {

@@ -91,12 +91,26 @@ export function previewSchedule(
     | "nonCollectionDays"
     | "decimalPlaces"
     | "charges"
-  >,
+  > & {
+    /**
+     * Si el cargo entra a ganar interés junto con el capital.
+     *
+     * Solo al refinanciar o renovar: ahí el cargo por hacerlo queda dentro de
+     * la deuda —700.000 más 35.000 son 735.000— y el interés se acordó sobre
+     * ese total. En un préstamo nuevo el cargo se cobra tal cual.
+     */
+    chargesEarnInterest?: boolean;
+  },
 ): Schedule {
   const step = stepForDecimals(input.decimalPlaces ?? 2);
+  const principalCents = toCents(input.principal);
+  const financedCents = summarizeCharges(
+    normalizedCharges(input.charges, step),
+    step,
+  ).financedCents;
 
   return buildSchedule({
-    principalCents: toCents(input.principal),
+    principalCents,
     interestRate: input.interestRate,
     // Explicit: the engine still defaults to a rate per installment, which for
     // a daily loan would multiply the quoted rate by the term.
@@ -108,10 +122,10 @@ export function previewSchedule(
     customIntervalDays: input.customIntervalDays ?? undefined,
     nonCollectionDays: input.nonCollectionDays,
     minorUnitStep: step,
-    financedChargeCents: summarizeCharges(
-      normalizedCharges(input.charges, step),
-      step,
-    ).financedCents,
+    financedChargeCents: financedCents,
+    ...(input.chargesEarnInterest
+      ? { interestBaseCents: principalCents + financedCents }
+      : {}),
   });
 }
 
@@ -417,6 +431,10 @@ export async function updateLoan(input: UpdateLoanInput): Promise<void> {
       ? previewSchedule({
           ...input.terms,
           charges: input.charges ?? chargesOf(loan),
+          // Editar un préstamo refinanciado no puede deshacerle la regla:
+          // sin esto, tocarle cualquier campo le devolvía el interés al
+          // capital solo y la deuda bajaba sola de 882.000 a 875.000.
+          chargesEarnInterest: loan.origin !== "NEW",
         })
       : null;
 

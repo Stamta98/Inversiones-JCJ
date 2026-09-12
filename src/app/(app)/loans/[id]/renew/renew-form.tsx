@@ -181,6 +181,10 @@ export function RenewForm({
           nonCollectionDays: loan.nonCollectionDays,
           minorUnitStep: step,
           financedChargeCents: toCents(chargeTotals.financed),
+          // Igual que al guardar: el interés corre sobre la deuda con el
+          // cargo adentro, no sobre el capital solo.
+          interestBaseCents:
+            plan.value.newPrincipalCents + toCents(chargeTotals.financed),
         }),
         error: null as string | null,
       };
