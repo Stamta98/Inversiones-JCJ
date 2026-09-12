@@ -35,6 +35,7 @@ import type { LoanStatus } from "@/core/types";
 import { formatDate, formatTime, initials } from "@/lib/format";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
+import { routeLoans } from "@/server/services/loan-filters";
 import { LOAN_ORDER } from "@/server/services/ordering";
 
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
@@ -151,10 +152,14 @@ export default async function LoanDetailPage({
       // Los ids en el orden en que se ve la lista, para saber cuál sigue y cuál
       // va antes. Solo ids: es lo que hace falta y pesa nada.
       db.loan.findMany({
-        where: { companyId: context.companyId },
+        // Los mismos que la lista enseña: un saldado no está en ella, así que
+        // tampoco puede aparecer dándole "siguiente".
+        where: {
+          companyId: context.companyId,
+          ...routeLoans(todayIn(context.timezone)),
+        },
         orderBy: LOAN_ORDER,
         select: { id: true },
-        take: 1000,
       }),
       // Los cargos que se le cobraron al cliente aparte de la cuota. No son un
       // abono ni bajan lo que debe, así que no están entre los recibos; sin

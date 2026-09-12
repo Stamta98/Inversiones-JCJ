@@ -16,6 +16,10 @@ import { PAGE_SIZE, pageFrom, skipFor } from "@/core/pagination";
 import { can, requirePermission } from "@/server/auth/context";
 import { crookedLoans } from "@/server/services/first-due-fix";
 import { db } from "@/server/db";
+import {
+  buildLoanFilters,
+  type LoanFilterKey,
+} from "@/server/services/loan-filters";
 import { LOAN_ORDER } from "@/server/services/ordering";
 
 import { moveLoanAction } from "./actions";
@@ -23,67 +27,7 @@ import { FixAllFirstDue } from "./fix-all-first-due";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Los filtros llevan nombre a propósito.
- *
- * La referencia usa siete botones de colores sin etiqueta y hay que
- * aprendérselos; con cuatro nombres se lee sin adivinar y se cubre lo mismo.
- *
- * Y el saldado no está entre ellos: esta lista es de lo que hay por cobrar.
- * Un crédito pagado no se vuelve a visitar, y dejarlo aquí solo alarga la
- * lista que el cobrador baja con el pulgar todos los días. El que quiera
- * verlo lo tiene en el historial del cliente, con todo lo que le prestaron.
- */
-/**
- * El atraso se pregunta por las cuotas, no por la columna `daysInArrears`.
- *
- * Esa columna la escribe el trabajo de la madrugada, así que entre las doce
- * de la noche y esa hora dice el atraso de ayer. Las tarjetas cuentan los
- * días al abrir la lista, y si el filtro mirara la columna diría que no hay
- * nadie en mora mientras las tarjetas muestran los días. Preguntando por la
- * fecha de las cuotas las dos cosas dicen lo mismo a cualquier hora.
- */
-function unpaidBefore(date: Date): Prisma.LoanWhereInput {
-  return {
-    installments: {
-      some: {
-        dueDate: { lt: date },
-        status: { notIn: ["PAID", "WAIVED"] },
-      },
-    },
-  };
-}
-
-function buildFilters(today: Date) {
-  // De un anulado no se cobra, así que tampoco se atrasa por más cuotas sin
-  // pagar que le queden colgando.
-  const open: Prisma.LoanWhereInput = {
-    status: { in: ["ACTIVE", "IN_ARREARS", "APPROVED"] },
-  };
-  // Al crédito le queda plazo mientras le quede alguna cuota por vencer.
-  const stillRunning: Prisma.LoanWhereInput = {
-    installments: { some: { dueDate: { gte: today } } },
-  };
-  return {
-    all: { status: { not: "PAID" } } as Prisma.LoanWhereInput,
-    onTime: {
-      status: { in: ["ACTIVE", "APPROVED"] },
-      NOT: unpaidBefore(today),
-    },
-    // Atrasado en cuotas pero con plazo por delante: todavía se arregla
-    // cobrando. Vencido es que se acabó el plazo y sigue debiendo.
-    late: { ...open, AND: [unpaidBefore(today), stillRunning] },
-    expired: {
-      ...open,
-      AND: [
-        { installments: { some: { status: { notIn: ["PAID", "WAIVED"] } } } },
-        { NOT: stillRunning },
-      ],
-    },
-  } satisfies Record<string, Prisma.LoanWhereInput>;
-}
-
-type FilterKey = keyof ReturnType<typeof buildFilters>;
+type FilterKey = LoanFilterKey;
 
 const FILTER_KEYS: FilterKey[] = ["all", "onTime", "late", "expired"];
 
@@ -116,7 +60,7 @@ export default async function LoansPage({
   // hoy. El servidor puede estar en otro huso, y con su hora, a las siete de
   // la noche en Colombia ya era mañana: aparecía atrasado quien estaba al día.
   const today = todayIn(context.timezone);
-  const filters = buildFilters(today);
+  const filters = buildLoanFilters(today);
   const filter: FilterKey =
     status && status in filters ? (status as FilterKey) : "all";
 
