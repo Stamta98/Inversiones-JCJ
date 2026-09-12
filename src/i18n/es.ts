@@ -901,6 +901,10 @@ export const es = {
     expiredLabel: "Crédito vencido",
     alreadyPaid: "Ya pagó",
     interestOf: "Interés ({rate}% {basis})",
+    // Refinanciando, el interés corre sobre la deuda con el cargo adentro, y
+    // el renglón tiene que decir sobre cuánto: si no, el 20% de un préstamo
+    // de 700.000 sale 147.000 y la cuenta parece equivocada.
+    interestOfAmount: "Interés ({rate}% de {amount})",
     lateFeeOwed: "Mora acumulada",
     // El avance del préstamo contado como lo cuenta el cliente: cuántas
     // cuotas lleva, cuántas le faltan y cuánta plata ya entregó.

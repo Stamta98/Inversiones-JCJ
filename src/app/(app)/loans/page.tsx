@@ -237,6 +237,9 @@ export default async function LoansPage({
                 loan.customer.firstName,
                 loan.customer.lastName,
                 loan.code,
+                // Como lo enseña la tarjeta: en pantalla dice "#65", así que
+                // escribiendo "#65" tiene que encontrarlo.
+                `#${loan.code.replace(/^\D+0*/, "")}`,
               )}
             />
           ))}

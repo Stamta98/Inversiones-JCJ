@@ -244,6 +244,7 @@ export default async function CustomersPage({
                   customer.firstName,
                   customer.lastName,
                   customer.code,
+                  `#${customer.code.replace(/^\D+0*/, "")}`,
                   customer.documentNumber,
                   customer.mobilePhone,
                   customer.phone,

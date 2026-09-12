@@ -532,12 +532,25 @@ export default async function LoanDetailPage({
     loan.installments.length,
   );
 
+  // Sobre cuánto corrió el interés de este préstamo. Es el capital, salvo
+  // refinanciando o renovando, donde el cargo por hacerlo entró a ganarlo.
+  const interestBase =
+    loan.origin === "NEW" ? Number(loan.principal) : madeFor(loan);
+
   const accountRows = [
     { label: t("loans.principal"), value: Number(loan.totalPrincipal) },
     {
-      label: t("loans.interestOf")
-        .replace("{rate}", String(Number(loan.interestRate)))
-        .replace("{basis}", t(`loans.rateBasisShort.${loan.rateBasis}`)),
+      // Refinanciando, el interés corrió sobre la deuda con el cargo adentro,
+      // así que el renglón dice sobre cuánto. Diciendo "del préstamo", el 20%
+      // de uno de 700.000 salía 147.000 y la cuenta parecía equivocada.
+      label:
+        interestBase > Number(loan.principal)
+          ? t("loans.interestOfAmount")
+              .replace("{rate}", String(Number(loan.interestRate)))
+              .replace("{amount}", money(interestBase))
+          : t("loans.interestOf")
+              .replace("{rate}", String(Number(loan.interestRate)))
+              .replace("{basis}", t(`loans.rateBasisShort.${loan.rateBasis}`)),
       value: Number(loan.totalInterest),
     },
     { label: t("loans.charges.installmentPart"), value: financedCharges },
