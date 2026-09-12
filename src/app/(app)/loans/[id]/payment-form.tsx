@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Alert, Button, Field, Input, Select } from "@/components/ui";
+import { Alert, Button, Field, MoneyInput, Select } from "@/components/ui";
 import { COLLECT_METHODS } from "@/core/types";
 import { es } from "@/i18n/es";
 import { formatCurrency } from "@/lib/format";
@@ -50,7 +50,6 @@ export function PaymentForm({
   /** Zero where the currency has no cents, so the field never suggests any. */
   decimalPlaces: number;
 }) {
-  const wholeUnits = decimalPlaces === 0;
   const { state, pending, onSubmit } = useFormAction<PaymentFormState>(
     postPaymentAction,
     {},
@@ -273,18 +272,16 @@ export function PaymentForm({
             required
           >
             <div className="flex items-stretch gap-2">
-              <Input
+              <MoneyInput
                 id="amount"
                 name="amount"
-                type="number"
-                inputMode="decimal"
-                step={wholeUnits ? "1" : "0.01"}
-                min={wholeUnits ? "1" : "0.01"}
                 required
+                decimalPlaces={decimalPlaces}
+                locale={locale}
                 className="numeric flex-1 py-2.5 text-lg font-semibold"
                 value={amount}
-                onChange={(event) => {
-                  setAmount(event.target.value);
+                onValueChange={(raw) => {
+                  setAmount(raw);
                   setCount(null);
                 }}
               />

@@ -518,6 +518,7 @@ export function Select({
 }
 
 export { FormSection } from "./form-section";
+export { MoneyInput } from "./money-input";
 export { Pager } from "./pager";
 export { ShareDocument } from "./share-document";
 export { Icon };
