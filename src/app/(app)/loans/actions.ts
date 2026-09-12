@@ -28,7 +28,7 @@ import {
   disburseLoan,
   updateLoan,
 } from "@/server/services/loans";
-import { fixAllFirstDue, fixFirstDue } from "@/server/services/first-due-fix";
+import { fixFirstDue } from "@/server/services/first-due-fix";
 import { moveLoan, resetLoanOrder } from "@/server/services/ordering";
 import { RenewLoanError, renewLoan } from "@/server/services/renewals";
 
@@ -510,27 +510,6 @@ export async function shiftFirstDueAction(formData: FormData): Promise<void> {
   revalidatePath(`/loans/${loanId}`);
   revalidatePath("/loans");
   revalidatePath("/payments");
-}
-
-/**
- * Lo mismo, pero con todos los que estén torcidos de una vez.
- *
- * Solo toca los préstamos vivos: uno saldado o anulado es historia y
- * reescribirle las fechas cambiaría lo que ya pasó.
- */
-export async function shiftAllFirstDueAction(): Promise<void> {
-  const context = await requirePermission("loans.update");
-
-  await fixAllFirstDue(
-    context.companyId,
-    context.timezone,
-    context.decimalPlaces,
-    context.userId,
-  );
-
-  revalidatePath("/loans");
-  revalidatePath("/payments");
-  revalidatePath("/dashboard");
 }
 
 export async function moveLoanAction(formData: FormData): Promise<void> {
