@@ -974,8 +974,6 @@ export const es = {
         REFINANCE: "Refinanciación",
         RENEWAL: "Renovación",
       },
-      comesFrom: "Viene del préstamo {code}",
-      replacedBy: "Refinanciado con el préstamo {code}",
       done: "Listo: préstamo {code} creado.",
     },
   },

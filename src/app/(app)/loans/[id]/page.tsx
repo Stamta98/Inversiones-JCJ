@@ -127,7 +127,13 @@ export default async function LoanDetailPage({
           charges: { orderBy: { createdAt: "asc" } },
           parentLoan: { select: { id: true, code: true } },
           renewals: {
-            select: { id: true, code: true },
+            select: {
+              id: true,
+              code: true,
+              origin: true,
+              principal: true,
+              charges: { select: { amount: true, mode: true } },
+            },
             take: 1,
           },
         },
@@ -331,6 +337,23 @@ export default async function LoanDetailPage({
   // once: a second refinance would leave the customer owing the same money
   // twice. The service checks this again, since a URL can be typed by hand.
   const replacement = loan.renewals[0] ?? null;
+
+  /**
+   * Por cuánto se hizo, que no es el capital pelado.
+   *
+   * Refinanciando se le cobran al cliente 35.000 por hacerlo y ese cargo queda
+   * dentro de la deuda: se refinancian 700.000 y el préstamo quedó hecho por
+   * 735.000, que es la cifra que él tiene en la cabeza. Un cargo descontado no
+   * suma: ese sale de lo que se le entrega, no se le presta.
+   */
+  const madeFor = (row: {
+    principal: unknown;
+    charges: { amount: unknown; mode: string }[];
+  }) =>
+    Number(row.principal) +
+    row.charges
+      .filter((charge) => charge.mode === "FINANCED")
+      .reduce((total, charge) => total + Number(charge.amount), 0);
   const canRenew =
     can(context, "loans.create") &&
     replacement === null &&
@@ -651,35 +674,30 @@ export default async function LoanDetailPage({
         </div>
       </Card>
 
-      {/* Ninguno de los dos préstamos se entiende solo: el viejo dice con qué
-          quedó saldado y el nuevo de dónde viene el monto. */}
+      {/* Ninguno de los dos préstamos se entiende solo: el viejo dice con
+          qué quedó saldado y el nuevo de dónde viene el monto. Dicen la
+          palabra y la plata, que es lo que se pregunta, y nada más. */}
       {loan.parentLoan || replacement ? (
-        <div className="mb-4 space-y-2">
+        <div
+          className={`mb-4 grid gap-2 ${
+            loan.parentLoan && replacement ? "grid-cols-2" : "grid-cols-1"
+          }`}
+        >
           {loan.parentLoan ? (
-            <Alert tone="info" icon="refresh">
-              <Link
-                href={`/loans/${loan.parentLoan.id}`}
-                className="underline underline-offset-2"
-              >
-                {t("loans.renewal.comesFrom").replace(
-                  "{code}",
-                  loan.parentLoan.code,
-                )}
-              </Link>
-            </Alert>
+            <StatCard
+              compact
+              icon="refresh"
+              label={t(`loans.renewal.originLabel.${loan.origin}`)}
+              value={money(madeFor(loan))}
+            />
           ) : null}
           {replacement ? (
-            <Alert tone="info" icon="refresh">
-              <Link
-                href={`/loans/${replacement.id}`}
-                className="underline underline-offset-2"
-              >
-                {t("loans.renewal.replacedBy").replace(
-                  "{code}",
-                  replacement.code,
-                )}
-              </Link>
-            </Alert>
+            <StatCard
+              compact
+              icon="refresh"
+              label={t(`loans.renewal.originLabel.${replacement.origin}`)}
+              value={money(madeFor(replacement))}
+            />
           ) : null}
         </div>
       ) : null}
