@@ -37,6 +37,7 @@ import type {
 } from "@/core/types";
 
 import { db } from "../db";
+import { LOAN_ORDER, moveLoan } from "./ordering";
 import {
   normalizedCharges,
   recordDeductedCharges,
@@ -161,6 +162,21 @@ export async function renewLoan(
   input: RenewLoanInput,
 ): Promise<RenewLoanResult> {
   const step = stepForDecimals(input.decimalPlaces ?? 2);
+
+  // Dónde está parado el préstamo viejo en la lista, antes de tocarlo.
+  //
+  // Renovar lo salda, así que sale de la lista, y el nuevo entraba de primero
+  // porque es el más reciente. El cobrador baja la ruta en el orden en que
+  // camina la calle y de un día para otro el cliente le aparecía en otra
+  // parte. El nuevo tiene que quedar donde estaba el viejo, y para eso hay que
+  // saber quién iba encima suyo antes de que todo cambie.
+  const before = await db.loan.findMany({
+    where: { companyId: input.companyId },
+    orderBy: LOAN_ORDER,
+    select: { id: true },
+  });
+  const at = before.findIndex((row) => row.id === input.loanId);
+  const above = at > 0 ? (before[at - 1]?.id ?? null) : null;
 
   const result = await withCodeRetry(() =>
     db.$transaction(async (tx) => {
@@ -423,6 +439,17 @@ export async function renewLoan(
       };
     }),
   );
+
+  // Fuera de la transacción, y sin tumbarla si falla: el préstamo ya se
+  // entregó y quedar en otro renglón de la lista no lo deshace.
+  if (at >= 0) {
+    await moveLoan({
+      companyId: input.companyId,
+      id: result.loanId,
+      targetId: above,
+      placement: above ? "after" : "top",
+    }).catch(() => undefined);
+  }
 
   // Outside the transaction: a promise that fails to update must never roll
   // back a loan that was already handed over.
