@@ -6,17 +6,16 @@ import {
   Card,
   EmptyState,
   Icon,
-  Input,
   LinkButton,
+  LiveSearch,
   PageHeader,
-  Pager,
   type IconName,
   type Tone,
 } from "@/components/ui";
 import { SortableRows } from "@/components/ui/sortable-rows";
 import { isManuallyOrdered } from "@/core/ordering";
-import { PAGE_SIZE, pageFrom, skipFor } from "@/core/pagination";
 import { initials } from "@/lib/format";
+import { forSearch } from "@/lib/search";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import { CUSTOMER_ORDER } from "@/server/services/ordering";
@@ -36,12 +35,10 @@ const OPEN_STATUSES = ["ACTIVE", "IN_ARREARS", "APPROVED"] as const;
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; ver?: string; p?: string }>;
+  searchParams: Promise<{ ver?: string }>;
 }) {
   const context = await requirePermission("customers.read");
-  const { q, ver, p } = await searchParams;
-  const term = q?.trim() ?? "";
-  const page = pageFrom(p);
+  const { ver } = await searchParams;
   // Los ocultos no salen, salvo que se pidan. Es el cliente que lleva meses
   // sin pedir nada: no se borra, se quita de en medio.
   const view = ver === "ocultos" || ver === "todos" ? ver : "visibles";
@@ -53,33 +50,17 @@ export default async function CustomersPage({
       : view === "ocultos"
         ? { status: "INACTIVE" as const }
         : {}),
-    ...(term
-      ? {
-          OR: [
-            { firstName: { contains: term, mode: "insensitive" as const } },
-            { lastName: { contains: term, mode: "insensitive" as const } },
-            { code: { contains: term, mode: "insensitive" as const } },
-            {
-              documentNumber: { contains: term, mode: "insensitive" as const },
-            },
-            { mobilePhone: { contains: term } },
-          ],
-        }
-      : {}),
   };
 
-  // Los totales cuentan todo lo que cumple el filtro, no solo la primera
-  // página: la tarjeta dice cuántos clientes hay, y el paginador de abajo,
-  // cuáles se están viendo. Antes decía 41 con 25 en pantalla y no había
-  // forma de llegar a los otros 16.
+  // Sin páginas. Con cincuenta por página el cobrador tenía que acordarse de
+  // en cuál iba y darle a un número chiquito al final para seguir bajando; la
+  // ruta del día es una sola lista y se baja con el pulgar de arriba a abajo.
   const [customers, total, withOpenLoans, withContact, hiddenTotal] =
     await Promise.all([
       db.customer.findMany({
         where,
         // Primero lo que la persona puso a mano, después el orden de siempre.
         orderBy: CUSTOMER_ORDER,
-        skip: skipFor(page),
-        take: PAGE_SIZE,
         include: {
           // Solo el estado: la lista dice cuántos préstamos abiertos tiene, y
           // el atraso se ve al abrir el cliente.
@@ -149,27 +130,12 @@ export default async function CustomersPage({
         }
       />
 
-      <form className="mb-3 flex gap-2" action="/customers">
-        <div className="relative flex-1">
-          <Icon
-            name="search"
-            size={16}
-            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
-          />
-          <Input
-            name="q"
-            defaultValue={term}
-            placeholder={t("common.searchPlaceholder")}
-            className="pl-9"
-            aria-label={t("common.search")}
-          />
-        </div>
-        {/* Buscando, el filtro viaja con la búsqueda: si no, cambiar de vista
-            perdería lo que se acabó de escribir. */}
-        {view !== "visibles" ? (
-          <input type="hidden" name="ver" value={view} />
-        ) : null}
-      </form>
+      <LiveSearch
+        className="mb-3"
+        placeholder={t("customers.searchPlaceholder")}
+        label={t("common.search")}
+        emptyLabel={t("common.searchEmpty")}
+      />
 
       {/* El filtro solo aparece cuando hay alguno guardado: sin ocultos es un
           botón que no lleva a ninguna parte. */}
@@ -184,7 +150,6 @@ export default async function CustomersPage({
             { key: "todos", label: t("customers.allCustomers") },
           ].map((option) => {
             const params = new URLSearchParams();
-            if (term) params.set("q", term);
             if (option.key !== "visibles") params.set("ver", option.key);
             const href = `/customers${params.size > 0 ? `?${params}` : ""}`;
             const active = option.key === view;
@@ -245,8 +210,8 @@ export default async function CustomersPage({
         <Card>
           <EmptyState
             icon="users"
-            title={term ? t("common.empty") : t("customers.emptyTitle")}
-            hint={term ? undefined : t("customers.emptyHint")}
+            title={t("customers.emptyTitle")}
+            hint={t("customers.emptyHint")}
             action={
               can(context, "customers.create") ? (
                 <LinkButton href="/customers/new" icon="plus" size="sm">
@@ -275,6 +240,16 @@ export default async function CustomersPage({
                 key={customer.id}
                 sortableId={customer.id}
                 className="overflow-hidden"
+                searchText={forSearch(
+                  customer.firstName,
+                  customer.lastName,
+                  customer.code,
+                  customer.documentNumber,
+                  customer.mobilePhone,
+                  customer.phone,
+                  customer.neighborhood,
+                  customer.city,
+                )}
               >
                 <Link
                   href={`/customers/${customer.id}`}
@@ -385,16 +360,6 @@ export default async function CustomersPage({
           })}
         </SortableRows>
       )}
-
-      {/* Fuera del vacío a propósito: con una dirección escrita a mano que se
-          pase del final, la lista viene vacía y esto es lo único que devuelve. */}
-      <Pager
-        page={page}
-        total={total}
-        path="/customers"
-        query={{ q: term, ver: view === "visibles" ? undefined : view }}
-        t={t}
-      />
     </>
   );
 }

@@ -5,14 +5,14 @@ import {
   Card,
   EmptyState,
   LinkButton,
+  LiveSearch,
   PageHeader,
-  Pager,
 } from "@/components/ui";
 import { LoanRow } from "@/components/loans/loan-row";
 import { SortableRows } from "@/components/ui/sortable-rows";
 import { todayIn } from "@/core/dates";
 import { isManuallyOrdered } from "@/core/ordering";
-import { PAGE_SIZE, pageFrom, skipFor } from "@/core/pagination";
+import { forSearch } from "@/lib/search";
 import { can, requirePermission } from "@/server/auth/context";
 import { db } from "@/server/db";
 import {
@@ -48,11 +48,10 @@ const FILTER_LABELS: Record<FilterKey, string> = {
 export default async function LoansPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; p?: string }>;
+  searchParams: Promise<{ status?: string }>;
 }) {
   const context = await requirePermission("loans.read");
-  const { status, p } = await searchParams;
-  const page = pageFrom(p);
+  const { status } = await searchParams;
   // El día donde está la empresa, uno solo para toda la pantalla: con el
   // vencimiento se decide quién está atrasado, y con el pago quién ya abonó
   // hoy. El servidor puede estar en otro huso, y con su hora, a las siete de
@@ -67,7 +66,7 @@ export default async function LoansPage({
     ...filters[filter],
   };
 
-  const [loans, totals, total] = await Promise.all([
+  const [loans, totals] = await Promise.all([
     db.loan.findMany({
       where,
       include: {
@@ -93,9 +92,9 @@ export default async function LoansPage({
         },
       },
       // Primero lo que la persona puso a mano, después el orden de siempre.
+      // Sin páginas: la ruta del día es una sola lista y se baja con el
+      // pulgar de arriba a abajo, sin acordarse de en cuál página iba.
       orderBy: LOAN_ORDER,
-      skip: skipFor(page),
-      take: PAGE_SIZE,
     }),
     // Sobre todo lo que cumple el filtro, no solo la página: "cobrado" con
     // cincuenta préstamos en pantalla y trescientos detrás no sería cobrado.
@@ -103,9 +102,6 @@ export default async function LoansPage({
       where,
       _sum: { principal: true, totalPaid: true, outstanding: true },
     }),
-    // Para saber si hay otra página. La suma de arriba no lo dice: cuenta
-    // plata, no préstamos.
-    db.loan.count({ where }),
   ]);
 
   const { t, money } = context;
@@ -189,6 +185,13 @@ export default async function LoansPage({
         ))}
       </div>
 
+      <LiveSearch
+        className="mb-2"
+        placeholder={t("loans.searchPlaceholder")}
+        label={t("common.search")}
+        emptyLabel={t("common.searchEmpty")}
+      />
+
       {canOrder && !handOrdered ? (
         // Una sola línea: en el teléfono se partía en dos y gastaba cuarenta
         // puntos de pantalla para decir algo que se lee una vez en la vida.
@@ -230,18 +233,15 @@ export default async function LoansPage({
               locale={context.locale}
               title={`${loan.customer.firstName} ${loan.customer.lastName}`}
               sortableId={loan.id}
+              searchText={forSearch(
+                loan.customer.firstName,
+                loan.customer.lastName,
+                loan.code,
+              )}
             />
           ))}
         </SortableRows>
       )}
-
-      <Pager
-        page={page}
-        total={total}
-        path="/loans"
-        query={{ status: filter === "all" ? undefined : filter }}
-        t={t}
-      />
     </>
   );
 }

@@ -30,6 +30,7 @@ export const es = {
     confirm: "Confirmar",
     search: "Buscar",
     searchPlaceholder: "Buscar…",
+    searchEmpty: "Nada coincide con lo que buscaste",
     filter: "Filtrar",
     filters: "Filtros",
     clear: "Limpiar",
@@ -319,6 +320,7 @@ export const es = {
 
   customers: {
     title: "Clientes",
+    searchPlaceholder: "Buscar por nombre, cédula o teléfono…",
     singular: "Cliente",
     new: "Nuevo cliente",
     edit: "Editar cliente",
@@ -552,6 +554,7 @@ export const es = {
 
   loans: {
     title: "Préstamos",
+    searchPlaceholder: "Buscar por nombre o código…",
     singular: "Préstamo",
     new: "Nuevo préstamo",
     edit: "Editar préstamo",

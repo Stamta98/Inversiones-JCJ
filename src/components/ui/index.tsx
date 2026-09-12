@@ -26,12 +26,18 @@ export function Card({
   children,
   className,
   sortableId,
+  searchText,
   id,
 }: {
   children: ReactNode;
   className?: string;
   /** Para enlazar directo a esta tarjeta desde otra pantalla. */
   id?: string;
+  /**
+   * Con qué se encuentra esta tarjeta buscando en vivo. Ya normalizado, con
+   * `forSearch`: la búsqueda compara tal cual lo que hay aquí.
+   */
+  searchText?: string;
   /**
    * Marca la tarjeta como una fila que se puede arrastrar. Va por props y no
    * como `data-` suelto porque un componente no reenvía lo que no declara, y
@@ -43,6 +49,7 @@ export function Card({
     <section
       id={id}
       data-sortable-id={sortableId}
+      data-search={searchText}
       className={cn(
         "rounded-[--radius-card] border border-border bg-surface",
         className,
@@ -518,6 +525,7 @@ export function Select({
 }
 
 export { FormSection } from "./form-section";
+export { LiveSearch } from "./live-search";
 export { MoneyInput } from "./money-input";
 export { Pager } from "./pager";
 export { ShareDocument } from "./share-document";

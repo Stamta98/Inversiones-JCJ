@@ -67,6 +67,7 @@ export function LoanRow({
   locale,
   title,
   sortableId,
+  searchText,
 }: {
   loan: LoanRowLoan;
   /**
@@ -88,6 +89,8 @@ export function LoanRow({
    */
   title?: string;
   sortableId?: string;
+  /** Con qué se encuentra esta tarjeta buscando en vivo. */
+  searchText?: string;
 }) {
   const snapshot = collectionSnapshot(
     loan.installments.map((installment) => ({
@@ -174,6 +177,7 @@ export function LoanRow({
   return (
     <Card
       sortableId={sortableId}
+      searchText={searchText}
       className={`overflow-hidden border-l-4 ${severity(
         loan.status,
         overdueCount,
